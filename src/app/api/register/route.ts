@@ -20,12 +20,19 @@ export async function POST(request: NextRequest) {
     const pensionSchemeType = formData.get('pensionSchemeType') as string;
     const dateOfFirstAppointment = formData.get('dateOfFirstAppointment') as string;
     const dateOfRetirement = formData.get('dateOfRetirement') as string;
+    const pfNumber = formData.get('pfNumber') as string;
+    const lastPromotionDate = formData.get('lastPromotionDate') as string;
+    const currentLevel = formData.get('currentLevel') as string;
+    const salary = formData.get('salary') as string;
+    const expectedRetirementDate = formData.get('expectedRetirementDate') as string;
+    const maidenName = formData.get('maidenName') as string;
     const password = formData.get('password') as string;
     
     // Validate required fields
     if (!pensionId || !fullName || !nin || !dateOfBirth || !gender || 
         !email || !phone || !residentialAddress || !pensionSchemeType || 
-        !dateOfFirstAppointment || !dateOfRetirement || !password) {
+        !dateOfFirstAppointment || !dateOfRetirement || !pfNumber || 
+        !lastPromotionDate || !currentLevel || !salary || !expectedRetirementDate || !password) {
       return NextResponse.json(
         { message: 'All required fields must be provided' },
         { status: 400 }
@@ -38,14 +45,15 @@ export async function POST(request: NextRequest) {
         OR: [
           { pensionId },
           { nin },
-          { email }
+          { email },
+          { pfNumber }
         ]
       }
     });
 
     if (existingPensioner) {
       return NextResponse.json(
-        { message: 'A pensioner with this Pension ID, NIN, or Email already exists' },
+        { message: 'A pensioner with this Pension ID, NIN, Email, or PF Number already exists' },
         { status: 409 }
       );
     }
@@ -67,6 +75,12 @@ export async function POST(request: NextRequest) {
         pensionSchemeType,
         dateOfFirstAppointment: new Date(dateOfFirstAppointment),
         dateOfRetirement: new Date(dateOfRetirement),
+        pfNumber,
+        lastPromotionDate: new Date(lastPromotionDate),
+        currentLevel,
+        salary: parseFloat(salary.replace(/[₦,]/g, '')) || 0,
+        expectedRetirementDate: new Date(expectedRetirementDate),
+        maidenName: maidenName || null,
         password: hashedPassword,
         status: 'PENDING_VERIFICATION',
         createdAt: new Date(),

@@ -21,6 +21,12 @@ interface FormData {
   pensionSchemeType: string;
   dateOfFirstAppointment: string;
   dateOfRetirement: string;
+  pfNumber: string;
+  lastPromotionDate: string;
+  currentLevel: string;
+  salary: string;
+  expectedRetirementDate: string;
+  maidenName: string;
   
   // Step 4: Account Security
   password: string;
@@ -47,6 +53,12 @@ export default function RegisterPage() {
     pensionSchemeType: '',
     dateOfFirstAppointment: '',
     dateOfRetirement: '',
+    pfNumber: '',
+    lastPromotionDate: '',
+    currentLevel: '',
+    salary: '',
+    expectedRetirementDate: '',
+    maidenName: '',
     password: '',
     confirmPassword: '',
     passportPhoto: null,
@@ -90,6 +102,12 @@ export default function RegisterPage() {
         if (!formData.pensionSchemeType) newErrors.pensionSchemeType = 'Pension Scheme Type is required';
         if (!formData.dateOfFirstAppointment) newErrors.dateOfFirstAppointment = 'Date of First Appointment is required';
         if (!formData.dateOfRetirement) newErrors.dateOfRetirement = 'Date of Retirement is required';
+        if (!formData.pfNumber.trim()) newErrors.pfNumber = 'PF Number is required';
+        if (!formData.lastPromotionDate) newErrors.lastPromotionDate = 'Date of Last Promotion is required';
+        if (!formData.currentLevel.trim()) newErrors.currentLevel = 'Current Level is required';
+        if (!formData.salary.trim()) newErrors.salary = 'Salary is required';
+        else if (isNaN(Number(formData.salary.replace(/[₦,]/g, '')))) newErrors.salary = 'Salary must be a valid number';
+        if (!formData.expectedRetirementDate) newErrors.expectedRetirementDate = 'Expected Date of Retirement is required';
         break;
       
       case 4:
@@ -332,6 +350,20 @@ export default function RegisterPage() {
       </div>
 
       <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">PF Number *</label>
+        <input
+          type="text"
+          value={formData.pfNumber}
+          onChange={(e) => updateFormData('pfNumber', e.target.value)}
+          className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+            errors.pfNumber ? 'border-red-500' : 'border-gray-300'
+          }`}
+          placeholder="Enter your PF Number"
+        />
+        {errors.pfNumber && <p className="text-red-500 text-sm mt-1">{errors.pfNumber}</p>}
+      </div>
+
+      <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">Date of First Appointment *</label>
         <input
           type="date"
@@ -342,6 +374,67 @@ export default function RegisterPage() {
           }`}
         />
         {errors.dateOfFirstAppointment && <p className="text-red-500 text-sm mt-1">{errors.dateOfFirstAppointment}</p>}
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">Date of Last Promotion *</label>
+        <input
+          type="date"
+          value={formData.lastPromotionDate}
+          onChange={(e) => updateFormData('lastPromotionDate', e.target.value)}
+          className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+            errors.lastPromotionDate ? 'border-red-500' : 'border-gray-300'
+          }`}
+        />
+        {errors.lastPromotionDate && <p className="text-red-500 text-sm mt-1">{errors.lastPromotionDate}</p>}
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">Current Level *</label>
+        <input
+          type="text"
+          value={formData.currentLevel}
+          onChange={(e) => updateFormData('currentLevel', e.target.value)}
+          className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+            errors.currentLevel ? 'border-red-500' : 'border-gray-300'
+          }`}
+          placeholder="Enter your current level (e.g., Level 12, Grade Level 10)"
+        />
+        {errors.currentLevel && <p className="text-red-500 text-sm mt-1">{errors.currentLevel}</p>}
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">Salary *</label>
+        <div className="relative">
+          <span className="absolute left-3 top-2 text-gray-500">₦</span>
+          <input
+            type="text"
+            value={formData.salary}
+            onChange={(e) => {
+              // Remove non-numeric characters except ₦ and comma
+              const value = e.target.value.replace(/[^₦0-9,]/g, '');
+              updateFormData('salary', value);
+            }}
+            className={`w-full pl-8 pr-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              errors.salary ? 'border-red-500' : 'border-gray-300'
+            }`}
+            placeholder="Enter your salary"
+          />
+        </div>
+        {errors.salary && <p className="text-red-500 text-sm mt-1">{errors.salary}</p>}
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">Expected Date of Retirement *</label>
+        <input
+          type="date"
+          value={formData.expectedRetirementDate}
+          onChange={(e) => updateFormData('expectedRetirementDate', e.target.value)}
+          className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+            errors.expectedRetirementDate ? 'border-red-500' : 'border-gray-300'
+          }`}
+        />
+        {errors.expectedRetirementDate && <p className="text-red-500 text-sm mt-1">{errors.expectedRetirementDate}</p>}
       </div>
 
       <div>
@@ -356,6 +449,20 @@ export default function RegisterPage() {
         />
         {errors.dateOfRetirement && <p className="text-red-500 text-sm mt-1">{errors.dateOfRetirement}</p>}
       </div>
+
+      {formData.gender === 'female' && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Maiden Name</label>
+          <input
+            type="text"
+            value={formData.maidenName}
+            onChange={(e) => updateFormData('maidenName', e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="Enter your maiden name (optional)"
+          />
+          <p className="text-xs text-gray-500 mt-1">Optional field for female pensioners</p>
+        </div>
+      )}
     </div>
   );
 
@@ -470,8 +577,16 @@ export default function RegisterPage() {
           <h4 className="font-semibold text-gray-800 mb-3">Pension Information</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
             <div><span className="font-medium">Scheme Type:</span> {formData.pensionSchemeType}</div>
+            <div><span className="font-medium">PF Number:</span> {formData.pfNumber}</div>
             <div><span className="font-medium">First Appointment:</span> {formData.dateOfFirstAppointment}</div>
+            <div><span className="font-medium">Last Promotion:</span> {formData.lastPromotionDate}</div>
+            <div><span className="font-medium">Current Level:</span> {formData.currentLevel}</div>
+            <div><span className="font-medium">Salary:</span> ₦{formData.salary}</div>
+            <div><span className="font-medium">Expected Retirement:</span> {formData.expectedRetirementDate}</div>
             <div><span className="font-medium">Retirement Date:</span> {formData.dateOfRetirement}</div>
+            {formData.gender === 'female' && formData.maidenName && (
+              <div><span className="font-medium">Maiden Name:</span> {formData.maidenName}</div>
+            )}
           </div>
         </div>
 

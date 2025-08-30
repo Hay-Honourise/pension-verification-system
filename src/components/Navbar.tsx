@@ -58,7 +58,7 @@ export default function Navbar() {
                       ref={buttonRef}
                       onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                       onMouseEnter={() => setIsDropdownOpen(true)}
-                      onMouseLeave={() => setIsDropdownOpen(false)}
+                      // onMouseLeave={() => setIsDropdownOpen(false)}
                       className="px-3 py-2 rounded-md text-sm font-medium hover:text-oyoOrange hover:bg-white/10 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-oyoOrange focus:ring-offset-2 focus:ring-offset-oyoGreen"
                       aria-expanded={isDropdownOpen}
                       aria-haspopup="true"

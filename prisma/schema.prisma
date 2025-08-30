@@ -32,10 +32,16 @@ model Pensioner {
   gender                String
   email                 String   @unique
   phone                 String
-  residentialAddress    String   @db.Text
+  residentialAddress    String
   pensionSchemeType     String
   dateOfFirstAppointment DateTime
   dateOfRetirement      DateTime
+  pfNumber              String   @unique
+  lastPromotionDate     DateTime
+  currentLevel          String
+  salary                Float
+  expectedRetirementDate DateTime
+  maidenName            String?
   password              String
   status                String   @default("PENDING_VERIFICATION") // PENDING_VERIFICATION, VERIFIED, REJECTED
   documents             Document[]
