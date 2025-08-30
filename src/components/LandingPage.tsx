@@ -7,11 +7,11 @@ import oyo from "@/assets/oyo.jpg";
 import Image from "next/image";
 import {
   FaFacebook,
-  FaTwitter,
   FaLinkedin,
   FaYoutube,
   FaInstagram,
 } from "react-icons/fa";
+import { FaXTwitter } from "react-icons/fa6";
 
 const LandingPage = () => {
   const slides = [
@@ -103,6 +103,11 @@ const LandingPage = () => {
                   </a>
                 </li>
                 <li>
+                  <a href="/history" className="hover:text-oyoOrange block py-1">
+                    History
+                  </a>
+                </li>
+                <li>
                   <a href="#" className="hover:text-oyoOrange block py-1">
                     FAQs
                   </a>
@@ -155,10 +160,10 @@ const LandingPage = () => {
                   href="https://twitter.com"
                   target="_blank"
                   rel="noopener noreferrer"
-                  aria-label="Twitter"
+                  aria-label="X (Twitter)"
                   className="rounded-full bg-white text-green-500 hover:bg-orange-500 hover:text-white transition-colors focus:outline-none w-10 h-10 flex items-center justify-center shadow"
                 >
-                  <FaTwitter className="w-5 h-5 xs:w-6 xs:h-6" />
+                  <FaXTwitter className="w-5 h-5 xs:w-6 xs:h-6" />
                 </a>
                 <a
                   href="https://linkedin.com"
