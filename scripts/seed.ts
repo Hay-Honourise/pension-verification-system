@@ -1,0 +1,79 @@
+import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcryptjs';
+
+const prisma = new PrismaClient();
+
+async function main() {
+  console.log('🌱 Starting database seeding...');
+
+  // Create admin user
+  const hashedPassword = await bcrypt.hash('admin123', 12);
+  
+  const admin = await prisma.admin.upsert({
+    where: { email: 'admin@oyopension.com' },
+    update: {},
+    create: {
+      email: 'admin@oyopension.com',
+      password: hashedPassword,
+      name: 'System Administrator',
+      role: 'admin'
+    }
+  });
+
+  console.log('✅ Admin user created:', admin.email);
+
+  // Create sample pensioners
+  const pensioners = await Promise.all([
+    prisma.pensioner.upsert({
+      where: { pensionId: 'PEN001' },
+      update: {},
+      create: {
+        pensionId: 'PEN001',
+        fullName: 'John Doe',
+        nin: '12345678901',
+        dateOfBirth: new Date('1950-05-15'),
+        gender: 'male',
+        email: 'john.doe@example.com',
+        phone: '+2348012345678',
+        residentialAddress: '123 Main Street, Ibadan, Oyo State',
+        pensionSchemeType: 'total',
+        dateOfFirstAppointment: new Date('1980-01-15'),
+        dateOfRetirement: new Date('2015-03-20'),
+        password: await bcrypt.hash('password123', 12),
+        status: 'PENDING_VERIFICATION'
+      }
+    }),
+    prisma.pensioner.upsert({
+      where: { pensionId: 'PEN002' },
+      update: {},
+      create: {
+        pensionId: 'PEN002',
+        fullName: 'Jane Smith',
+        nin: '12345678902',
+        dateOfBirth: new Date('1948-12-10'),
+        gender: 'female',
+        email: 'jane.smith@example.com',
+        phone: '+2348098765432',
+        residentialAddress: '456 Oak Avenue, Ibadan, Oyo State',
+        pensionSchemeType: 'contributory',
+        dateOfFirstAppointment: new Date('1978-06-20'),
+        dateOfRetirement: new Date('2013-07-15'),
+        password: await bcrypt.hash('password123', 12),
+        status: 'VERIFIED'
+      }
+    })
+  ]);
+
+  console.log('✅ Sample pensioners created:', pensioners.length);
+
+  console.log('🎉 Database seeding completed!');
+}
+
+main()
+  .catch((e) => {
+    console.error('❌ Error during seeding:', e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });

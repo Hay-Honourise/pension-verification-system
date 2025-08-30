@@ -1,0 +1,56 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Admin {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      String   @default("admin")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Pensioner {
+  id                    String   @id @default(cuid())
+  pensionId             String   @unique
+  fullName              String
+  nin                   String   @unique
+  dateOfBirth           DateTime
+  gender                String
+  email                 String   @unique
+  phone                 String
+  residentialAddress    String   @db.Text
+  pensionSchemeType     String
+  dateOfFirstAppointment DateTime
+  dateOfRetirement      DateTime
+  password              String
+  status                String   @default("PENDING_VERIFICATION") // PENDING_VERIFICATION, VERIFIED, REJECTED
+  documents             Document[]
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+model Document {
+  id          String    @id @default(cuid())
+  pensionerId String
+  pensioner   Pensioner @relation(fields: [pensionerId], references: [id])
+  documentType String   // passport_photo, retirement_letter, id_card
+  fileName    String
+  filePath    String
+  uploadedAt  DateTime  @default(now())
+  verifiedAt  DateTime?
+  status      String    @default("pending") // pending, verified, rejected
+}
