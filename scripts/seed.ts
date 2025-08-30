@@ -39,7 +39,7 @@ async function main() {
         pensionSchemeType: 'total',
         dateOfFirstAppointment: new Date('1980-01-15'),
         dateOfRetirement: new Date('2015-03-20'),
-        pfNumber: 'PF001',
+        pfNumber: 'PF001', // PF Number for pensioner
         lastPromotionDate: new Date('2010-06-15'),
         currentLevel: 'Level 12',
         salary: 150000.00,
@@ -64,7 +64,7 @@ async function main() {
         pensionSchemeType: 'contributory',
         dateOfFirstAppointment: new Date('1978-06-20'),
         dateOfRetirement: new Date('2013-07-15'),
-        pfNumber: 'PF002',
+        pfNumber: 'PF002', // PF Number for pensioner
         lastPromotionDate: new Date('2008-03-10'),
         currentLevel: 'Level 14',
         salary: 180000.00,

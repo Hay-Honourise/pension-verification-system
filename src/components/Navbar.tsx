@@ -14,7 +14,7 @@ export default function Navbar() {
     { name: 'Get Started', href: '#', hasDropdown: true },
     { name: 'Admin Login', href: '/admin-login' },
     { name: 'History', href: '/history' },
-    { name: 'FAQs', href: '/questions' },
+    { name: 'FAQs', href: '/faqs' },
     { name: 'About', href: '/about' },
   ];
 
