@@ -1,5 +1,6 @@
 "use client";
 import React, { useEffect, useState } from "react";
+import { motion } from "framer-motion";
 import oyoSecretariat from "@/assets/Oyo_State_Secretariat.jpg";
 import pension1 from "@/assets/pension1.jpg";
 import pension2 from "@/assets/pension2.jpg";
@@ -38,13 +39,34 @@ const LandingPage = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row items-center justify-between py-4 xs:py-4 sm:py-6 md:py-6">
             <div className="md:w-1/2 mb-6 xs:mb-8 md:mb-0 text-center md:text-left">
-              <h1 className="text-lg xs:text-xl sm:text-2xl md:text-4xl font-extrabold text-white mb-2 xs:mb-3 drop-shadow-lg leading-tight">
+              <motion.h1 
+                className="text-lg xs:text-xl sm:text-2xl md:text-4xl font-extrabold text-white mb-2 xs:mb-3 drop-shadow-lg leading-tight"
+                animate={{
+                  y: [0, -8, 0],
+                }}
+                transition={{
+                  duration: 3,
+                  repeat: Infinity,
+                  ease: "easeInOut"
+                }}
+              >
                 Welcome to the Oyo State Virtual Pension Verification System
-              </h1>
-              <p className="text-xs xs:text-sm sm:text-base md:text-lg text-white/90 mb-3 xs:mb-4">
+              </motion.h1>
+              <motion.p 
+                className="text-xs xs:text-sm sm:text-base md:text-lg text-white/90 mb-3 xs:mb-4"
+                animate={{
+                  x: [0, 10, 0],
+                  opacity: [0.9, 1, 0.9],
+                }}
+                transition={{
+                  duration: 4,
+                  repeat: Infinity,
+                  ease: "easeInOut"
+                }}
+              >
                 Secure, Convenient, and Reliable Pensioner Verification for
                 Retired Public Servants in Oyo State.
-              </p>
+              </motion.p>
             </div>
             <div className="md:w-1/2 flex justify-center">
               <div className="relative rounded-lg shadow-lg w-full max-w-[180px] xs:max-w-[220px] sm:max-w-sm md:max-w-sm aspect-[4/3] overflow-hidden">
