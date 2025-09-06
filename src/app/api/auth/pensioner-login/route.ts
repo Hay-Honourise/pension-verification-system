@@ -47,7 +47,18 @@ export async function POST(request: NextRequest) {
         fullName: pensioner.fullName,
         email: pensioner.email,
         status: pensioner.status,
-        role: 'pensioner'
+        role: 'pensioner',
+        // Include calculated benefits
+        yearsOfService: pensioner.yearsOfService,
+        totalGratuity: pensioner.totalGratuity,
+        monthlyPension: pensioner.monthlyPension,
+        gratuityRate: pensioner.gratuityRate,
+        pensionRate: pensioner.pensionRate,
+        salary: pensioner.salary,
+        pensionSchemeType: pensioner.pensionSchemeType,
+        currentLevel: pensioner.currentLevel,
+        dateOfFirstAppointment: pensioner.dateOfFirstAppointment,
+        expectedRetirementDate: pensioner.expectedRetirementDate
       }
     });
 

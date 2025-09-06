@@ -10,12 +10,35 @@ interface User {
   fullName: string;
   status: string;
   email: string;
+  // Calculated benefits
+  yearsOfService?: number;
+  totalGratuity?: number;
+  monthlyPension?: number;
+  gratuityRate?: number;
+  pensionRate?: number;
+  salary?: number;
+  pensionSchemeType?: string;
+  currentLevel?: string;
+  dateOfFirstAppointment?: string;
+  expectedRetirementDate?: string;
 }
 
 export default function PensionerDashboard() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-NG', {
+      style: 'currency',
+      currency: 'NGN',
+      minimumFractionDigits: 2,
+    }).format(amount);
+  };
+
+  const formatPercentage = (rate: number) => {
+    return `${(rate * 100).toFixed(1)}%`;
+  };
 
   useEffect(() => {
     // Check if user is authenticated
@@ -87,7 +110,7 @@ export default function PensionerDashboard() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Status Card */}
           <div className="bg-white rounded-lg shadow p-6">
             <h3 className="text-lg font-medium text-gray-900 mb-4">Verification Status</h3>
@@ -127,6 +150,18 @@ export default function PensionerDashboard() {
                 <span className="font-medium text-gray-700">Email:</span>
                 <span className="ml-2 text-gray-900">{user.email}</span>
               </div>
+              {user.currentLevel && (
+                <div>
+                  <span className="font-medium text-gray-700">Current Level:</span>
+                  <span className="ml-2 text-gray-900">{user.currentLevel}</span>
+                </div>
+              )}
+              {user.salary && (
+                <div>
+                  <span className="font-medium text-gray-700">Last Salary:</span>
+                  <span className="ml-2 text-gray-900">{formatCurrency(user.salary)}</span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -146,6 +181,85 @@ export default function PensionerDashboard() {
             </div>
           </div>
         </div>
+
+        {/* Benefits Section */}
+        {user.yearsOfService && user.totalGratuity && user.monthlyPension && (
+          <div className="mt-8">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">Pension Benefits</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {/* Years of Service */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+                <h3 className="font-semibold text-blue-800 mb-2">Years of Service</h3>
+                <div className="text-3xl font-bold text-blue-900">{user.yearsOfService}</div>
+                <p className="text-sm text-blue-700 mt-1">years</p>
+                {user.dateOfFirstAppointment && user.expectedRetirementDate && (
+                  <p className="text-xs text-blue-600 mt-2">
+                    From {new Date(user.dateOfFirstAppointment).getFullYear()} to {new Date(user.expectedRetirementDate).getFullYear()}
+                  </p>
+                )}
+              </div>
+
+              {/* Total Gratuity */}
+              <div className="bg-green-50 border border-green-200 rounded-lg p-6">
+                <h3 className="font-semibold text-green-800 mb-2">Total Gratuity</h3>
+                <div className="text-3xl font-bold text-green-900">
+                  {formatCurrency(user.totalGratuity)}
+                </div>
+                <p className="text-sm text-green-700 mt-1">one-time payment</p>
+                {user.gratuityRate && (
+                  <p className="text-xs text-green-600 mt-2">
+                    Rate: {formatPercentage(user.gratuityRate)}
+                  </p>
+                )}
+              </div>
+
+              {/* Monthly Pension */}
+              <div className="bg-purple-50 border border-purple-200 rounded-lg p-6">
+                <h3 className="font-semibold text-purple-800 mb-2">Monthly Pension</h3>
+                <div className="text-3xl font-bold text-purple-900">
+                  {formatCurrency(user.monthlyPension)}
+                </div>
+                <p className="text-sm text-purple-700 mt-1">per month</p>
+                {user.pensionRate && (
+                  <p className="text-xs text-purple-600 mt-2">
+                    Rate: {formatPercentage(user.pensionRate)}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Scheme Information */}
+            {user.pensionSchemeType && (
+              <div className="mt-6 bg-gray-50 border border-gray-200 rounded-lg p-6">
+                <h3 className="font-semibold text-gray-800 mb-3">Pension Scheme Details</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="font-medium text-gray-700">Scheme Type:</span>
+                    <span className="ml-2 text-gray-900 capitalize">{user.pensionSchemeType}</span>
+                  </div>
+                  {user.gratuityRate && (
+                    <div>
+                      <span className="font-medium text-gray-700">Gratuity Rate:</span>
+                      <span className="ml-2 text-gray-900">{formatPercentage(user.gratuityRate)}</span>
+                    </div>
+                  )}
+                  {user.pensionRate && (
+                    <div>
+                      <span className="font-medium text-gray-700">Pension Rate:</span>
+                      <span className="ml-2 text-gray-900">{formatPercentage(user.pensionRate)}</span>
+                    </div>
+                  )}
+                  {user.salary && (
+                    <div>
+                      <span className="font-medium text-gray-700">Last Salary:</span>
+                      <span className="ml-2 text-gray-900">{formatCurrency(user.salary)}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Recent Activity */}
         <div className="mt-8 bg-white rounded-lg shadow">

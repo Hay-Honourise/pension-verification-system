@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { hash } from 'bcryptjs';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/db';
 
 export async function POST(request: NextRequest) {
   try {
@@ -27,6 +25,13 @@ export async function POST(request: NextRequest) {
     const expectedRetirementDate = formData.get('expectedRetirementDate') as string;
     const maidenName = formData.get('maidenName') as string;
     const password = formData.get('password') as string;
+    
+    // Extract calculated benefits
+    const yearsOfService = formData.get('yearsOfService') as string;
+    const totalGratuity = formData.get('totalGratuity') as string;
+    const monthlyPension = formData.get('monthlyPension') as string;
+    const gratuityRate = formData.get('gratuityRate') as string;
+    const pensionRate = formData.get('pensionRate') as string;
     
     // Validate required fields
     if (!pensionId || !fullName || !nin || !dateOfBirth || !gender || 
@@ -83,6 +88,14 @@ export async function POST(request: NextRequest) {
         maidenName: maidenName || null,
         password: hashedPassword,
         status: 'PENDING_VERIFICATION',
+        
+        // Calculated benefits
+        yearsOfService: yearsOfService ? parseInt(yearsOfService) : null,
+        totalGratuity: totalGratuity ? parseFloat(totalGratuity) : null,
+        monthlyPension: monthlyPension ? parseFloat(monthlyPension) : null,
+        gratuityRate: gratuityRate ? parseFloat(gratuityRate) : null,
+        pensionRate: pensionRate ? parseFloat(pensionRate) : null,
+        
         createdAt: new Date(),
         updatedAt: new Date(),
       },
@@ -111,11 +124,17 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Registration error:', error);
+    console.error('Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      name: error instanceof Error ? error.name : undefined
+    });
     return NextResponse.json(
-      { message: 'Internal server error during registration' },
+      { 
+        message: 'Internal server error during registration',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }

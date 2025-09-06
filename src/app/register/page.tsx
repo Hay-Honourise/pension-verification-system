@@ -118,9 +118,8 @@ export default function RegisterPage() {
         break;
       
       case 5:
-        if (!formData.passportPhoto) newErrors.passportPhoto = 'Passport Photo is required';
-        if (!formData.retirementLetter) newErrors.retirementLetter = 'Retirement Letter is required';
-        if (!formData.idCard) newErrors.idCard = 'ID Card is required';
+        // Files are optional since we're handling them separately
+        // The user can proceed to verification page even without files
         break;
     }
 
@@ -143,35 +142,45 @@ export default function RegisterPage() {
   };
 
   const handleSubmit = async () => {
-    if (!validateStep(5)) return;
+    console.log('handleSubmit called');
+    
+    if (!validateStep(5)) {
+      console.log('Validation failed for step 5');
+      return;
+    }
 
     setIsSubmitting(true);
+    console.log('Validation passed, proceeding to store data');
+
+    // Store form data in session storage (excluding files) and redirect to verification page
     try {
-      const formDataToSend = new FormData();
+      // Create a copy of formData without files for session storage
+      const dataForStorage = { ...formData };
+      // Remove file objects as they can't be serialized
+      dataForStorage.passportPhoto = null;
+      dataForStorage.retirementLetter = null;
+      dataForStorage.idCard = null;
       
-      // Append all form fields
-      Object.entries(formData).forEach(([key, value]) => {
-        if (value !== null) {
-          formDataToSend.append(key, value);
-        }
-      });
-
-      const response = await fetch('/api/register', {
-        method: 'POST',
-        body: formDataToSend,
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        alert('Registration successful! Please check your email for verification.');
-        router.push('/pensioner/login');
-      } else {
-        const error = await response.json();
-        alert(`Registration failed: ${error.message}`);
+      console.log('Storing data to session storage:', dataForStorage);
+      sessionStorage.setItem('registrationData', JSON.stringify(dataForStorage));
+      
+      // Store files separately in a temporary way (we'll handle this in verification)
+      if (formData.passportPhoto) {
+        sessionStorage.setItem('passportPhotoName', formData.passportPhoto.name);
       }
+      if (formData.retirementLetter) {
+        sessionStorage.setItem('retirementLetterName', formData.retirementLetter.name);
+      }
+      if (formData.idCard) {
+        sessionStorage.setItem('idCardName', formData.idCard.name);
+      }
+      
+      console.log('Redirecting to verification page');
+      router.push('/register/verification');
+      // Don't set isSubmitting to false here as we're navigating away
     } catch (error) {
-      alert('An error occurred during registration. Please try again.');
-    } finally {
+      console.error('Error in handleSubmit:', error);
+      alert('An error occurred while preparing verification. Please try again.');
       setIsSubmitting(false);
     }
   };
@@ -199,7 +208,7 @@ export default function RegisterPage() {
         ))}
       </div>
       <div className="text-center mt-2 text-sm text-gray-600">
-        Step {currentStep} of 5
+        Step {currentStep} of 5 (Verification follows)
       </div>
     </div>
   );
@@ -548,66 +557,6 @@ export default function RegisterPage() {
     </div>
   );
 
-  const renderConfirmation = () => (
-    <div className="space-y-4">
-      <h3 className="text-xl font-semibold text-gray-800 mb-6">Review Your Information</h3>
-      
-      <div className="bg-gray-50 p-6 rounded-lg space-y-4">
-        <div>
-          <h4 className="font-semibold text-gray-800 mb-3">Basic Identity</h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-            <div><span className="font-medium">Pension ID:</span> {formData.pensionId}</div>
-            <div><span className="font-medium">Full Name:</span> {formData.fullName}</div>
-            <div><span className="font-medium">NIN:</span> {formData.nin}</div>
-            <div><span className="font-medium">Date of Birth:</span> {formData.dateOfBirth}</div>
-            <div><span className="font-medium">Gender:</span> {formData.gender}</div>
-          </div>
-        </div>
-
-        <div>
-          <h4 className="font-semibold text-gray-800 mb-3">Contact Information</h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-            <div><span className="font-medium">Email:</span> {formData.email}</div>
-            <div><span className="font-medium">Phone:</span> {formData.phone}</div>
-            <div className="md:col-span-2"><span className="font-medium">Address:</span> {formData.residentialAddress}</div>
-          </div>
-        </div>
-
-        <div>
-          <h4 className="font-semibold text-gray-800 mb-3">Pension Information</h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-            <div><span className="font-medium">Scheme Type:</span> {formData.pensionSchemeType}</div>
-            <div><span className="font-medium">PF Number:</span> {formData.pfNumber}</div>
-            <div><span className="font-medium">First Appointment:</span> {formData.dateOfFirstAppointment}</div>
-            <div><span className="font-medium">Last Promotion:</span> {formData.lastPromotionDate}</div>
-            <div><span className="font-medium">Current Level:</span> {formData.currentLevel}</div>
-            <div><span className="font-medium">Salary:</span> ₦{formData.salary}</div>
-            <div><span className="font-medium">Expected Retirement:</span> {formData.expectedRetirementDate}</div>
-            <div><span className="font-medium">Retirement Date:</span> {formData.dateOfRetirement}</div>
-            {formData.gender === 'female' && formData.maidenName && (
-              <div><span className="font-medium">Maiden Name:</span> {formData.maidenName}</div>
-            )}
-          </div>
-        </div>
-
-        <div>
-          <h4 className="font-semibold text-gray-800 mb-3">Documents</h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-            <div><span className="font-medium">Passport Photo:</span> {formData.passportPhoto?.name || 'Not uploaded'}</div>
-            <div><span className="font-medium">Retirement Letter:</span> {formData.retirementLetter?.name || 'Not uploaded'}</div>
-            <div><span className="font-medium">ID Card:</span> {formData.idCard?.name || 'Not uploaded'}</div>
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <p className="text-blue-800 text-sm">
-          <strong>Important:</strong> Please review all information carefully before submitting. 
-          You will receive a confirmation email once your registration is processed.
-        </p>
-      </div>
-    </div>
-  );
 
   const renderCurrentStep = () => {
     switch (currentStep) {
@@ -616,7 +565,6 @@ export default function RegisterPage() {
       case 3: return renderStep3();
       case 4: return renderStep4();
       case 5: return renderStep5();
-      case 6: return renderConfirmation();
       default: return renderStep1();
     }
   };
@@ -653,20 +601,20 @@ export default function RegisterPage() {
             )}
             
             <div className="ml-auto flex space-x-3">
-              {currentStep < 6 ? (
+              {currentStep < 5 ? (
                 <button
                   onClick={nextStep}
                   className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  {currentStep === 5 ? 'Review & Submit' : 'Next'}
+                  Next
                 </button>
               ) : (
                 <button
                   onClick={handleSubmit}
                   disabled={isSubmitting}
-                  className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isSubmitting ? 'Submitting...' : 'Confirm & Submit'}
+                  {isSubmitting ? 'Processing...' : 'Review & Verify'}
                 </button>
               )}
               <Link
