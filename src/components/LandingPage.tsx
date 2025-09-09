@@ -69,7 +69,7 @@ const LandingPage = () => {
               </motion.p>
             </div>
             <div className="md:w-1/2 flex justify-center">
-              <div className="relative rounded-lg shadow-lg w-full max-w-[180px] xs:max-w-[220px] sm:max-w-sm md:max-w-sm aspect-[4/3] overflow-hidden">
+              <div className="relative rounded-lg shadow-lg w-full max-w-[180px] xs:max-w-[220px] sm:max-w-sm md:max-w-sm aspect-[4/3] h-[300px] overflow-hidden">
                 {slides.map((slide, index) => (
                   <Image
                     key={index}
