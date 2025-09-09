@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
     const ok = await verifyPassword(password, user.password);
     if (!ok) return NextResponse.json({ success: false, error: 'Invalid credentials' }, { status: 401 });
 
-    const redirectTo = user.role === 'ADMIN' ? '/admin/dashboard' : '/officer/dashboard';
+    const redirectTo = user.role === 'ADMIN' ? '/admin-dashboard' : '/officer/dashboard';
     return NextResponse.json({ success: true, message: 'Login successful', user: { id: user.id, role: user.role, email: user.email, fullName: user.fullName }, redirectTo });
   } catch (err) {
     console.error('Staff login error', err);

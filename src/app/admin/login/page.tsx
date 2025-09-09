@@ -22,7 +22,7 @@ export default function AdminLoginPage() {
       });
       const data = await res.json();
       if (!res.ok) return setError(data.error || 'Invalid credentials');
-      router.push('/admin/dashboard');
+      router.push('/admin-dashboard');
     } catch (err) {
       setError('Something went wrong');
     } finally {
