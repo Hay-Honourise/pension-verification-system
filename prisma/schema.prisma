@@ -77,3 +77,14 @@ model Document {
   status       String    @default("pending")
   pensioner    Pensioner @relation(fields: [pensionerId], references: [id])
 }
+
+model Enquiry {
+  id         Int      @id @default(autoincrement())
+  fullName   String
+  email      String
+  phone      String?
+  subject    String
+  message    String
+  trackingId String   @unique
+  createdAt  DateTime @default(now())
+}
