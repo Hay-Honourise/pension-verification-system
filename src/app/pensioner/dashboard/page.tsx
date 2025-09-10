@@ -27,6 +27,27 @@ export default function PensionerDashboard() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'profile' | 'documents'>('profile');
+
+  // Profile state
+  const [profile, setProfile] = useState<{ fullName: string; email: string; phone: string; address: string; pensionNumber: string; bankDetails: string }>({
+    fullName: '',
+    email: '',
+    phone: '',
+    address: '',
+    pensionNumber: '',
+    bankDetails: '',
+  });
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileMsg, setProfileMsg] = useState<string>('');
+  const [profileMsgType, setProfileMsgType] = useState<'success' | 'error'>('success');
+
+  // Documents state
+  const [documents, setDocuments] = useState<{ idCard?: string; birthCert?: string; appointment?: string; retirement?: string }>({});
+  const [selectedFiles, setSelectedFiles] = useState<Partial<Record<'idCard' | 'birthCert' | 'appointment' | 'retirement', File>>>({});
+  const [docsLoading, setDocsLoading] = useState(false);
+  const [docsMsg, setDocsMsg] = useState<string>('');
+  const [docsMsgType, setDocsMsgType] = useState<'success' | 'error'>('success');
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-NG', {
@@ -53,6 +74,46 @@ export default function PensionerDashboard() {
     try {
       const parsedUser = JSON.parse(userData);
       setUser(parsedUser);
+      // Initialize profile from stored user where possible
+      setProfile({
+        fullName: parsedUser.fullName || '',
+        email: parsedUser.email || '',
+        phone: parsedUser.phone || '',
+        address: parsedUser.residentialAddress || '',
+        pensionNumber: parsedUser.pensionId || '',
+        bankDetails: parsedUser.bankDetails || '',
+      });
+      // Fetch latest profile and documents from server
+      (async () => {
+        try {
+          const res = await fetch('/api/pensioner/me', {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            },
+          });
+          if (res.ok) {
+            const data = await res.json();
+            const p = data?.pensioner;
+            if (p) {
+              setProfile({
+                fullName: p.fullName || '',
+                email: p.email || parsedUser.email || '',
+                phone: p.phone || '',
+                address: p.residentialAddress || '',
+                pensionNumber: p.pensionId || parsedUser.pensionId || '',
+                bankDetails: p.bankDetails || '',
+              });
+              if (data?.documents) setDocuments(data.documents);
+              const merged = { ...parsedUser, ...p };
+              setUser(merged);
+              localStorage.setItem('user', JSON.stringify(merged));
+            }
+          }
+        } catch (e) {
+          // ignore fetch error, fallback to local data
+        }
+      })();
     } catch (error) {
       console.error('Error parsing user data:', error);
       router.push('/pensioner/login');
@@ -60,6 +121,99 @@ export default function PensionerDashboard() {
       setLoading(false);
     }
   }, [router]);
+
+  const getFileName = (path: string) => {
+    try {
+      const url = new URL(path, typeof window !== 'undefined' ? window.location.origin : 'http://localhost');
+      return url.pathname.split('/').pop() || path;
+    } catch {
+      return path.split('/').pop() || path;
+    }
+  };
+
+  const handleProfileSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+    if (!profile.fullName || !profile.email || !profile.phone || !profile.address) {
+      setProfileMsgType('error');
+      setProfileMsg('Please fill all required fields.');
+      return;
+    }
+    try {
+      setProfileLoading(true);
+      setProfileMsg('');
+      const res = await fetch('/api/pensioner/update-profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token') || ''}` },
+        body: JSON.stringify({
+          id: user.id,
+          fullName: profile.fullName,
+          phone: profile.phone,
+          address: profile.address,
+          bankDetails: profile.bankDetails,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.message || 'Failed to update profile');
+      setProfileMsgType('success');
+      setProfileMsg('Profile updated successfully');
+      // Optionally update local user cache
+      const updatedUser = { ...user, fullName: profile.fullName, phone: profile.phone, residentialAddress: profile.address, bankDetails: profile.bankDetails } as any;
+      setUser(updatedUser);
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+    } catch (err: any) {
+      setProfileMsgType('error');
+      setProfileMsg(err?.message || 'Failed to update profile');
+    } finally {
+      setProfileLoading(false);
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, key: 'idCard' | 'birthCert' | 'appointment' | 'retirement') => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const allowed = ['application/pdf', 'image/png', 'image/jpeg'];
+    if (!allowed.includes(file.type)) {
+      setDocsMsgType('error');
+      setDocsMsg('Only PDF, PNG, or JPG files are allowed');
+      return;
+    }
+    setSelectedFiles(prev => ({ ...prev, [key]: file }));
+  };
+
+  const handleDocumentsSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+    try {
+      setDocsLoading(true);
+      setDocsMsg('');
+      const form = new FormData();
+      form.append('id', String(user.id));
+      if (selectedFiles.idCard) form.append('idCard', selectedFiles.idCard);
+      if (selectedFiles.birthCert) form.append('birthCert', selectedFiles.birthCert);
+      if (selectedFiles.appointment) form.append('appointment', selectedFiles.appointment);
+      if (selectedFiles.retirement) form.append('retirement', selectedFiles.retirement);
+
+      const res = await fetch('/api/pensioner/update-documents', {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token') || ''}` },
+        body: form,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.message || 'Failed to update documents');
+      setDocsMsgType('success');
+      setDocsMsg('Documents re-submitted successfully');
+      // Update shown document links if returned
+      if (data?.documents) setDocuments(data.documents);
+      // Clear selected files
+      setSelectedFiles({});
+    } catch (err: any) {
+      setDocsMsgType('error');
+      setDocsMsg(err?.message || 'Failed to re-submit documents');
+    } finally {
+      setDocsLoading(false);
+    }
+  };
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -169,13 +323,234 @@ export default function PensionerDashboard() {
           <div className="bg-white rounded-lg shadow p-6">
             <h3 className="text-lg font-medium text-gray-900 mb-4">Quick Actions</h3>
             <div className="space-y-3">
-              <button className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
-                View Documents
-              </button>
+              <div className="mb-4">
+                <div className="flex border-b border-gray-200 mb-4">
+                  <button
+                    className={`px-4 py-2 font-medium focus:outline-none ${
+                      activeTab === 'profile'
+                        ? 'border-b-2 border-oyoGreen text-oyoGreen'
+                        : 'text-gray-500'
+                    }`}
+                    onClick={() => setActiveTab('profile')}
+                  >
+                    Profile Info
+                  </button>
+                  <button
+                    className={`ml-4 px-4 py-2 font-medium focus:outline-none ${
+                      activeTab === 'documents'
+                        ? 'border-b-2 border-blue-600 text-blue-600'
+                        : 'text-gray-500'
+                    }`}
+                    onClick={() => setActiveTab('documents')}
+                  >
+                    Uploaded Documents
+                  </button>
+                </div>
+                {/* Profile Info Tab */}
+                {activeTab === 'profile' && (
+                  <form
+                    className="space-y-4"
+                    onSubmit={handleProfileSave}
+                  >
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Full Name</label>
+                      <input
+                        type="text"
+                        className="mt-1 block w-full rounded-md border-gray-300 focus:ring-oyoOrange focus:border-oyoOrange"
+                        value={profile.fullName}
+                        onChange={e => setProfile({ ...profile, fullName: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Email</label>
+                      <input
+                        type="email"
+                        className="mt-1 block w-full rounded-md border-gray-300 bg-gray-100"
+                        value={profile.email}
+                        readOnly
+                        disabled
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Phone</label>
+                      <input
+                        type="tel"
+                        className="mt-1 block w-full rounded-md border-gray-300 focus:ring-oyoOrange focus:border-oyoOrange"
+                        value={profile.phone || ''}
+                        onChange={e => setProfile({ ...profile, phone: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Address</label>
+                      <input
+                        type="text"
+                        className="mt-1 block w-full rounded-md border-gray-300 focus:ring-oyoOrange focus:border-oyoOrange"
+                        value={profile.address || ''}
+                        onChange={e => setProfile({ ...profile, address: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Pension Number</label>
+                      <input
+                        type="text"
+                        className="mt-1 block w-full rounded-md border-gray-300 bg-gray-100"
+                        value={profile.pensionNumber}
+                        readOnly
+                        disabled
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Bank Account Details</label>
+                      <input
+                        type="text"
+                        className="mt-1 block w-full rounded-md border-gray-300 focus:ring-oyoOrange focus:border-oyoOrange"
+                        value={profile.bankDetails || ''}
+                        onChange={e => setProfile({ ...profile, bankDetails: e.target.value })}
+                        placeholder="Bank Name, Account Number"
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      className="w-full px-4 py-2 bg-oyoGreen text-white rounded-md hover:bg-green-700 transition-colors flex items-center justify-center"
+                      disabled={profileLoading}
+                    >
+                      {profileLoading && (
+                        <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                      )}
+                      {profileLoading ? 'Saving...' : 'Save Changes'}
+                    </button>
+                    {profileMsg && (
+                      <div className={`text-sm mt-2 ${profileMsgType === 'success' ? 'text-green-600' : 'text-red-600'}`}>
+                        {profileMsg}
+                      </div>
+                    )}
+                  </form>
+                )}
+                {/* Documents Tab */}
+                {activeTab === 'documents' && (
+                  <form
+                    className="space-y-4"
+                    onSubmit={handleDocumentsSave}
+                    encType="multipart/form-data"
+                  >
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">ID Card</label>
+                      <div className="flex items-center gap-3">
+                        {documents.idCard && (
+                          <a
+                            href={documents.idCard}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 underline text-xs"
+                          >
+                            {getFileName(documents.idCard)}
+                          </a>
+                        )}
+                        <input
+                          type="file"
+                          accept=".pdf,.jpg,.jpeg,.png"
+                          className="block text-sm"
+                          onChange={e => handleFileChange(e, 'idCard')}
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Birth Certificate</label>
+                      <div className="flex items-center gap-3">
+                        {documents.birthCert && (
+                          <a
+                            href={documents.birthCert}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 underline text-xs"
+                          >
+                            {getFileName(documents.birthCert)}
+                          </a>
+                        )}
+                        <input
+                          type="file"
+                          accept=".pdf,.jpg,.jpeg,.png"
+                          className="block text-sm"
+                          onChange={e => handleFileChange(e, 'birthCert')}
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Appointment Letter</label>
+                      <div className="flex items-center gap-3">
+                        {documents.appointment && (
+                          <a
+                            href={documents.appointment}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 underline text-xs"
+                          >
+                            {getFileName(documents.appointment)}
+                          </a>
+                        )}
+                        <input
+                          type="file"
+                          accept=".pdf,.jpg,.jpeg,.png"
+                          className="block text-sm"
+                          onChange={e => handleFileChange(e, 'appointment')}
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Retirement Letter</label>
+                      <div className="flex items-center gap-3">
+                        {documents.retirement && (
+                          <a
+                            href={documents.retirement}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 underline text-xs"
+                          >
+                            {getFileName(documents.retirement)}
+                          </a>
+                        )}
+                        <input
+                          type="file"
+                          accept=".pdf,.jpg,.jpeg,.png"
+                          className="block text-sm"
+                          onChange={e => handleFileChange(e, 'retirement')}
+                        />
+                      </div>
+                    </div>
+                    <button
+                      type="submit"
+                      className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center justify-center"
+                      disabled={docsLoading}
+                    >
+                      {docsLoading && (
+                        <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                      )}
+                      {docsLoading ? 'Re-submitting...' : 'Re-submit Documents'}
+                    </button>
+                    {docsMsg && (
+                      <div className={`text-sm mt-2 ${docsMsgType === 'success' ? 'text-green-600' : 'text-red-600'}`}>
+                        {docsMsg}
+                      </div>
+                    )}
+                  </form>
+                )}
+              </div>
               <button className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors">
                 Download Certificate
               </button>
-              <button className="w-full px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors">
+              <button
+                className="w-full px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
+                onClick={() => window.location.href = '/contact'}
+              >
                 Contact Support
               </button>
             </div>
