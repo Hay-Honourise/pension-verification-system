@@ -48,6 +48,7 @@ export default function PensionerDashboard() {
   const [docsLoading, setDocsLoading] = useState(false);
   const [docsMsg, setDocsMsg] = useState<string>('');
   const [docsMsgType, setDocsMsgType] = useState<'success' | 'error'>('success');
+  const [downloadsOpen, setDownloadsOpen] = useState(false);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-NG', {
@@ -544,9 +545,60 @@ export default function PensionerDashboard() {
                   </form>
                 )}
               </div>
-              <button className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors">
-                Download Certificate
-              </button>
+              <div className="mt-6">
+                <button
+                  type="button"
+                  className="w-full flex items-center justify-between px-4 py-3 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+                  aria-expanded={downloadsOpen}
+                  onClick={() => setDownloadsOpen(prev => !prev)}
+                >
+                  <span className="text-lg font-semibold text-gray-900">Download Your Uploaded Documents</span>
+                  <svg
+                    className={`h-5 w-5 text-gray-700 transition-transform ${downloadsOpen ? 'rotate-180' : ''}`}
+                    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"
+                    aria-hidden="true"
+                  >
+                    <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.939l3.71-3.71a.75.75 0 111.06 1.062l-4.24 4.24a.75.75 0 01-1.06 0l-4.24-4.24a.75.75 0 01.02-1.06z" clipRule="evenodd" />
+                  </svg>
+                </button>
+                {downloadsOpen && (
+                  <div className="mt-3 space-y-2">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <button
+                        className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors flex items-center justify-center disabled:opacity-60"
+                        disabled={!documents.idCard}
+                        onClick={() => documents.idCard && window.open(documents.idCard, '_blank')}
+                      >
+                        Download ID Card
+                      </button>
+                      <button
+                        className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center justify-center disabled:opacity-60"
+                        disabled={!documents.birthCert}
+                        onClick={() => documents.birthCert && window.open(documents.birthCert, '_blank')}
+                      >
+                        Download Birth Certificate
+                      </button>
+                      <button
+                        className="w-full px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 transition-colors flex items-center justify-center disabled:opacity-60"
+                        disabled={!documents.appointment}
+                        onClick={() => documents.appointment && window.open(documents.appointment, '_blank')}
+                      >
+                        Download Appointment Letter
+                      </button>
+                      <button
+                        className="w-full px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors flex items-center justify-center disabled:opacity-60"
+                        disabled={!documents.retirement}
+                        onClick={() => documents.retirement && window.open(documents.retirement, '_blank')}
+                      >
+                        Download Retirement Letter
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-2">
+                      Click the buttons above to securely download your uploaded documents. If you need to update any document, please re-upload and re-submit using the form above.
+                    </p>
+                  </div>
+                )}
+              </div>
               <button
                 className="w-full px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
                 onClick={() => window.location.href = '/contact'}
