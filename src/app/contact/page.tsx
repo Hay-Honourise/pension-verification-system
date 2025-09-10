@@ -65,7 +65,7 @@ export default function ContactPage() {
 	return (
 		<div className="min-h-screen bg-white">
 			<section className="bg-gradient-to-r from-green-600 to-orange-500 text-white py-16">
-				<div className="max-w-6xl mx-auto px-4">
+				<div className="max-w-6xl mx-auto px-4 text-center">
 					<motion.h1
 						initial={{ opacity: 0, y: 20 }}
 						animate={{ opacity: 1, y: 0 }}
@@ -78,7 +78,7 @@ export default function ContactPage() {
 						initial={{ opacity: 0 }}
 						animate={{ opacity: 1 }}
 						transition={{ delay: 0.15 }}
-						className="mt-4 max-w-3xl text-white/90"
+						className="mt-4 max-w-3xl mx-auto text-white/90"
 					>
 						We’re here to assist you. Reach out to the Oyo State Pensions Board for inquiries, complaints, or support.
 					</motion.p>

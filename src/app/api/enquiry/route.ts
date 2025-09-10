@@ -108,7 +108,15 @@ export async function POST(req: NextRequest) {
 	} catch (err: any) {
 		console.error('Enquiry submission failed:', err);
 		return NextResponse.json(
-			{ success: false, error: 'Failed to submit enquiry' },
+			{ 
+				success: false, 
+				error: 'Failed to submit enquiry',
+				errorDetails: process.env.NODE_ENV !== 'production' ? { 
+					message: err?.message, 
+					code: err?.code,
+					stack: err?.stack 
+				} : undefined
+			},
 			{ status: 500 }
 		);
 	}
