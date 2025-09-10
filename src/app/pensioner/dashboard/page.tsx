@@ -265,69 +265,42 @@ export default function PensionerDashboard() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
           {/* Status Card */}
           <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Verification Status</h3>
-            <div className="flex items-center">
-              <div className={`w-3 h-3 rounded-full mr-3 ${
-                user.status === 'VERIFIED' ? 'bg-green-500' : 
-                user.status === 'REJECTED' ? 'bg-red-500' : 'bg-yellow-500'
-              }`}></div>
-              <span className={`text-sm font-medium ${
-                user.status === 'VERIFIED' ? 'text-green-600' : 
-                user.status === 'REJECTED' ? 'text-red-600' : 'text-yellow-600'
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-gray-700">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.2 4.4-1.728-1.728a.75.75 0 10-1.06 1.06l2.25 2.25a.75.75 0 001.153-.09l3.8-5.01z" clipRule="evenodd" />
+                  </svg>
+                </span>
+                Verification Status
+              </h3>
+              <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                user.status === 'VERIFIED' ? 'bg-green-50 text-green-700 ring-1 ring-inset ring-green-600/20' :
+                user.status === 'REJECTED' ? 'bg-red-50 text-red-700 ring-1 ring-inset ring-red-600/20' :
+                'bg-yellow-50 text-yellow-700 ring-1 ring-inset ring-yellow-600/20'
               }`}>
-                {user.status === 'VERIFIED' ? 'Verified' : 
-                 user.status === 'REJECTED' ? 'Rejected' : 'Pending Verification'}
+                {user.status === 'VERIFIED' ? 'Verified' : user.status === 'REJECTED' ? 'Rejected' : 'Pending Verification'}
               </span>
             </div>
-            <p className="text-sm text-gray-600 mt-2">
+            <p className="text-sm text-gray-600">
               {user.status === 'VERIFIED' ? 'Your pension verification has been completed successfully.' :
                user.status === 'REJECTED' ? 'Your verification was not approved. Please contact support.' :
                'Your application is currently under review. You will be notified once verified.'}
             </p>
           </div>
 
-          {/* Personal Info Card */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Personal Information</h3>
-            <div className="space-y-2 text-sm">
-              <div>
-                <span className="font-medium text-gray-700">Pension ID:</span>
-                <span className="ml-2 text-gray-900">{user.pensionId}</span>
-              </div>
-              <div>
-                <span className="font-medium text-gray-700">Full Name:</span>
-                <span className="ml-2 text-gray-900">{user.fullName}</span>
-              </div>
-              <div>
-                <span className="font-medium text-gray-700">Email:</span>
-                <span className="ml-2 text-gray-900">{user.email}</span>
-              </div>
-              {user.currentLevel && (
-                <div>
-                  <span className="font-medium text-gray-700">Current Level:</span>
-                  <span className="ml-2 text-gray-900">{user.currentLevel}</span>
-                </div>
-              )}
-              {user.salary && (
-                <div>
-                  <span className="font-medium text-gray-700">Last Salary:</span>
-                  <span className="ml-2 text-gray-900">{formatCurrency(user.salary)}</span>
-                </div>
-              )}
-            </div>
-          </div>
-
           {/* Quick Actions Card */}
           <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Quick Actions</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-1">Quick Actions</h3>
+            <p className="text-xs text-gray-500 mb-4">Update your profile or re-submit documents as needed.</p>
             <div className="space-y-3">
               <div className="mb-4">
-                <div className="flex border-b border-gray-200 mb-4">
+                <div className="flex flex-wrap gap-4 border-b border-gray-200 mb-4">
                   <button
-                    className={`px-4 py-2 font-medium focus:outline-none ${
+                    className={`w-1/2 sm:w-auto text-center px-4 py-2 font-medium focus:outline-none ${
                       activeTab === 'profile'
                         ? 'border-b-2 border-oyoGreen text-oyoGreen'
                         : 'text-gray-500'
@@ -337,7 +310,7 @@ export default function PensionerDashboard() {
                     Profile Info
                   </button>
                   <button
-                    className={`ml-4 px-4 py-2 font-medium focus:outline-none ${
+                    className={`w-1/2 sm:w-auto text-center px-4 py-2 font-medium focus:outline-none ${
                       activeTab === 'documents'
                         ? 'border-b-2 border-blue-600 text-blue-600'
                         : 'text-gray-500'
@@ -605,6 +578,37 @@ export default function PensionerDashboard() {
               >
                 Contact Support
               </button>
+            </div>
+          </div>
+
+          {/* Personal Info Card */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Personal Information</h3>
+            <div className="space-y-2 text-sm">
+              <div>
+                <span className="font-medium text-gray-700">Pension ID:</span>
+                <span className="ml-2 text-gray-900">{user.pensionId}</span>
+              </div>
+              <div>
+                <span className="font-medium text-gray-700">Full Name:</span>
+                <span className="ml-2 text-gray-900">{user.fullName}</span>
+              </div>
+              <div>
+                <span className="font-medium text-gray-700">Email:</span>
+                <span className="ml-2 text-gray-900">{user.email}</span>
+              </div>
+              {user.currentLevel && (
+                <div>
+                  <span className="font-medium text-gray-700">Current Level:</span>
+                  <span className="ml-2 text-gray-900">{user.currentLevel}</span>
+                </div>
+              )}
+              {user.salary && (
+                <div>
+                  <span className="font-medium text-gray-700">Last Salary:</span>
+                  <span className="ml-2 text-gray-900">{formatCurrency(user.salary)}</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
