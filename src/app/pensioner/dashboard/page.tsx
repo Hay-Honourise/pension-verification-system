@@ -49,6 +49,14 @@ export default function PensionerDashboard() {
   const [docsMsg, setDocsMsg] = useState<string>('');
   const [docsMsgType, setDocsMsgType] = useState<'success' | 'error'>('success');
   const [downloadsOpen, setDownloadsOpen] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+
+  // Verification state
+  const [verification, setVerification] = useState<{ status: string; lastVerifiedAt: string | null; nextDueAt: string | null }>({
+    status: 'UNKNOWN',
+    lastVerifiedAt: null,
+    nextDueAt: null,
+  });
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-NG', {
@@ -104,6 +112,12 @@ export default function PensionerDashboard() {
                 address: p.residentialAddress || '',
                 pensionNumber: p.pensionId || parsedUser.pensionId || '',
                 bankDetails: p.bankDetails || '',
+              });
+              const latestLog = p?.verificationLogs?.[0];
+              setVerification({
+                status: latestLog?.status || 'UNKNOWN',
+                lastVerifiedAt: latestLog?.verifiedAt || null,
+                nextDueAt: latestLog?.nextDueAt || null,
               });
               if (data?.documents) setDocuments(data.documents);
               const merged = { ...parsedUser, ...p };
@@ -222,6 +236,10 @@ export default function PensionerDashboard() {
     router.push('/');
   };
 
+  const goToVerification = () => {
+    router.push('/pensioner/verification');
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -252,12 +270,48 @@ export default function PensionerDashboard() {
               <span className="text-sm text-gray-600">
                 Welcome, {user.fullName}
               </span>
+              <>
+                <button
+                  onClick={() => setShowLogoutModal(true)}
+                  className="px-4 py-2 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors"
+                >
+                  Logout
+                </button>
+                {typeof window !== 'undefined' && (
+                  <div
+                    className={`fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 transition-opacity ${showLogoutModal ? '' : 'hidden'}`}
+                  >
+                    <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-sm">
+                      <h2 className="text-lg font-semibold mb-2 text-gray-900">Confirm Logout</h2>
+                      <p className="text-gray-700 mb-4">Are you sure you want to logout?</p>
+                      <div className="flex justify-end gap-2">
+                        <button
+                          onClick={() => setShowLogoutModal(false)}
+                          className="px-4 py-2 text-sm rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={() => {
+                            setShowLogoutModal(false);
+                            handleLogout();
+                          }}
+                          className="px-4 py-2 text-sm rounded-md bg-red-600 text-white hover:bg-red-700"
+                        >
+                          Logout
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
               <button
-                onClick={handleLogout}
-                className="px-4 py-2 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors"
+                onClick={goToVerification}
+                className="px-4 py-2 text-sm bg-blue-600 text-white hover:bg-blue-700 rounded-md transition-colors"
               >
-                Logout
+                Start Verification
               </button>
+             
             </div>
           </div>
         </div>

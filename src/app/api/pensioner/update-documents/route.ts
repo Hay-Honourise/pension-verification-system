@@ -32,7 +32,7 @@ export async function PUT(request: NextRequest) {
     const id = form.get('id') as string;
 
     if (!id) return NextResponse.json({ message: 'Missing pensioner id' }, { status: 400 });
-    if (tokenPayload && tokenPayload.id && tokenPayload.id !== id) {
+    if (tokenPayload && tokenPayload.id && Number(tokenPayload.id) !== Number(id)) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
@@ -65,7 +65,7 @@ export async function PUT(request: NextRequest) {
     if (Object.keys(updates).length > 0) {
       try {
         const updated = await prisma.pensioner.update({
-          where: { id },
+          where: { id: Number(id) },
           data: {
             // @ts-ignore schema may include these optional fields
             idCard: updates.idCard,
@@ -95,7 +95,7 @@ export async function PUT(request: NextRequest) {
           ops.push(
             prisma.document.create({
               data: {
-                pensionerId: id,
+                pensionerId: Number(id),
                 documentType: key,
                 fileName: path.basename(filePath),
                 filePath,

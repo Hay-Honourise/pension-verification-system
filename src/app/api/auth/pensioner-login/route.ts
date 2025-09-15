@@ -35,7 +35,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate JWT token
-    const token = generateToken(pensioner);
+    const token = generateToken({
+      id: pensioner.id,
+      role: 'pensioner',
+      email: pensioner.email,
+      pensionId: pensioner.pensionId,
+    });
 
     // Return success response with token
     return NextResponse.json({
@@ -45,6 +50,7 @@ export async function POST(request: NextRequest) {
         id: pensioner.id,
         pensionId: pensioner.pensionId,
         fullName: pensioner.fullName,
+        photo: pensioner.photo,
         email: pensioner.email,
         status: pensioner.status,
         role: 'pensioner',

@@ -12,15 +12,21 @@ export async function GET(request: NextRequest) {
     if (!token?.id) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
 
     const pensioner = await prisma.pensioner.findUnique({
-      where: { id: token.id },
+      where: { id: Number(token.id) },
       select: {
         id: true,
         pensionId: true,
         fullName: true,
+        photo: true,
         email: true,
         phone: true,
         residentialAddress: true,
         bankDetails: true,
+        verificationLogs: {
+          orderBy: { verifiedAt: 'desc' },
+          take: 3,
+          select: { id: true, method: true, status: true, verifiedAt: true, nextDueAt: true },
+        },
         // document fields are optional in some schemas
         // @ts-ignore
         idCard: true,

@@ -58,6 +58,7 @@ export default function VerificationPage() {
     retirementLetter?: string;
     idCard?: string;
   }>({});
+  const [passportPhotoFile, setPassportPhotoFile] = useState<File | null>(null);
 
   useEffect(() => {
     console.log('Verification page useEffect running');
@@ -234,6 +235,11 @@ export default function VerificationPage() {
         formDataToSend.append('monthlyPension', calculatedBenefits.monthlyPension.toString());
         formDataToSend.append('gratuityRate', calculatedBenefits.gratuityRate.toString());
         formDataToSend.append('pensionRate', calculatedBenefits.pensionRate.toString());
+      }
+
+      // Attach passport photo if provided here
+      if (passportPhotoFile) {
+        formDataToSend.append('passportPhoto', passportPhotoFile);
       }
 
       const response = await fetch('/api/register', {
@@ -459,6 +465,16 @@ export default function VerificationPage() {
                   <div><span className="font-medium">Passport Photo:</span> {fileNames.passportPhoto || 'Not uploaded'}</div>
                   <div><span className="font-medium">Retirement Letter:</span> {fileNames.retirementLetter || 'Not uploaded'}</div>
                   <div><span className="font-medium">ID Card:</span> {fileNames.idCard || 'Not uploaded'}</div>
+                </div>
+                <div className="mt-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Upload Passport Photo (optional)</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setPassportPhotoFile(e.target.files?.[0] || null)}
+                    className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">If provided, only the file path/URL will be stored.</p>
                 </div>
               </div>
             </div>

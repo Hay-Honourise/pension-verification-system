@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { hash } from 'bcryptjs';
 import { prisma } from '@/lib/db';
+import path from 'path';
+import fs from 'fs/promises';
 
 export async function POST(request: NextRequest) {
   try {
@@ -101,18 +103,30 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Handle file uploads (for now, just log them - you can implement file storage later)
-    const passportPhoto = formData.get('passportPhoto') as File;
-    const retirementLetter = formData.get('retirementLetter') as File;
-    const idCard = formData.get('idCard') as File;
+    // Handle file uploads: save only the file path/URL, not raw image
+    const passportPhoto = formData.get('passportPhoto') as File | null;
 
-    if (passportPhoto || retirementLetter || idCard) {
-      // Log file information (implement actual file storage as needed)
-      console.log('Files received:', {
-        passportPhoto: passportPhoto?.name,
-        retirementLetter: retirementLetter?.name,
-        idCard: idCard?.name
-      });
+    if (passportPhoto && typeof passportPhoto.arrayBuffer === 'function') {
+      try {
+        const uploadBase = path.join(process.cwd(), 'public', 'uploads', 'pensioners', pensioner.id);
+        await fs.mkdir(uploadBase, { recursive: true });
+
+        const originalName = passportPhoto.name || 'photo';
+        const ext = path.extname(originalName) || '.jpg';
+        const fileName = `photo-${Date.now()}${ext}`;
+        const filePath = path.join(uploadBase, fileName);
+
+        const buffer = Buffer.from(await passportPhoto.arrayBuffer());
+        await fs.writeFile(filePath, buffer);
+
+        const relativeUrl = `/uploads/pensioners/${pensioner.id}/${fileName}`;
+        await prisma.pensioner.update({
+          where: { id: pensioner.id },
+          data: { photo: relativeUrl } as any,
+        });
+      } catch (e) {
+        console.error('Failed to save passport photo:', e);
+      }
     }
 
     // Return success response

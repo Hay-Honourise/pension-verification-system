@@ -23,6 +23,7 @@ model User {
   department String?
   role       Role
   createdAt  DateTime @default(now())
+  verificationReviews VerificationReview[]
 }
 
 model Admin {
@@ -36,7 +37,7 @@ model Admin {
 }
 
 model Pensioner {
-  id                     String     @id @default(cuid())
+  id                     Int        @id @default(autoincrement())
   pensionId              String     @unique
   fullName               String
   nin                    String     @unique
@@ -63,12 +64,15 @@ model Pensioner {
   pensionRate            Float?
   totalGratuity          Float?
   yearsOfService         Int?
+  photo                  String?
   documents              Document[]
+  verificationLogs       VerificationLog[]
+  verificationReviews    VerificationReview[]
 }
 
 model Document {
   id           String    @id @default(cuid())
-  pensionerId  String
+  pensionerId  Int
   documentType String
   fileName     String
   filePath     String
@@ -87,4 +91,25 @@ model Enquiry {
   message    String
   trackingId String   @unique
   createdAt  DateTime @default(now())
+}
+
+model VerificationLog {
+  id           Int       @id @default(autoincrement())
+  pensioner    Pensioner @relation(fields: [pensionerId], references: [id])
+  pensionerId  Int
+  method       String
+  status       String
+  verifiedAt   DateTime?
+  nextDueAt    DateTime?
+}
+
+model VerificationReview {
+  id            Int       @id @default(autoincrement())
+  pensioner     Pensioner @relation(fields: [pensionerId], references: [id])
+  pensionerId   Int
+  officer       User?     @relation(fields: [officerId], references: [id])
+  officerId     Int?
+  capturedPhoto String
+  status        String   @default("PENDING")
+  reviewedAt    DateTime?
 }

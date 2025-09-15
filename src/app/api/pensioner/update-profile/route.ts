@@ -16,7 +16,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Security: if token provided, ensure it matches the target id
-    if (tokenPayload && tokenPayload.id && tokenPayload.id !== id) {
+    if (tokenPayload && tokenPayload.id && Number(tokenPayload.id) !== Number(id)) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
@@ -30,7 +30,7 @@ export async function PUT(request: NextRequest) {
     // Note: bankDetails is not present in current Prisma schema; ignoring to avoid errors
 
     const updated = await prisma.pensioner.update({
-      where: { id },
+      where: { id: Number(id) },
       data: updateData,
       select: { id: true, fullName: true, phone: true, residentialAddress: true },
     });

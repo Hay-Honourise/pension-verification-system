@@ -11,7 +11,7 @@ export async function verifyPassword(password: string, hashedPassword: string): 
   return bcrypt.compare(password, hashedPassword);
 }
 
-type UserLike = { id: string; role?: string; email?: string; pensionId?: string };
+type UserLike = { id: number | string; role?: string; email?: string; pensionId?: string };
 
 export function generateToken(user: UserLike): string {
   const payload = {
