@@ -134,9 +134,39 @@ export default function PensionerVerificationPage() {
           <div className="text-sm text-gray-600">This is your stored profile photo used for matching.</div>
         </div>
 
+        {!profilePhoto && (
+          <div className="mb-6 rounded border border-yellow-300 bg-yellow-50 p-3 text-sm text-yellow-800">
+            <div className="font-medium">No stored profile photo on record</div>
+            <div className="mt-1">Please upload a clear passport-style photo in your profile before starting verification.</div>
+            <button
+              onClick={() => router.push('/pensioner/dashboard')}
+              className="mt-3 inline-flex items-center rounded bg-yellow-600 px-3 py-1.5 text-white hover:bg-yellow-700"
+            >
+              Go to Dashboard
+            </button>
+          </div>
+        )}
+
         <div className="bg-white rounded-lg shadow p-4">
           {!isCapturing ? (
-            <button onClick={startCamera} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Start Verification</button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={startCamera}
+                disabled={!profilePhoto}
+                title={!profilePhoto ? 'Upload a profile photo first' : ''}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                Start Verification
+              </button>
+              {!profilePhoto && (
+                <button
+                  onClick={() => router.push('/pensioner/dashboard')}
+                  className="px-3 py-2 rounded border border-gray-300 text-gray-700 hover:bg-gray-50"
+                >
+                  Upload Photo
+                </button>
+              )}
+            </div>
           ) : (
             <div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
