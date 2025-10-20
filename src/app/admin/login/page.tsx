@@ -22,6 +22,10 @@ export default function AdminLoginPage() {
       });
       const data = await res.json();
       if (!res.ok) return setError(data.error || 'Invalid credentials');
+      if (data?.token) {
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+      }
       router.push('/admin-dashboard');
     } catch (err) {
       setError('Something went wrong');

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { verifyPassword } from '@/lib/auth';
+import { verifyPassword, generateToken } from '@/lib/auth';
 
 export async function POST(req: NextRequest) {
   try {
@@ -17,8 +17,9 @@ export async function POST(req: NextRequest) {
     const ok = await verifyPassword(password, user.password);
     if (!ok) return NextResponse.json({ success: false, error: 'Invalid credentials' }, { status: 401 });
 
+    const token = generateToken({ id: user.id, role: user.role, email: user.email });
     const redirectTo = user.role === 'ADMIN' ? '/admin-dashboard' : '/officer/dashboard';
-    return NextResponse.json({ success: true, message: 'Login successful', user: { id: user.id, role: user.role, email: user.email, fullName: user.fullName }, redirectTo });
+    return NextResponse.json({ success: true, message: 'Login successful', token, user: { id: user.id, role: user.role, email: user.email, fullName: user.fullName }, redirectTo });
   } catch (err) {
     console.error('Staff login error', err);
     return NextResponse.json({ success: false, error: 'Invalid credentials' }, { status: 401 });

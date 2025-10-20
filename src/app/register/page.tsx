@@ -32,10 +32,20 @@ interface FormData {
   password: string;
   confirmPassword: string;
   
-  // Step 5: Document Upload
-  passportPhoto: File | null;
-  retirementLetter: File | null;
-  idCard: File | null;
+  // Step 5: Document Upload (now stores file info instead of File objects)
+  passportPhoto: UploadedFile | null;
+  retirementLetter: UploadedFile | null;
+  idCard: UploadedFile | null;
+}
+
+interface UploadedFile {
+  id: string;
+  fileName: string;
+  originalName: string;
+  fileType: string;
+  contentType: string;
+  size: number;
+  uploadedAt: string;
 }
 
 export default function RegisterPage() {
@@ -68,6 +78,17 @@ export default function RegisterPage() {
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Upload states for each file type
+  const [uploadStates, setUploadStates] = useState<{
+    passportPhoto: 'idle' | 'uploading' | 'success' | 'error';
+    retirementLetter: 'idle' | 'uploading' | 'success' | 'error';
+    idCard: 'idle' | 'uploading' | 'success' | 'error';
+  }>({
+    passportPhoto: 'idle',
+    retirementLetter: 'idle',
+    idCard: 'idle'
+  });
 
   const updateFormData = (field: keyof FormData, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -137,8 +158,42 @@ export default function RegisterPage() {
     setCurrentStep(prev => Math.max(prev - 1, 1));
   };
 
-  const handleFileChange = (field: keyof FormData, file: File | null) => {
-    updateFormData(field, file);
+  const handleFileUpload = async (field: 'passportPhoto' | 'retirementLetter' | 'idCard', file: File | null) => {
+    if (!file) {
+      updateFormData(field, null);
+      setUploadStates(prev => ({ ...prev, [field]: 'idle' }));
+      return;
+    }
+
+    // Set uploading state
+    setUploadStates(prev => ({ ...prev, [field]: 'uploading' }));
+
+    try {
+      const uploadFormData = new FormData();
+      uploadFormData.append('file', file);
+      uploadFormData.append('fileType', field);
+      uploadFormData.append('pensionId', formData.pensionId || 'temp');
+
+      const response = await fetch('/api/register/upload-document', {
+        method: 'POST',
+        body: uploadFormData,
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        updateFormData(field, result.file);
+        setUploadStates(prev => ({ ...prev, [field]: 'success' }));
+      } else {
+        const error = await response.json();
+        console.error('Upload failed:', error.message);
+        setUploadStates(prev => ({ ...prev, [field]: 'error' }));
+        setErrors(prev => ({ ...prev, [field]: error.message }));
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      setUploadStates(prev => ({ ...prev, [field]: 'error' }));
+      setErrors(prev => ({ ...prev, [field]: 'Upload failed. Please try again.' }));
+    }
   };
 
   const handleSubmit = async () => {
@@ -152,28 +207,10 @@ export default function RegisterPage() {
     setIsSubmitting(true);
     console.log('Validation passed, proceeding to store data');
 
-    // Store form data in session storage (excluding files) and redirect to verification page
+    // Store form data in session storage and redirect to verification page
     try {
-      // Create a copy of formData without files for session storage
-      const dataForStorage = { ...formData };
-      // Remove file objects as they can't be serialized
-      dataForStorage.passportPhoto = null;
-      dataForStorage.retirementLetter = null;
-      dataForStorage.idCard = null;
-      
-      console.log('Storing data to session storage:', dataForStorage);
-      sessionStorage.setItem('registrationData', JSON.stringify(dataForStorage));
-      
-      // Store files separately in a temporary way (we'll handle this in verification)
-      if (formData.passportPhoto) {
-        sessionStorage.setItem('passportPhotoName', formData.passportPhoto.name);
-      }
-      if (formData.retirementLetter) {
-        sessionStorage.setItem('retirementLetterName', formData.retirementLetter.name);
-      }
-      if (formData.idCard) {
-        sessionStorage.setItem('idCardName', formData.idCard.name);
-      }
+      console.log('Storing data to session storage:', formData);
+      sessionStorage.setItem('registrationData', JSON.stringify(formData));
       
       console.log('Redirecting to verification page');
       router.push('/register/verification');
@@ -509,51 +546,66 @@ export default function RegisterPage() {
     </div>
   );
 
+  const renderFileUploadField = (field: 'passportPhoto' | 'retirementLetter' | 'idCard', label: string, accept: string) => {
+    const uploadState = uploadStates[field];
+    const fileData = formData[field];
+    const error = errors[field];
+
+    return (
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">{label} *</label>
+        <input
+          type="file"
+          accept={accept}
+          onChange={(e) => handleFileUpload(field, e.target.files?.[0] || null)}
+          disabled={uploadState === 'uploading'}
+          className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed ${
+            error ? 'border-red-500' : 'border-gray-300'
+          }`}
+        />
+        
+        {/* Upload Status */}
+        {uploadState === 'uploading' && (
+          <div className="flex items-center mt-2 text-blue-600">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+            <span className="text-sm">Uploading...</span>
+          </div>
+        )}
+        
+        {uploadState === 'success' && fileData && (
+          <div className="flex items-center mt-2 text-green-600">
+            <svg className="h-4 w-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+            </svg>
+            <span className="text-sm">✓ {fileData.originalName} uploaded successfully</span>
+          </div>
+        )}
+        
+        {uploadState === 'error' && (
+          <div className="flex items-center mt-2 text-red-600">
+            <svg className="h-4 w-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+            </svg>
+            <span className="text-sm">Upload failed. Please try again.</span>
+          </div>
+        )}
+        
+        {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
+        <p className="text-xs text-gray-500 mt-1">Accepted formats: JPG, PNG, PDF (Max 10MB)</p>
+      </div>
+    );
+  };
+
   const renderStep5 = () => (
     <div className="space-y-4">
       <h3 className="text-xl font-semibold text-gray-800 mb-6">Document Upload</h3>
+      <p className="text-sm text-gray-600 mb-6">
+        Please upload your documents. Files will be uploaded immediately when selected.
+      </p>
       
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Passport Photo *</label>
-        <input
-          type="file"
-          accept="image/*,.pdf"
-          onChange={(e) => handleFileChange('passportPhoto', e.target.files?.[0] || null)}
-          className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-            errors.passportPhoto ? 'border-red-500' : 'border-gray-300'
-          }`}
-        />
-        {errors.passportPhoto && <p className="text-red-500 text-sm mt-1">{errors.passportPhoto}</p>}
-        <p className="text-xs text-gray-500 mt-1">Accepted formats: JPG, PNG, PDF</p>
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Retirement Letter *</label>
-        <input
-          type="file"
-          accept=".pdf,image/*"
-          onChange={(e) => handleFileChange('retirementLetter', e.target.files?.[0] || null)}
-          className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-            errors.retirementLetter ? 'border-red-500' : 'border-gray-300'
-          }`}
-        />
-        {errors.retirementLetter && <p className="text-red-500 text-sm mt-1">{errors.retirementLetter}</p>}
-        <p className="text-xs text-gray-500 mt-1">Accepted formats: PDF, JPG, PNG</p>
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">ID Card *</label>
-        <input
-          type="file"
-          accept=".pdf,image/*"
-          onChange={(e) => handleFileChange('idCard', e.target.files?.[0] || null)}
-          className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-            errors.idCard ? 'border-red-500' : 'border-gray-300'
-          }`}
-        />
-        {errors.idCard && <p className="text-red-500 text-sm mt-1">{errors.idCard}</p>}
-        <p className="text-xs text-gray-500 mt-1">Accepted formats: PDF, JPG, PNG</p>
-      </div>
+      {renderFileUploadField('passportPhoto', 'Passport Photo', 'image/*,.pdf')}
+      {renderFileUploadField('retirementLetter', 'Retirement Letter', '.pdf,image/*')}
+      {renderFileUploadField('idCard', 'ID Card', '.pdf,image/*')}
     </div>
   );
 

@@ -32,10 +32,20 @@ interface FormData {
   password: string;
   confirmPassword: string;
   
-  // Step 5: Document Upload
-  passportPhoto: File | null;
-  retirementLetter: File | null;
-  idCard: File | null;
+  // Step 5: Document Upload (now stores file info instead of File objects)
+  passportPhoto: UploadedFile | null;
+  retirementLetter: UploadedFile | null;
+  idCard: UploadedFile | null;
+}
+
+interface UploadedFile {
+  id: string;
+  fileName: string;
+  originalName: string;
+  fileType: string;
+  contentType: string;
+  size: number;
+  uploadedAt: string;
 }
 
 interface CalculatedBenefits {
@@ -53,12 +63,7 @@ export default function VerificationPage() {
   const [calculatedBenefits, setCalculatedBenefits] = useState<CalculatedBenefits | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string>('');
-  const [fileNames, setFileNames] = useState<{
-    passportPhoto?: string;
-    retirementLetter?: string;
-    idCard?: string;
-  }>({});
-  const [passportPhotoFile, setPassportPhotoFile] = useState<File | null>(null);
+  // Remove old file name state - we now get file info directly from formData
 
   useEffect(() => {
     console.log('Verification page useEffect running');
@@ -73,19 +78,6 @@ export default function VerificationPage() {
         console.log('Parsed data:', parsedData);
         setFormData(parsedData);
         calculateBenefits(parsedData);
-        
-        // Get file names from session storage
-        const passportPhotoName = sessionStorage.getItem('passportPhotoName');
-        const retirementLetterName = sessionStorage.getItem('retirementLetterName');
-        const idCardName = sessionStorage.getItem('idCardName');
-        
-        console.log('File names:', { passportPhotoName, retirementLetterName, idCardName });
-        
-        setFileNames({
-          passportPhoto: passportPhotoName || undefined,
-          retirementLetter: retirementLetterName || undefined,
-          idCard: idCardName || undefined,
-        });
       } catch (error) {
         console.error('Error parsing stored data:', error);
         setError('Invalid registration data. Please start over.');
@@ -221,10 +213,15 @@ export default function VerificationPage() {
     try {
       const formDataToSend = new FormData();
       
-      // Append all form fields except files (which can't be serialized in session storage)
+      // Append all form fields including file URLs
       Object.entries(formData).forEach(([key, value]) => {
-        if (value !== null && key !== 'passportPhoto' && key !== 'retirementLetter' && key !== 'idCard') {
-          formDataToSend.append(key, value);
+        if (value !== null) {
+          if (key === 'passportPhoto' || key === 'retirementLetter' || key === 'idCard') {
+            // Send file info as JSON string
+            formDataToSend.append(key, JSON.stringify(value));
+          } else {
+            formDataToSend.append(key, value);
+          }
         }
       });
 
@@ -237,11 +234,6 @@ export default function VerificationPage() {
         formDataToSend.append('pensionRate', calculatedBenefits.pensionRate.toString());
       }
 
-      // Attach passport photo if provided here
-      if (passportPhotoFile) {
-        formDataToSend.append('passportPhoto', passportPhotoFile);
-      }
-
       const response = await fetch('/api/register', {
         method: 'POST',
         body: formDataToSend,
@@ -251,11 +243,10 @@ export default function VerificationPage() {
         const result = await response.json();
         // Clear session storage
         sessionStorage.removeItem('registrationData');
-        sessionStorage.removeItem('passportPhotoName');
-        sessionStorage.removeItem('retirementLetterName');
-        sessionStorage.removeItem('idCardName');
+        // Set flag to show success message on dashboard
+        sessionStorage.setItem('registrationCompleted', 'true');
         alert('Registration successful! Please check your email for verification.');
-        router.push('/pensioner/login');
+        router.push('/pensioner/dashboard');
       } else {
         const error = await response.json();
         setError(`Registration failed: ${error.message}`);
@@ -363,9 +354,9 @@ export default function VerificationPage() {
                 <div>
                   <h3 className="font-medium text-gray-700 mb-3">Uploaded Documents</h3>
                   <div className="space-y-2 text-sm">
-                    <div><span className="font-medium">Passport Photo:</span> {fileNames.passportPhoto || 'Not uploaded'}</div>
-                    <div><span className="font-medium">Retirement Letter:</span> {fileNames.retirementLetter || 'Not uploaded'}</div>
-                    <div><span className="font-medium">ID Card:</span> {fileNames.idCard || 'Not uploaded'}</div>
+                    <div><span className="font-medium">Passport Photo:</span> {formData.passportPhoto ? formData.passportPhoto.originalName : 'Not uploaded'}</div>
+                    <div><span className="font-medium">Retirement Letter:</span> {formData.retirementLetter ? formData.retirementLetter.originalName : 'Not uploaded'}</div>
+                    <div><span className="font-medium">ID Card:</span> {formData.idCard ? formData.idCard.originalName : 'Not uploaded'}</div>
                   </div>
                 </div>
               </div>
@@ -462,19 +453,9 @@ export default function VerificationPage() {
               <div>
                 <h3 className="font-medium text-gray-700 mb-3">Uploaded Documents</h3>
                 <div className="space-y-2 text-sm">
-                  <div><span className="font-medium">Passport Photo:</span> {fileNames.passportPhoto || 'Not uploaded'}</div>
-                  <div><span className="font-medium">Retirement Letter:</span> {fileNames.retirementLetter || 'Not uploaded'}</div>
-                  <div><span className="font-medium">ID Card:</span> {fileNames.idCard || 'Not uploaded'}</div>
-                </div>
-                <div className="mt-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Upload Passport Photo (optional)</label>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => setPassportPhotoFile(e.target.files?.[0] || null)}
-                    className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">If provided, only the file path/URL will be stored.</p>
+                  <div><span className="font-medium">Passport Photo:</span> {formData.passportPhoto ? formData.passportPhoto.originalName : 'Not uploaded'}</div>
+                  <div><span className="font-medium">Retirement Letter:</span> {formData.retirementLetter ? formData.retirementLetter.originalName : 'Not uploaded'}</div>
+                  <div><span className="font-medium">ID Card:</span> {formData.idCard ? formData.idCard.originalName : 'Not uploaded'}</div>
                 </div>
               </div>
             </div>

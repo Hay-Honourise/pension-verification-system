@@ -172,14 +172,7 @@ export default function Navbar() {
                     >
                       Register Staff (Admin/Verification Officer)
                     </Link>
-                    <Link
-                      href="/admin/enquiries"
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-oyoGreen hover:text-oyoWhite transition-colors duration-200"
-                      role="menuitem"
-                      onClick={() => setIsAdminOpen(false)}
-                    >
-                      View Enquiries
-                    </Link>
+                    {/* View Enquiries moved inside Admin Dashboard and protected */}
                   </div>
                 </div>
               </div>
@@ -301,13 +294,7 @@ export default function Navbar() {
             >
               Register Verification Officer
             </Link>
-            <Link
-              href="/admin/enquiries"
-              className="block px-3 py-2 rounded-md text-base font-medium text-oyoWhite hover:text-oyoOrange hover:bg-white/10 transition-all duration-200"
-              onClick={closeMobileMenu}
-            >
-              View Enquiries
-            </Link>
+            {/* View Enquiries moved inside Admin Dashboard and protected */}
           </div>
 
           {/* Other links */}

@@ -22,6 +22,10 @@ export default function OfficerLoginPage() {
       });
       const data = await res.json();
       if (!res.ok) return setError(data.error || 'Invalid credentials');
+      if (data?.token) {
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+      }
       router.push('/officer/dashboard');
     } catch (err) {
       setError('Something went wrong');

@@ -66,6 +66,7 @@ model Pensioner {
   yearsOfService         Int?
   photo                  String?
   documents              Document[]
+  files                  PensionerFile[]
   verificationLogs       VerificationLog[]
   verificationReviews    VerificationReview[]
 }
@@ -80,6 +81,19 @@ model Document {
   verifiedAt   DateTime?
   status       String    @default("pending")
   pensioner    Pensioner @relation(fields: [pensionerId], references: [id])
+}
+
+model PensionerFile {
+  id            String    @id @default(cuid())
+  pensionerId   Int
+  fileType      String
+  fileUrl       String
+  originalName  String
+  publicId      String
+  uploadedById  Int?
+  createdAt     DateTime  @default(now())
+
+  pensioner     Pensioner @relation(fields: [pensionerId], references: [id])
 }
 
 model Enquiry {
