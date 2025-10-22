@@ -9,9 +9,9 @@ export async function PUT(request: NextRequest) {
     const tokenPayload = bearer ? verifyToken(bearer) : null;
 
     const body = await request.json();
-    const { id, fullName, phone, address } = body || {};
+    const { id, phone, address, email } = body || {};
 
-    if (!id || !fullName || !address) {
+    if (!id || !phone || !address || !email) {
       return NextResponse.json({ message: 'Missing required fields' }, { status: 400 });
     }
 
@@ -22,17 +22,16 @@ export async function PUT(request: NextRequest) {
 
     // Map incoming fields to schema
     const updateData: Record<string, any> = {
-      fullName,
+      email,
+      phone,
       residentialAddress: address,
     };
-
-    if (typeof phone === 'string') updateData.phone = phone;
     // Note: bankDetails is not present in current Prisma schema; ignoring to avoid errors
 
     const updated = await prisma.pensioner.update({
       where: { id: Number(id) },
       data: updateData,
-      select: { id: true, fullName: true, phone: true, residentialAddress: true },
+      select: { id: true, email: true, phone: true, residentialAddress: true },
     });
 
     return NextResponse.json({ message: 'Profile updated', pensioner: updated }, { status: 200 });

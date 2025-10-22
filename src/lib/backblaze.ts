@@ -1,78 +1,282 @@
-import { S3Client, PutObjectCommand, DeleteObjectCommand, CopyObjectCommand, ListObjectsV2Command, GetObjectCommand } from '@aws-sdk/client-s3';
-import { getSignedUrl as getS3SignedUrl } from '@aws-sdk/s3-request-presigner';
+import B2 from 'backblaze-b2';
 
-const REGION = process.env.S3_REGION || 'us-east-005';
-const ENDPOINT = process.env.S3_ENDPOINT || 'https://s3.us-east-005.backblazeb2.com';
-const BUCKET = process.env.S3_BUCKET || '';
-const PUBLIC_BASE = process.env.S3_PUBLIC_BASE_URL || '';
+const B2_KEY_ID = process.env.B2_KEY_ID || '';
+const B2_APPLICATION_KEY = process.env.B2_APPLICATION_KEY || '';
+const B2_BUCKET_ID = process.env.B2_BUCKET_ID || '';
+const B2_BUCKET_NAME = process.env.B2_BUCKET_NAME || '';
 
-if (!process.env.S3_ACCESS_KEY_ID || !process.env.S3_SECRET_ACCESS_KEY || !BUCKET) {
-  console.error('Missing S3_ACCESS_KEY_ID / S3_SECRET_ACCESS_KEY / S3_BUCKET');
-}
-
-const s3 = new S3Client({
-  region: REGION,
-  endpoint: ENDPOINT,
-  forcePathStyle: true,
-  credentials: {
-    accessKeyId: process.env.S3_ACCESS_KEY_ID || '',
-    secretAccessKey: process.env.S3_SECRET_ACCESS_KEY || '',
-  },
+// Debug environment variables
+console.log('B2 Configuration:', {
+  B2_KEY_ID: B2_KEY_ID ? 'SET' : 'MISSING',
+  B2_APPLICATION_KEY: B2_APPLICATION_KEY ? 'SET' : 'MISSING',
+  B2_BUCKET_ID: B2_BUCKET_ID || 'MISSING',
+  B2_BUCKET_NAME: B2_BUCKET_NAME || 'MISSING'
 });
 
-// Backwards compatible shim
-export async function authenticate() {
-  return { authToken: null, downloadUrl: PUBLIC_BASE || null, apiUrl: ENDPOINT || null };
+if (!B2_KEY_ID || !B2_APPLICATION_KEY || !B2_BUCKET_ID || !B2_BUCKET_NAME) {
+  console.error('Missing B2 credentials');
+  console.error('Environment variables:', {
+    B2_KEY_ID: B2_KEY_ID ? 'SET' : 'MISSING',
+    B2_APPLICATION_KEY: B2_APPLICATION_KEY ? 'SET' : 'MISSING',
+    B2_BUCKET_ID: B2_BUCKET_ID || 'MISSING',
+    B2_BUCKET_NAME: B2_BUCKET_NAME || 'MISSING'
+  });
 }
 
-// Kept only for compatibility; no real use under S3 flows
+const b2 = new B2({
+  applicationKeyId: B2_KEY_ID,
+  applicationKey: B2_APPLICATION_KEY,
+});
+
+export async function authenticate() {
+  try {
+    const response = await b2.authorize();
+    return {
+      authToken: response.data.authorizationToken,
+      downloadUrl: response.data.downloadUrl,
+      apiUrl: response.data.apiUrl,
+    };
+  } catch (error) {
+    console.error('B2 authentication failed:', error);
+    throw new Error('B2 authentication failed');
+  }
+}
+
 export async function getUploadUrl() {
-  return { uploadUrl: 's3-compatible', authorizationToken: 'n/a' };
+  try {
+    const auth = await authenticate();
+    const response = await b2.getUploadUrl({
+      bucketId: B2_BUCKET_ID,
+    });
+    return {
+      uploadUrl: response.data.uploadUrl,
+      authorizationToken: response.data.authorizationToken,
+    };
+  } catch (error) {
+    console.error('Failed to get upload URL:', error);
+    throw new Error('Failed to get upload URL');
+  }
 }
 
 export async function uploadFile(fileBuffer: Buffer, fileName: string, contentType: string) {
-  if (!BUCKET) throw new Error('S3_BUCKET is not configured');
-  await s3.send(new PutObjectCommand({
-    Bucket: BUCKET,
-    Key: fileName,
-    Body: fileBuffer,
-    ContentType: contentType,
-  }));
-  return {
-    fileId: fileName,
-    fileName,
-    contentType,
-    contentLength: fileBuffer.length,
-    contentSha1: '',
-  };
+  try {
+    if (!B2_BUCKET_ID) throw new Error('B2_BUCKET_ID is not configured');
+    
+    const uploadData = await getUploadUrl();
+    const response = await b2.uploadFile({
+      uploadUrl: uploadData.uploadUrl!,
+      uploadAuthToken: uploadData.authorizationToken!,
+      fileName: fileName,
+      data: fileBuffer,
+      mime: contentType,
+    });
+    
+    return {
+      fileId: response.data.fileId,
+      fileName: response.data.fileName,
+      contentType: response.data.contentType,
+      contentLength: response.data.contentLength,
+      contentSha1: response.data.contentSha1,
+    };
+  } catch (error) {
+    console.error('Upload failed:', error);
+    throw new Error('Upload failed');
+  }
 }
 
 export async function deleteFile(fileId: string, fileName: string) {
-  if (!BUCKET) throw new Error('S3_BUCKET is not configured');
-  await s3.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: fileId }));
-  return { success: true };
+  try {
+    const auth = await authenticate();
+    await b2.deleteFileVersion({
+      fileId: fileId,
+      fileName: fileName,
+    });
+    return { success: true };
+  } catch (error) {
+    console.error('Delete failed:', error);
+    throw new Error('Delete failed');
+  }
 }
 
-export async function copyFile(sourceKey: string, newFileName: string) {
-  if (!BUCKET) throw new Error('S3_BUCKET is not configured');
-  const CopySource = encodeURI(`${BUCKET}/${sourceKey}`);
-  await s3.send(new CopyObjectCommand({ Bucket: BUCKET, Key: newFileName, CopySource }));
-  return { fileId: newFileName, fileName: newFileName };
+export async function copyFile(sourceFileId: string, newFileName: string) {
+  try {
+    const auth = await authenticate();
+    const response = await b2.copyFileVersion({
+      sourceFileId: sourceFileId,
+      fileName: newFileName,
+      destinationBucketId: B2_BUCKET_ID,
+    });
+    return {
+      fileId: response.data.fileId,
+      fileName: response.data.fileName,
+    };
+  } catch (error) {
+    console.error('Copy failed:', error);
+    throw new Error('Copy failed');
+  }
 }
 
 export async function getSignedUrl(fileName: string, validitySeconds = 3600) {
-  if (PUBLIC_BASE) return `${PUBLIC_BASE}/${fileName}`;
-  const cmd = new GetObjectCommand({ Bucket: BUCKET, Key: fileName });
-  return await getS3SignedUrl(s3, cmd, { expiresIn: validitySeconds });
+  try {
+    const auth = await authenticate();
+    const response = await b2.getDownloadAuthorization({
+      bucketId: B2_BUCKET_ID,
+      fileNamePrefix: fileName,
+      validDurationInSeconds: validitySeconds,
+    });
+    return `${auth.downloadUrl}/file/${B2_BUCKET_NAME}/${fileName}?Authorization=${response.data.authorizationToken}`;
+  } catch (error) {
+    console.error('Failed to get signed URL:', error);
+    throw new Error('Failed to get signed URL');
+  }
+}
+
+export async function generateDownloadUrl(fileUrl: string, filename?: string) {
+  try {
+    console.log('Generating B2 download URL for:', fileUrl);
+    
+    // Check if it's a Backblaze B2 URL
+    if (fileUrl.includes('backblazeb2.com') || fileUrl.includes('f003.backblazeb2.com')) {
+      // Extract the file path from the URL
+      const url = new URL(fileUrl);
+      const pathParts = url.pathname.split('/').filter(part => part);
+      
+      console.log('URL path parts:', pathParts);
+      
+      // For Backblaze B2 URLs, the structure is usually:
+      // https://f003.backblazeb2.com/file/bucket-name/path/to/file
+      
+      let filePath: string;
+      
+      if (url.hostname.includes('f003.backblazeb2.com')) {
+        // f003 URLs: /file/bucket-name/path/to/file
+        const fileIndex = pathParts.findIndex(part => part === 'file');
+        if (fileIndex !== -1) {
+          // Skip the 'file' part and the bucket name
+          filePath = pathParts.slice(fileIndex + 2).join('/');
+        } else {
+          filePath = pathParts.slice(1).join('/'); // Skip 'file' part
+        }
+      } else {
+        // Other B2 URLs
+        const bucketIndex = pathParts.findIndex(part => 
+          part === B2_BUCKET_NAME || 
+          part === 'pensionVerification' || 
+          part === 'PensionerRegisgration'
+        );
+        filePath = bucketIndex !== -1 ? pathParts.slice(bucketIndex + 1).join('/') : pathParts.join('/');
+      }
+      
+      console.log('Extracted file path:', filePath);
+      
+      if (!filePath) {
+        throw new Error('Could not extract file path from URL');
+      }
+      
+      // Generate B2 download authorization
+      const auth = await authenticate();
+      const response = await b2.getDownloadAuthorization({
+        bucketId: B2_BUCKET_ID,
+        fileNamePrefix: filePath,
+        validDurationInSeconds: 300, // 5 minutes
+      });
+      
+      // Generate signed download URL with download parameters
+      let signedUrl = `${auth.downloadUrl}/file/${B2_BUCKET_NAME}/${filePath}?Authorization=${response.data.authorizationToken}`;
+      
+      // Add filename parameter for download if provided
+      if (filename) {
+        signedUrl += `&response-content-disposition=attachment; filename="${encodeURIComponent(filename)}"`;
+      }
+      
+      console.log('Generated B2 signed URL:', signedUrl);
+      
+      return signedUrl;
+    } else {
+      // For non-Backblaze URLs, return as-is
+      console.log('Non-Backblaze URL, returning as-is');
+      return fileUrl;
+    }
+  } catch (error) {
+    console.error('Error generating download URL:', error);
+    console.error('Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      fileUrl,
+      filename
+    });
+    throw new Error('Failed to generate download URL');
+  }
 }
 
 export function getPublicUrl(fileName: string) {
-  if (!PUBLIC_BASE) return `${ENDPOINT}/${BUCKET}/${fileName}`;
-  return `${PUBLIC_BASE}/${fileName}`;
+  return `https://f003.backblazeb2.com/file/${B2_BUCKET_NAME}/${fileName}`;
 }
 
 export async function listFiles(prefix: string, max = 100) {
-  const out = await s3.send(new ListObjectsV2Command({ Bucket: BUCKET, Prefix: prefix, MaxKeys: max }));
-  return (out.Contents || []).map(o => ({ key: o.Key, size: o.Size }));
+  try {
+    const auth = await authenticate();
+    const response = await b2.listFileNames({
+      bucketId: B2_BUCKET_ID,
+      startFileName: prefix,
+      maxFileCount: max,
+    });
+    return (response.data.files || []).map(f => ({ key: f.fileName, size: f.size }));
+  } catch (error) {
+    console.error('List files failed:', error);
+    throw new Error('List files failed');
+  }
+}
+
+export async function testS3Connection() {
+  try {
+    console.log('Testing B2 connection...');
+    console.log('Bucket ID:', B2_BUCKET_ID);
+    console.log('Bucket Name:', B2_BUCKET_NAME);
+    
+    // Validate configuration first
+    if (!B2_KEY_ID || !B2_APPLICATION_KEY || !B2_BUCKET_ID || !B2_BUCKET_NAME) {
+      return {
+        success: false,
+        error: 'Missing required environment variables',
+        details: {
+          B2_KEY_ID: B2_KEY_ID ? 'SET' : 'MISSING',
+          B2_APPLICATION_KEY: B2_APPLICATION_KEY ? 'SET' : 'MISSING',
+          B2_BUCKET_ID: B2_BUCKET_ID || 'MISSING',
+          B2_BUCKET_NAME: B2_BUCKET_NAME || 'MISSING'
+        }
+      };
+    }
+    
+    // Test basic connection by authenticating
+    const auth = await authenticate();
+    console.log('B2 authentication successful');
+    
+    // Test listing files
+    const files = await listFiles('', 1);
+    console.log('B2 connection successful');
+    
+    return { 
+      success: true, 
+      message: 'B2 connection working',
+      configuration: {
+        bucketId: B2_BUCKET_ID,
+        bucketName: B2_BUCKET_NAME,
+        downloadUrl: auth.downloadUrl,
+        apiUrl: auth.apiUrl
+      }
+    };
+  } catch (error) {
+    console.error('B2 connection failed:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Unknown error',
+      details: error,
+      configuration: {
+        bucketId: B2_BUCKET_ID,
+        bucketName: B2_BUCKET_NAME
+      }
+    };
+  }
 }
 

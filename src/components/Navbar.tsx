@@ -17,7 +17,7 @@ export default function Navbar() {
     { name: 'Home', href: '/' },
     { name: 'History', href: '/history' },
     { name: 'FAQs', href: '/faqs' },
-    { name: 'Contact-Us', href: '/contact' },
+    { name: 'Contact-Support', href: '/contact' },
   ];
 
   // Close dropdowns when clicking outside

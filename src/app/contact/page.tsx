@@ -72,7 +72,7 @@ export default function ContactPage() {
 						transition={{ duration: 0.5 }}
 						className="text-3xl md:text-5xl font-bold"
 					>
-						Contact Us
+						Contact Support
 					</motion.h1>
 					<motion.p
 						initial={{ opacity: 0 }}

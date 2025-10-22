@@ -53,6 +53,9 @@ export default function PensionerDashboard() {
   const [profileMsgType, setProfileMsgType] = useState<"success" | "error">(
     "success"
   );
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [profileEdited, setProfileEdited] = useState(false);
+  const [originalProfile, setOriginalProfile] = useState<{ email: string; phone: string; address: string }>({ email: '', phone: '', address: '' });
 
   // Documents state
   const [documents, setDocuments] = useState<{
@@ -84,6 +87,7 @@ export default function PensionerDashboard() {
   const [filesLoading, setFilesLoading] = useState(false);
   const [fileOpId, setFileOpId] = useState<string | null>(null);
   const [replaceTargetId, setReplaceTargetId] = useState<string | null>(null);
+  const [downloadingFileId, setDownloadingFileId] = useState<string | null>(null);
   const replaceInputRef = React.useRef<HTMLInputElement | null>(null);
 
   // Verification state
@@ -107,6 +111,81 @@ export default function PensionerDashboard() {
 
   const formatPercentage = (rate: number) => {
     return `${(rate * 100).toFixed(1)}%`;
+  };
+
+  const getDocumentTypeLabel = (fileType: string) => {
+    const typeMap: { [key: string]: string } = {
+      'appointmentLetter': 'Appointment Letter',
+      'idCard': 'ID Card',
+      'retirementLetter': 'Retirement Letter',
+      'birthCertificate': 'Birth Certificate',
+      'passportPhoto': 'Passport Photo'
+    };
+    return typeMap[fileType] || fileType;
+  };
+
+  const handleDownload = async (fileUrl: string, filename: string, fileId: string) => {
+    try {
+      setDownloadingFileId(fileId);
+      const qp = new URLSearchParams({ url: fileUrl });
+      if (filename) qp.set("filename", filename);
+
+      const res = await fetch(`/api/download?${qp.toString()}`);
+      if (!res.ok) throw new Error("Failed to get download link");
+      const { url } = await res.json();
+
+      // Method 1: Try to download using fetch and blob (most reliable)
+      try {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error('Failed to fetch file');
+        
+        const blob = await response.blob();
+        const downloadUrl = window.URL.createObjectURL(blob);
+        
+        // Create temporary anchor element
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = filename || 'document';
+        link.style.display = 'none';
+        
+        // Add to DOM, click, and clean up
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        // Clean up the blob URL
+        setTimeout(() => window.URL.revokeObjectURL(downloadUrl), 100);
+        
+        // Show success message
+        setDocsMsgType("success");
+        setDocsMsg(`Download started: ${filename || 'document'}`);
+        setTimeout(() => setDocsMsg(""), 3000);
+      } catch (fetchError) {
+        console.log('Fetch method failed, trying direct link method:', fetchError);
+        
+        // Method 2: Fallback to direct link (less reliable but works for some files)
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename || 'document';
+        link.target = '_blank';
+        link.style.display = 'none';
+        
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        // Show success message
+        setDocsMsgType("success");
+        setDocsMsg(`Download started: ${filename || 'document'}`);
+        setTimeout(() => setDocsMsg(""), 3000);
+      }
+    } catch (error) {
+      console.error('Download error:', error);
+      setDocsMsgType("error");
+      setDocsMsg("Failed to download document. Please try again.");
+    } finally {
+      setDownloadingFileId(null);
+    }
   };
 
   useEffect(() => {
@@ -224,14 +303,25 @@ export default function PensionerDashboard() {
   const handleProfileSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
-    if (
-      !profile.fullName ||
-      !profile.email ||
-      !profile.phone ||
-      !profile.address
-    ) {
+    
+    // Check if at least one field has been modified and has a value
+    const hasValidPhone = profile.phone && profile.phone.trim() !== '';
+    const hasValidAddress = profile.address && profile.address.trim() !== '';
+    const hasValidEmail = profile.email && profile.email.trim() !== '';
+    
+    // Debug logging
+    console.log('Profile validation:', {
+      phone: profile.phone,
+      address: profile.address,
+      email: profile.email,
+      hasValidPhone,
+      hasValidAddress,
+      hasValidEmail
+    });
+    
+    if (!hasValidPhone || !hasValidAddress || !hasValidEmail) {
       setProfileMsgType("error");
-      setProfileMsg("Please fill all required fields.");
+      setProfileMsg("Please fill all required fields (Phone, Email, and Address).");
       return;
     }
     try {
@@ -245,10 +335,9 @@ export default function PensionerDashboard() {
         },
         body: JSON.stringify({
           id: user.id,
-          fullName: profile.fullName,
+          email: profile.email,
           phone: profile.phone,
           address: profile.address,
-          bankDetails: profile.bankDetails,
         }),
       });
       const data = await res.json();
@@ -258,13 +347,14 @@ export default function PensionerDashboard() {
       // Optionally update local user cache
       const updatedUser = {
         ...user,
-        fullName: profile.fullName,
         phone: profile.phone,
         residentialAddress: profile.address,
         bankDetails: profile.bankDetails,
       } as any;
       setUser(updatedUser);
       localStorage.setItem("user", JSON.stringify(updatedUser));
+      setIsEditingProfile(false);
+      setProfileEdited(false);
     } catch (err: any) {
       setProfileMsgType("error");
       setProfileMsg(err?.message || "Failed to update profile");
@@ -651,12 +741,25 @@ export default function PensionerDashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start justify-center my-4">
           {/* Quick Actions Card */}
           <div className="bg-white rounded-lg shadow p-6 col-span-2">
-            <h3 className="text-lg font-semibold text-gray-900 mb-1">
-              Quick Actions
-            </h3>
-            <p className="text-xs text-gray-500 mb-4">
-              Update your profile or re-submit documents as needed.
-            </p>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                  Quick Actions
+                </h3>
+                <p className="text-xs text-gray-500">
+                  Update your profile or re-submit documents as needed.
+                </p>
+              </div>
+              <button
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium shadow-sm"
+                onClick={() => (window.location.href = "/contact")}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+                Contact Support
+              </button>
+            </div>
             <div className="space-y-3">
               <div className="mb-4">
                 <div className="flex flex-wrap gap-4 border-b border-gray-200 mb-4">
@@ -684,108 +787,92 @@ export default function PensionerDashboard() {
                 {/* Profile Info Tab */}
                 {activeTab === "profile" && (
                   <form className="space-y-4" onSubmit={handleProfileSave}>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">
-                        Full Name
-                      </label>
-                      <input
-                        type="text"
-                        className="mt-1 block w-full rounded-md border-gray-300 focus:ring-oyoOrange focus:border-oyoOrange"
-                        value={profile.fullName}
-                        onChange={(e) =>
-                          setProfile({ ...profile, fullName: e.target.value })
-                        }
-                        required
-                      />
+                    {/* Controls */}
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-sm font-medium text-gray-900">Edit Contact Details</h4>
+                      {!isEditingProfile ? (
+                        <button
+                          type="button"
+                          className="px-3 py-1.5 rounded-md text-sm bg-gray-100 hover:bg-gray-200 text-gray-800"
+                          onClick={() => {
+                            setIsEditingProfile(true);
+                            setOriginalProfile({ email: profile.email, phone: profile.phone, address: profile.address });
+                            setProfileEdited(false);
+                          }}
+                        >
+                          Edit
+                        </button>
+                      ) : (
+                        <div className="space-x-2">
+                          <button
+                            type="button"
+                            className="px-3 py-1.5 rounded-md text-sm bg-gray-100 hover:bg-gray-200 text-gray-800"
+                            onClick={() => {
+                              setIsEditingProfile(false);
+                              setProfile({ ...profile, email: originalProfile.email, phone: originalProfile.phone, address: originalProfile.address });
+                              setProfileEdited(false);
+                            }}
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="submit"
+                            className={`px-3 py-1.5 rounded-md text-sm text-white ${profileEdited ? 'bg-oyoGreen hover:bg-green-700' : 'bg-gray-300 cursor-not-allowed'}`}
+                            disabled={!profileEdited || profileLoading}
+                          >
+                            {profileLoading ? 'Saving...' : 'Save Changes'}
+                          </button>
                     </div>
+                      )}
+                    </div>
+
+                    {/* Email */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">
-                        Email
-                      </label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
                       <input
                         type="email"
-                        className="mt-1 block w-full rounded-md border-gray-300 bg-gray-100"
+                        className={`mt-1 block w-full rounded-md border border-gray-300 focus:ring-oyoOrange focus:border-oyoOrange ${!isEditingProfile ? 'bg-gray-100' : ''}`}
                         value={profile.email}
-                        readOnly
-                        disabled
+                        readOnly={!isEditingProfile}
+                        onChange={(e) => { setProfile({ ...profile, email: e.target.value }); setProfileEdited(true); }}
+                        required
                       />
                     </div>
+
+                    {/* Phone */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">
-                        Phone
-                      </label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
                       <input
                         type="tel"
-                        className="mt-1 block w-full rounded-md border-gray-300 focus:ring-oyoOrange focus:border-oyoOrange"
-                        value={profile.phone || ""}
-                        onChange={(e) =>
-                          setProfile({ ...profile, phone: e.target.value })
-                        }
+                        className={`mt-1 block w-full rounded-md border border-gray-300 focus:ring-oyoOrange focus:border-oyoOrange ${!isEditingProfile ? 'bg-gray-100' : ''}`}
+                        value={profile.phone || ''}
+                        readOnly={!isEditingProfile}
+                        onChange={(e) => { setProfile({ ...profile, phone: e.target.value }); setProfileEdited(true); }}
                         required
                       />
                     </div>
+
+                    {/* Address */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">
-                        Address
-                      </label>
-                      <input
-                        type="text"
-                        className="mt-1 block w-full rounded-md border-gray-300 focus:ring-oyoOrange focus:border-oyoOrange"
-                        value={profile.address || ""}
-                        onChange={(e) =>
-                          setProfile({ ...profile, address: e.target.value })
-                        }
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                      <textarea
+                        rows={3}
+                        className={`mt-1 block w-full rounded-md border border-gray-300 focus:ring-oyoOrange focus:border-oyoOrange ${!isEditingProfile ? 'bg-gray-100' : ''}`}
+                        value={profile.address || ''}
+                        readOnly={!isEditingProfile}
+                        onChange={(e) => { setProfile({ ...profile, address: e.target.value }); setProfileEdited(true); }}
                         required
                       />
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">
-                        Pension Number
-                      </label>
-                      <input
-                        type="text"
-                        className="mt-1 block w-full rounded-md border-gray-300 bg-gray-100"
-                        value={profile.pensionNumber}
-                        readOnly
-                        disabled
-                      />
+
+                    {/* Hidden Save at bottom when not using header controls - kept for accessibility */}
+                    <div className="sr-only">
+                      <button type="submit">Save Changes</button>
                     </div>
-                    <button
-                      type="submit"
-                      className="w-full px-4 py-2 bg-oyoGreen text-white rounded-md hover:bg-green-700 transition-colors flex items-center justify-center"
-                      disabled={profileLoading}
-                    >
-                      {profileLoading && (
-                        <svg
-                          className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
-                          xmlns="http://www.w3.org/2000/svg"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                        >
-                          <circle
-                            className="opacity-25"
-                            cx="12"
-                            cy="12"
-                            r="10"
-                            stroke="currentColor"
-                            strokeWidth="4"
-                          ></circle>
-                          <path
-                            className="opacity-75"
-                            fill="currentColor"
-                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                          ></path>
-                        </svg>
-                      )}
-                      {profileLoading ? "Saving..." : "Save Changes"}
-                    </button>
+
                     {profileMsg && (
                       <div
-                        className={`text-sm mt-2 ${
-                          profileMsgType === "success"
-                            ? "text-green-600"
-                            : "text-red-600"
-                        }`}
+                        className={`text-sm mt-2 ${profileMsgType === 'success' ? 'text-green-600' : 'text-red-600'}`}
                       >
                         {profileMsg}
                       </div>
@@ -795,24 +882,36 @@ export default function PensionerDashboard() {
                 {/* Documents Tab */}
                 {activeTab === "documents" && (
                   <div className="mt-6">
-                    <h4 className="text-md font-semibold text-gray-900 mb-2">
-                      Your Uploaded Files
-                    </h4>
+                    <div className="flex items-center justify-between mb-4">
+                    <div>
+                        <h4 className="text-md font-semibold text-gray-900 mb-1">
+                          Registration Documents
+                        </h4>
+                        <p className="text-xs text-gray-500">
+                          Documents uploaded during your registration process
+                        </p>
+                      </div>
+                      <div className="text-xs text-gray-400">
+                        {managedFiles.length} file{managedFiles.length !== 1 ? 's' : ''}
+                    </div>
+                      </div>
                     <div className="bg-white border rounded-md overflow-hidden">
                       <div className="overflow-x-auto">
                         <table className="min-w-full divide-y divide-gray-200">
                           <thead className="bg-gray-50">
                             <tr>
-                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Filename
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Document
                               </th>
-                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                 Type
                               </th>
-                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                 Uploaded
                               </th>
-                              <th className="px-4 py-2"></th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Actions
+                              </th>
                             </tr>
                           </thead>
                           <tbody className="bg-white divide-y divide-gray-200">
@@ -829,97 +928,120 @@ export default function PensionerDashboard() {
                               <tr>
                                 <td
                                   colSpan={4}
-                                  className="px-4 py-6 text-sm text-gray-600"
+                                  className="px-6 py-8 text-center"
                                 >
-                                  No files uploaded yet.
+                                  <div className="flex flex-col items-center">
+                                    <svg className="w-12 h-12 text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    </svg>
+                                    <p className="text-sm text-gray-500 mb-1">No documents uploaded yet</p>
+                                    <p className="text-xs text-gray-400">Documents will appear here after registration</p>
+                                  </div>
                                 </td>
                               </tr>
                             ) : (
                               managedFiles.map((f) => (
-                                <tr key={f.id}>
-                                  <td className="px-4 py-2 text-sm text-gray-900 break-all">
-                                    {f.originalName}
+                                <tr key={f.id} className="hover:bg-gray-50">
+                                  <td className="px-4 py-3">
+                                    <div className="flex items-center">
+                                      <div className="flex-shrink-0">
+                                        {f.fileType.startsWith("image") ? (
+                                          <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                          </svg>
+                                        ) : (
+                                          <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                          </svg>
+                                        )}
+                                      </div>
+                                      <div className="ml-3">
+                                        <p className="text-sm font-medium text-gray-900 truncate max-w-xs">
+                                          {f.originalName}
+                                        </p>
+                                        <p className="text-xs text-gray-500">
+                                          {getDocumentTypeLabel(f.fileType)}
+                                        </p>
+                                      </div>
+                                    </div>
                                   </td>
-                                  <td className="px-4 py-2 text-sm text-gray-700">
-                                    {f.fileType}
+                                  <td className="px-4 py-3">
+                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                      {f.fileType}
+                                    </span>
                                   </td>
-                                  <td className="px-4 py-2 text-sm text-gray-700">
-                                    {new Date(f.createdAt).toLocaleString()}
+                                  <td className="px-4 py-3 text-sm text-gray-500">
+                                    {new Date(f.createdAt).toLocaleDateString()}
                                   </td>
-                                  <td className="px-4 py-2 text-sm text-right space-x-2">
+                                  <td className="px-4 py-3">
+                                    <div className="flex items-center space-x-2">
+                                      <button
+                                        type="button"
+                                        className="inline-flex items-center px-2.5 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                                        disabled={downloadingFileId === f.id}
+                                        onClick={() => handleDownload(f.fileUrl, f.originalName, f.id)}
+                                      >
+                                        {downloadingFileId === f.id ? (
+                                          <svg className="w-3 h-3 mr-1 animate-spin" fill="none" viewBox="0 0 24 24">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                          </svg>
+                                        ) : (
+                                          <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                          </svg>
+                                        )}
+                                        {downloadingFileId === f.id ? "Downloading..." : (f.fileType.startsWith("image") ? "View" : "Download")}
+                                      </button>
                                     <button
                                       type="button"
-                                      className="px-3 py-1 rounded bg-gray-100 hover:bg-gray-200 text-gray-800"
-                                      onClick={() =>
-                                        window.open(f.fileUrl, "_blank")
-                                      }
-                                    >
-                                      {f.fileType.startsWith("image")
-                                        ? "Preview"
-                                        : "Download"}
-                                    </button>
-                                    <button
-                                      type="button"
-                                      className="px-3 py-1 rounded bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-60"
+                                        className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
                                       disabled={fileOpId === f.id}
                                       onClick={() => {
                                         setReplaceTargetId(f.id);
                                         replaceInputRef.current?.click();
                                       }}
                                     >
-                                      {fileOpId === f.id &&
-                                      replaceTargetId === f.id
-                                        ? "Replacing…"
-                                        : "Replace"}
+                                        <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                                        </svg>
+                                        {fileOpId === f.id && replaceTargetId === f.id ? "Replacing..." : "Replace"}
                                     </button>
                                     <button
                                       type="button"
-                                      className="px-3 py-1 rounded bg-red-600 hover:bg-red-700 text-white disabled:opacity-60"
+                                        className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
                                       disabled={fileOpId === f.id}
                                       onClick={async () => {
-                                        if (
-                                          !confirm(
-                                            "Delete this file permanently?"
-                                          )
-                                        )
-                                          return;
+                                          if (!confirm("Delete this document permanently?")) return;
                                         try {
                                           setFileOpId(f.id);
-                                          const token =
-                                            localStorage.getItem("token") || "";
-                                          const res = await fetch(
-                                            "/api/files/delete",
-                                            {
+                                            const token = localStorage.getItem("token") || "";
+                                            const res = await fetch("/api/files/delete", {
                                               method: "POST",
                                               headers: {
-                                                "Content-Type":
-                                                  "application/json",
+                                                "Content-Type": "application/json",
                                                 Authorization: `Bearer ${token}`,
                                               },
-                                              body: JSON.stringify({
-                                                fileId: f.id,
-                                              }),
-                                            }
-                                          );
-                                          if (!res.ok)
-                                            throw new Error("Delete failed");
+                                            body: JSON.stringify({ fileId: f.id }),
+                                          });
+                                            if (!res.ok) throw new Error("Delete failed");
                                           await loadManagedFiles();
-                                          setDocsMsgType("success");
-                                          setDocsMsg("File deleted");
+                                            setDocsMsgType("success");
+                                            setDocsMsg("Document deleted successfully");
                                         } catch (e: any) {
-                                          setDocsMsgType("error");
-                                          setDocsMsg(
-                                            e?.message || "Delete failed"
-                                          );
+                                            setDocsMsgType("error");
+                                            setDocsMsg(e?.message || "Delete failed");
                                         } finally {
                                           setFileOpId(null);
                                         }
                                       }}
                                     >
-                                      {fileOpId === f.id
-                                        ? "Deleting…"
-                                        : "Delete"}
+                                        <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                        </svg>
+                                        {fileOpId === f.id ? "Deleting..." : "Delete"}
                                     </button>
+                                    </div>
                                   </td>
                                 </tr>
                               ))
@@ -984,32 +1106,26 @@ export default function PensionerDashboard() {
                   </div>
                 )}
               </div>
-              <button
-                className="w-full px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
-                onClick={() => (window.location.href = "/contact")}
-              >
-                Contact Support
-              </button>
-            </div>
-          </div>
-          {/* Recent Activity */}
+                    </div>
+                  </div>
+        {/* Recent Activity */}
           <div className="bg-white rounded-lg shadow col-span-1">
-            <div className="px-6 py-4 border-b border-gray-200">
+          <div className="px-6 py-4 border-b border-gray-200">
               <h3 className="text-lg font-medium text-gray-900">
                 Recent Activity
               </h3>
-            </div>
-            <div className="p-6">
-              <div className="space-y-4">
+          </div>
+          <div className="p-6">
+            <div className="space-y-4">
                 
                 {/* Verification completed */}
-                <div className="flex items-center space-x-4">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                  <div className="flex-1">
+              <div className="flex items-center space-x-4">
+                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                <div className="flex-1">
                     <p className="text-sm text-gray-900">Verification completed</p>
-                    <p className="text-xs text-gray-500">Today at 10:30 AM</p>
-                  </div>
+                  <p className="text-xs text-gray-500">Today at 10:30 AM</p>
                 </div>
+              </div>
 
                 {/* Registration completed */}
                 <div className="flex items-center space-x-4">
@@ -1023,20 +1139,20 @@ export default function PensionerDashboard() {
                 </div>
 
                 {/* Documents uploaded */}
-                <div className="flex items-center space-x-4">
-                  <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-                  <div className="flex-1">
-                    <p className="text-sm text-gray-900">Documents uploaded</p>
-                    <p className="text-xs text-gray-500">Today at 10:25 AM</p>
-                  </div>
+              <div className="flex items-center space-x-4">
+                <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                <div className="flex-1">
+                  <p className="text-sm text-gray-900">Documents uploaded</p>
+                  <p className="text-xs text-gray-500">Today at 10:25 AM</p>
                 </div>
+              </div>
 
                 {/* Account created */}
-                <div className="flex items-center space-x-4">
-                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                  <div className="flex-1">
-                    <p className="text-sm text-gray-900">Account created</p>
-                    <p className="text-xs text-gray-500">Today at 10:20 AM</p>
+              <div className="flex items-center space-x-4">
+                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                <div className="flex-1">
+                  <p className="text-sm text-gray-900">Account created</p>
+                  <p className="text-xs text-gray-500">Today at 10:20 AM</p>
                   </div>
                 </div>
               </div>
