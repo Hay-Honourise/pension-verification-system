@@ -25,7 +25,6 @@ interface FormData {
   lastPromotionDate: string;
   currentLevel: string;
   salary: string;
-  expectedRetirementDate: string;
   maidenName: string;
   
   // Step 4: Account Security
@@ -33,9 +32,10 @@ interface FormData {
   confirmPassword: string;
   
   // Step 5: Document Upload (now stores file info instead of File objects)
-  passportPhoto: UploadedFile | null;
-  retirementLetter: UploadedFile | null;
+  appointmentLetter: UploadedFile | null;
   idCard: UploadedFile | null;
+  retirementLetter: UploadedFile | null;
+  birthCertificate: UploadedFile | null;
 }
 
 interface UploadedFile {
@@ -67,13 +67,13 @@ export default function RegisterPage() {
     lastPromotionDate: '',
     currentLevel: '',
     salary: '',
-    expectedRetirementDate: '',
     maidenName: '',
     password: '',
     confirmPassword: '',
-    passportPhoto: null,
-    retirementLetter: null,
+    appointmentLetter: null,
     idCard: null,
+    retirementLetter: null,
+    birthCertificate: null,
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -81,13 +81,15 @@ export default function RegisterPage() {
   
   // Upload states for each file type
   const [uploadStates, setUploadStates] = useState<{
-    passportPhoto: 'idle' | 'uploading' | 'success' | 'error';
-    retirementLetter: 'idle' | 'uploading' | 'success' | 'error';
+    appointmentLetter: 'idle' | 'uploading' | 'success' | 'error';
     idCard: 'idle' | 'uploading' | 'success' | 'error';
+    retirementLetter: 'idle' | 'uploading' | 'success' | 'error';
+    birthCertificate: 'idle' | 'uploading' | 'success' | 'error';
   }>({
-    passportPhoto: 'idle',
+    appointmentLetter: 'idle',
+    idCard: 'idle',
     retirementLetter: 'idle',
-    idCard: 'idle'
+    birthCertificate: 'idle'
   });
 
   const updateFormData = (field: keyof FormData, value: any) => {
@@ -128,7 +130,6 @@ export default function RegisterPage() {
         if (!formData.currentLevel.trim()) newErrors.currentLevel = 'Current Level is required';
         if (!formData.salary.trim()) newErrors.salary = 'Salary is required';
         else if (isNaN(Number(formData.salary.replace(/[₦,]/g, '')))) newErrors.salary = 'Salary must be a valid number';
-        if (!formData.expectedRetirementDate) newErrors.expectedRetirementDate = 'Expected Date of Retirement is required';
         break;
       
       case 4:
@@ -158,7 +159,7 @@ export default function RegisterPage() {
     setCurrentStep(prev => Math.max(prev - 1, 1));
   };
 
-  const handleFileUpload = async (field: 'passportPhoto' | 'retirementLetter' | 'idCard', file: File | null) => {
+  const handleFileUpload = async (field: 'appointmentLetter' | 'idCard' | 'retirementLetter' | 'birthCertificate', file: File | null) => {
     if (!file) {
       updateFormData(field, null);
       setUploadStates(prev => ({ ...prev, [field]: 'idle' }));
@@ -470,18 +471,6 @@ export default function RegisterPage() {
         {errors.salary && <p className="text-red-500 text-sm mt-1">{errors.salary}</p>}
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Expected Date of Retirement *</label>
-        <input
-          type="date"
-          value={formData.expectedRetirementDate}
-          onChange={(e) => updateFormData('expectedRetirementDate', e.target.value)}
-          className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-            errors.expectedRetirementDate ? 'border-red-500' : 'border-gray-300'
-          }`}
-        />
-        {errors.expectedRetirementDate && <p className="text-red-500 text-sm mt-1">{errors.expectedRetirementDate}</p>}
-      </div>
 
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">Date of Retirement *</label>
@@ -546,7 +535,7 @@ export default function RegisterPage() {
     </div>
   );
 
-  const renderFileUploadField = (field: 'passportPhoto' | 'retirementLetter' | 'idCard', label: string, accept: string) => {
+  const renderFileUploadField = (field: 'appointmentLetter' | 'idCard' | 'retirementLetter' | 'birthCertificate', label: string, accept: string) => {
     const uploadState = uploadStates[field];
     const fileData = formData[field];
     const error = errors[field];
@@ -603,9 +592,10 @@ export default function RegisterPage() {
         Please upload your documents. Files will be uploaded immediately when selected.
       </p>
       
-      {renderFileUploadField('passportPhoto', 'Passport Photo', 'image/*,.pdf')}
-      {renderFileUploadField('retirementLetter', 'Retirement Letter', '.pdf,image/*')}
+      {renderFileUploadField('appointmentLetter', 'Appointment Letter', '.pdf,image/*')}
       {renderFileUploadField('idCard', 'ID Card', '.pdf,image/*')}
+      {renderFileUploadField('retirementLetter', 'Retirement Letter', '.pdf,image/*')}
+      {renderFileUploadField('birthCertificate', 'Birth Certificate', '.pdf,image/*')}
     </div>
   );
 

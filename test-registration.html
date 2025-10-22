@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Registration</title>
+</head>
+<body>
+    <h1>Test Registration API</h1>
+    <button onclick="testRegistration()">Test Registration</button>
+    <div id="result"></div>
+
+    <script>
+        async function testRegistration() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = 'Testing...';
+            
+            try {
+                const response = await fetch('/api/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        pensionId: 'TEST123',
+                        fullName: 'Test User',
+                        nin: '12345678901',
+                        dateOfBirth: '1990-01-01',
+                        gender: 'male',
+                        email: 'test@example.com',
+                        phone: '1234567890',
+                        residentialAddress: 'Test Address',
+                        pensionSchemeType: 'CPS',
+                        dateOfFirstAppointment: '2020-01-01',
+                        dateOfRetirement: '2025-01-01',
+                        pfNumber: 'PF123',
+                        lastPromotionDate: '2023-01-01',
+                        currentLevel: 'Level 8',
+                        salary: '50000',
+                        maidenName: '',
+                        password: 'testpassword123'
+                    })
+                });
+                
+                const data = await response.json();
+                resultDiv.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+            } catch (error) {
+                resultDiv.innerHTML = `<pre>Error: ${error.message}</pre>`;
+            }
+        }
+    </script>
+</body>
+</html>

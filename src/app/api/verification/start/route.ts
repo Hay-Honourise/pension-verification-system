@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
     const capturedFaceId = await detectFaceFromBuffer(capturedBuffer)
     if (!capturedFaceId) {
       // create review immediately
-      await prisma.verificationReview.create({
+      await prisma.verificationreview.create({
         data: {
           pensionerId: pensioner.id,
           capturedPhoto: capturedUrl,
@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
     if (isIdentical && confidence >= threshold) {
       const nextDue = new Date()
       nextDue.setFullYear(nextDue.getFullYear() + 3)
-      await prisma.verificationLog.create({
+      await prisma.verificationlog.create({
         data: {
           pensionerId: pensioner.id,
           method: 'AZURE_FACE_API',
@@ -99,14 +99,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Low confidence or not identical → review
-    await prisma.verificationReview.create({
+    await prisma.verificationreview.create({
       data: {
         pensionerId: pensioner.id,
         capturedPhoto: capturedUrl,
         status: 'PENDING',
       },
     })
-    await prisma.verificationLog.create({
+    await prisma.verificationlog.create({
       data: {
         pensionerId: pensioner.id,
         method: 'AZURE_FACE_API',

@@ -20,14 +20,14 @@ export async function GET(request: NextRequest) {
     const where: any = { status }
 
     const [items, total] = await Promise.all([
-      prisma.verificationReview.findMany({
+      prisma.verificationreview.findMany({
         where,
         orderBy: { id: 'desc' },
         include: { pensioner: { select: { id: true, fullName: true, pensionId: true, photo: true } } },
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),
-      prisma.verificationReview.count({ where }),
+      prisma.verificationreview.count({ where }),
     ])
 
     return NextResponse.json({ items, total, page, pageSize })

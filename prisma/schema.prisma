@@ -7,72 +7,18 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum Role {
-  ADMIN
-  VERIFICATION_OFFICER
-}
-
-// Staff users (Admin, Verification Officer)
-model User {
-  id         Int      @id @default(autoincrement())
-  fullName   String
-  email      String   @unique
-  password   String
-  phone      String?
-  staffId    String?  @unique
-  department String?
-  role       Role
-  createdAt  DateTime @default(now())
-  verificationReviews VerificationReview[]
-}
-
-model Admin {
-  id        String   @id @default(cuid())
-  email     String   @unique
+model admin {
+  id        String   @id
+  email     String   @unique(map: "Admin_email_key")
   password  String
   name      String
   role      String   @default("admin")
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  updatedAt DateTime
 }
 
-model Pensioner {
-  id                     Int        @id @default(autoincrement())
-  pensionId              String     @unique
-  fullName               String
-  nin                    String     @unique
-  dateOfBirth            DateTime
-  gender                 String
-  email                  String     @unique
-  phone                  String
-  residentialAddress     String
-  pensionSchemeType      String
-  dateOfFirstAppointment DateTime
-  dateOfRetirement       DateTime
-  pfNumber               String     @unique
-  lastPromotionDate      DateTime
-  currentLevel           String
-  salary                 Float
-  expectedRetirementDate DateTime
-  maidenName             String?
-  password               String
-  status                 String     @default("PENDING_VERIFICATION")
-  createdAt              DateTime   @default(now())
-  updatedAt              DateTime   @updatedAt
-  gratuityRate           Float?
-  monthlyPension         Float?
-  pensionRate            Float?
-  totalGratuity          Float?
-  yearsOfService         Int?
-  photo                  String?
-  documents              Document[]
-  files                  PensionerFile[]
-  verificationLogs       VerificationLog[]
-  verificationReviews    VerificationReview[]
-}
-
-model Document {
-  id           String    @id @default(cuid())
+model document {
+  id           String    @id
   pensionerId  Int
   documentType String
   fileName     String
@@ -80,50 +26,110 @@ model Document {
   uploadedAt   DateTime  @default(now())
   verifiedAt   DateTime?
   status       String    @default("pending")
-  pensioner    Pensioner @relation(fields: [pensionerId], references: [id])
+  pensioner    pensioner @relation(fields: [pensionerId], references: [id], map: "Document_pensionerId_fkey")
+
+  @@index([pensionerId], map: "Document_pensionerId_fkey")
 }
 
-model PensionerFile {
-  id            String    @id @default(cuid())
-  pensionerId   Int
-  fileType      String
-  fileUrl       String
-  originalName  String
-  publicId      String
-  uploadedById  Int?
-  createdAt     DateTime  @default(now())
-
-  pensioner     Pensioner @relation(fields: [pensionerId], references: [id])
-}
-
-model Enquiry {
+model enquiry {
   id         Int      @id @default(autoincrement())
   fullName   String
   email      String
   phone      String?
   subject    String
   message    String
-  trackingId String   @unique
+  trackingId String   @unique(map: "Enquiry_trackingId_key")
   createdAt  DateTime @default(now())
 }
 
-model VerificationLog {
-  id           Int       @id @default(autoincrement())
-  pensioner    Pensioner @relation(fields: [pensionerId], references: [id])
-  pensionerId  Int
-  method       String
-  status       String
-  verifiedAt   DateTime?
-  nextDueAt    DateTime?
+model pensioner {
+  id                     Int                  @id @default(autoincrement())
+  pensionId              String               @unique(map: "Pensioner_pensionId_key")
+  fullName               String
+  nin                    String               @unique(map: "Pensioner_nin_key")
+  dateOfBirth            DateTime
+  gender                 String
+  email                  String               @unique(map: "Pensioner_email_key")
+  phone                  String
+  residentialAddress     String
+  pensionSchemeType      String
+  dateOfFirstAppointment DateTime
+  dateOfRetirement       DateTime
+  pfNumber               String               @unique(map: "Pensioner_pfNumber_key")
+  lastPromotionDate      DateTime
+  currentLevel           String
+  salary                 Float
+  maidenName             String?
+  password               String
+  status                 String               @default("PENDING_VERIFICATION")
+  createdAt              DateTime             @default(now())
+  updatedAt              DateTime
+  gratuityRate           Float?
+  monthlyPension         Float?
+  pensionRate            Float?
+  totalGratuity          Float?
+  yearsOfService         Int?
+  photo                  String?
+  document               document[]
+  pensionerfile          pensionerfile[]
+  verificationlog        verificationlog[]
+  verificationreview     verificationreview[]
 }
 
-model VerificationReview {
+model pensionerfile {
+  id           String    @id
+  pensionerId  Int
+  fileType     String
+  fileUrl      String
+  originalName String
+  publicId     String
+  uploadedById Int?
+  createdAt    DateTime  @default(now())
+  pensioner    pensioner @relation(fields: [pensionerId], references: [id], map: "PensionerFile_pensionerId_fkey")
+
+  @@index([pensionerId], map: "PensionerFile_pensionerId_fkey")
+}
+
+model user {
+  id                 Int                  @id @default(autoincrement())
+  fullName           String
+  email              String               @unique(map: "User_email_key")
+  password           String
+  phone              String?
+  staffId            String?              @unique(map: "User_staffId_key")
+  department         String?
+  role               user_role
+  createdAt          DateTime             @default(now())
+  verificationreview verificationreview[]
+}
+
+model verificationlog {
+  id          Int       @id @default(autoincrement())
+  pensionerId Int
+  method      String
+  status      String
+  verifiedAt  DateTime?
+  nextDueAt   DateTime?
+  pensioner   pensioner @relation(fields: [pensionerId], references: [id], map: "VerificationLog_pensionerId_fkey")
+
+  @@index([pensionerId], map: "VerificationLog_pensionerId_fkey")
+}
+
+model verificationreview {
   id            Int       @id @default(autoincrement())
-  pensioner     Pensioner @relation(fields: [pensionerId], references: [id])
   pensionerId   Int
-  officer       User?     @relation(fields: [officerId], references: [id])
   officerId     Int?
   capturedPhoto String
-  status        String   @default("PENDING")
+  status        String    @default("PENDING")
   reviewedAt    DateTime?
+  user          user?     @relation(fields: [officerId], references: [id], map: "VerificationReview_officerId_fkey")
+  pensioner     pensioner @relation(fields: [pensionerId], references: [id], map: "VerificationReview_pensionerId_fkey")
+
+  @@index([officerId], map: "VerificationReview_officerId_fkey")
+  @@index([pensionerId], map: "VerificationReview_pensionerId_fkey")
+}
+
+enum user_role {
+  ADMIN
+  VERIFICATION_OFFICER
 }

@@ -51,13 +51,14 @@ export async function POST(request: NextRequest) {
     const publicId: string = uploadResult.fileId
     const originalName: string = file.name || 'upload'
 
-    const saved = await prisma.pensionerFile.create({
+    const saved = await prisma.pensionerfile.create({
       data: {
+        id: `file-${pensionerId}-${Date.now()}`,
         pensionerId,
         fileType,
         fileUrl: url,
         originalName,
-        publicId,
+        publicId: publicId || '',
         uploadedById: isOwner ? pensionerId : Number(token.id),
       },
     })

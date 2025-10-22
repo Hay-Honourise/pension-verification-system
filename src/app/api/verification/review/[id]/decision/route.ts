@@ -17,7 +17,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     const decision = String(body?.decision || '').toUpperCase()
     const notes = String(body?.notes || '')
 
-    const review = await prisma.verificationReview.findUnique({ where: { id } })
+    const review = await prisma.verificationreview.findUnique({ where: { id } })
     if (!review) return NextResponse.json({ message: 'Not found' }, { status: 404 })
 
     if (decision !== 'APPROVE' && decision !== 'REJECT') {
@@ -28,14 +28,14 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       const nextDue = new Date()
       nextDue.setFullYear(nextDue.getFullYear() + 3)
       await prisma.$transaction([
-        prisma.verificationReview.update({ where: { id }, data: { status: 'VERIFIED', reviewedAt: new Date(), officerId: Number(token.id) } }),
-        prisma.verificationLog.create({ data: { pensionerId: review.pensionerId, method: 'MANUAL_REVIEW', status: 'VERIFIED', verifiedAt: new Date(), nextDueAt: nextDue } }),
+        prisma.verificationreview.update({ where: { id }, data: { status: 'VERIFIED', reviewedAt: new Date(), officerId: Number(token.id) } }),
+        prisma.verificationlog.create({ data: { pensionerId: review.pensionerId, method: 'MANUAL_REVIEW', status: 'VERIFIED', verifiedAt: new Date(), nextDueAt: nextDue } }),
       ])
       return NextResponse.json({ success: true, status: 'VERIFIED', nextDueAt: nextDue })
     } else {
       await prisma.$transaction([
-        prisma.verificationReview.update({ where: { id }, data: { status: 'REJECTED', reviewedAt: new Date(), officerId: Number(token.id) } }),
-        prisma.verificationLog.create({ data: { pensionerId: review.pensionerId, method: 'MANUAL_REVIEW', status: 'REJECTED', verifiedAt: new Date() } }),
+        prisma.verificationreview.update({ where: { id }, data: { status: 'REJECTED', reviewedAt: new Date(), officerId: Number(token.id) } }),
+        prisma.verificationlog.create({ data: { pensionerId: review.pensionerId, method: 'MANUAL_REVIEW', status: 'REJECTED', verifiedAt: new Date() } }),
       ])
       return NextResponse.json({ success: true, status: 'REJECTED' })
     }

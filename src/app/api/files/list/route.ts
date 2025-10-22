@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
 
     if (Number.isNaN(pensionerId)) return NextResponse.json({ message: 'Invalid pensionerId' }, { status: 400 })
 
-    const files = await prisma.pensionerFile.findMany({
+    const files = await prisma.pensionerfile.findMany({
       where: { pensionerId },
       orderBy: { createdAt: 'desc' },
     })

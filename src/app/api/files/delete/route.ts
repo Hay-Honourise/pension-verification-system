@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
     const fileId = String(body?.fileId || '')
     if (!fileId) return NextResponse.json({ message: 'fileId is required' }, { status: 400 })
 
-    const file = await prisma.pensionerFile.findUnique({ where: { id: fileId } })
+    const file = await prisma.pensionerfile.findUnique({ where: { id: fileId } })
     if (!file) return NextResponse.json({ message: 'Not found' }, { status: 404 })
 
     const isOwner = token.role === 'pensioner' && Number(token.id) === file.pensionerId
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     // Delete from Backblaze B2
     await deleteFile(file.publicId, file.fileUrl.split('/').pop() || '')
 
-    await prisma.pensionerFile.delete({ where: { id: fileId } })
+    await prisma.pensionerfile.delete({ where: { id: fileId } })
     return NextResponse.json({ success: true })
   } catch (err) {
     console.error('[files/delete] error', err)

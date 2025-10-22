@@ -12,14 +12,14 @@ const ALLOWED_TYPES = new Set([
 
 export async function POST(request: NextRequest) {
   try {
-    // Check if Backblaze B2 S3 environment variables are configured
-    const requiredEnvVars = ['S3_ACCESS_KEY_ID', 'S3_SECRET_ACCESS_KEY', 'S3_BUCKET'];
+    // Check if Backblaze B2 environment variables are configured
+    const requiredEnvVars = ['B2_KEY_ID', 'B2_APPLICATION_KEY', 'B2_BUCKET_ID', 'B2_BUCKET_NAME'];
     const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
     
     if (missingVars.length > 0) {
-      console.error('Missing Backblaze B2 S3 environment variables:', missingVars);
+      console.error('Missing Backblaze B2 environment variables:', missingVars);
       return NextResponse.json({ 
-        message: 'Backblaze B2 S3 configuration is missing. Please check environment variables.' 
+        message: 'Backblaze B2 configuration is missing. Please check environment variables.' 
       }, { status: 500 });
     }
 

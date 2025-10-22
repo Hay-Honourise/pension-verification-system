@@ -25,7 +25,6 @@ interface FormData {
   lastPromotionDate: string;
   currentLevel: string;
   salary: string;
-  expectedRetirementDate: string;
   maidenName: string;
   
   // Step 4: Account Security
@@ -33,9 +32,10 @@ interface FormData {
   confirmPassword: string;
   
   // Step 5: Document Upload (now stores file info instead of File objects)
-  passportPhoto: UploadedFile | null;
-  retirementLetter: UploadedFile | null;
+  appointmentLetter: UploadedFile | null;
   idCard: UploadedFile | null;
+  retirementLetter: UploadedFile | null;
+  birthCertificate: UploadedFile | null;
 }
 
 interface UploadedFile {
@@ -94,9 +94,6 @@ export default function VerificationPage() {
     if (!data.dateOfFirstAppointment) {
       errors.push('Date of First Appointment is required');
     }
-    if (!data.expectedRetirementDate) {
-      errors.push('Expected Retirement Date is required');
-    }
     if (!data.salary || data.salary.trim() === '') {
       errors.push('Salary is required');
     }
@@ -105,12 +102,12 @@ export default function VerificationPage() {
     }
     
     // Validate dates
-    if (data.dateOfFirstAppointment && data.expectedRetirementDate) {
+    if (data.dateOfFirstAppointment && data.dateOfRetirement) {
       const firstAppointment = new Date(data.dateOfFirstAppointment);
-      const retirement = new Date(data.expectedRetirementDate);
+      const retirement = new Date(data.dateOfRetirement);
       
       if (retirement <= firstAppointment) {
-        errors.push('Expected Retirement Date must be after Date of First Appointment');
+        errors.push('Date of Retirement must be after Date of First Appointment');
       }
     }
     
@@ -141,7 +138,7 @@ export default function VerificationPage() {
 
       // Calculate years of service
       const firstAppointmentYear = new Date(data.dateOfFirstAppointment).getFullYear();
-      const retirementYear = new Date(data.expectedRetirementDate).getFullYear();
+      const retirementYear = new Date(data.dateOfRetirement).getFullYear();
       const yearsOfService = retirementYear - firstAppointmentYear;
       
       console.log('Years of service calculated:', yearsOfService);
@@ -216,7 +213,7 @@ export default function VerificationPage() {
       // Append all form fields including file URLs
       Object.entries(formData).forEach(([key, value]) => {
         if (value !== null) {
-          if (key === 'passportPhoto' || key === 'retirementLetter' || key === 'idCard') {
+          if (key === 'appointmentLetter' || key === 'idCard' || key === 'retirementLetter' || key === 'birthCertificate') {
             // Send file info as JSON string
             formDataToSend.append(key, JSON.stringify(value));
           } else {
@@ -344,7 +341,6 @@ export default function VerificationPage() {
                     <div><span className="font-medium">Last Promotion:</span> {formData.lastPromotionDate}</div>
                     <div><span className="font-medium">Current Level:</span> {formData.currentLevel}</div>
                     <div><span className="font-medium">Salary:</span> {formData.salary}</div>
-                    <div><span className="font-medium">Expected Retirement:</span> {formData.expectedRetirementDate}</div>
                     {formData.gender === 'female' && formData.maidenName && (
                       <div><span className="font-medium">Maiden Name:</span> {formData.maidenName}</div>
                     )}
@@ -354,9 +350,10 @@ export default function VerificationPage() {
                 <div>
                   <h3 className="font-medium text-gray-700 mb-3">Uploaded Documents</h3>
                   <div className="space-y-2 text-sm">
-                    <div><span className="font-medium">Passport Photo:</span> {formData.passportPhoto ? formData.passportPhoto.originalName : 'Not uploaded'}</div>
-                    <div><span className="font-medium">Retirement Letter:</span> {formData.retirementLetter ? formData.retirementLetter.originalName : 'Not uploaded'}</div>
+                    <div><span className="font-medium">Appointment Letter:</span> {formData.appointmentLetter ? formData.appointmentLetter.originalName : 'Not uploaded'}</div>
                     <div><span className="font-medium">ID Card:</span> {formData.idCard ? formData.idCard.originalName : 'Not uploaded'}</div>
+                    <div><span className="font-medium">Retirement Letter:</span> {formData.retirementLetter ? formData.retirementLetter.originalName : 'Not uploaded'}</div>
+                    <div><span className="font-medium">Birth Certificate:</span> {formData.birthCertificate ? formData.birthCertificate.originalName : 'Not uploaded'}</div>
                   </div>
                 </div>
               </div>
@@ -443,7 +440,6 @@ export default function VerificationPage() {
                   <div><span className="font-medium">Last Promotion:</span> {formData.lastPromotionDate}</div>
                   <div><span className="font-medium">Current Level:</span> {formData.currentLevel}</div>
                   <div><span className="font-medium">Salary:</span> {formatCurrency(parseFloat(formData.salary.replace(/[₦,]/g, '')))}</div>
-                  <div><span className="font-medium">Expected Retirement:</span> {formData.expectedRetirementDate}</div>
                   {formData.gender === 'female' && formData.maidenName && (
                     <div><span className="font-medium">Maiden Name:</span> {formData.maidenName}</div>
                   )}
@@ -453,9 +449,10 @@ export default function VerificationPage() {
               <div>
                 <h3 className="font-medium text-gray-700 mb-3">Uploaded Documents</h3>
                 <div className="space-y-2 text-sm">
-                  <div><span className="font-medium">Passport Photo:</span> {formData.passportPhoto ? formData.passportPhoto.originalName : 'Not uploaded'}</div>
-                  <div><span className="font-medium">Retirement Letter:</span> {formData.retirementLetter ? formData.retirementLetter.originalName : 'Not uploaded'}</div>
+                  <div><span className="font-medium">Appointment Letter:</span> {formData.appointmentLetter ? formData.appointmentLetter.originalName : 'Not uploaded'}</div>
                   <div><span className="font-medium">ID Card:</span> {formData.idCard ? formData.idCard.originalName : 'Not uploaded'}</div>
+                  <div><span className="font-medium">Retirement Letter:</span> {formData.retirementLetter ? formData.retirementLetter.originalName : 'Not uploaded'}</div>
+                  <div><span className="font-medium">Birth Certificate:</span> {formData.birthCertificate ? formData.birthCertificate.originalName : 'Not uploaded'}</div>
                 </div>
               </div>
             </div>
@@ -471,7 +468,7 @@ export default function VerificationPage() {
                 <h3 className="font-semibold text-blue-800 mb-2">Years of Service</h3>
                 <div className="text-2xl font-bold text-blue-900">{calculatedBenefits.yearsOfService} years</div>
                 <p className="text-sm text-blue-700 mt-1">
-                  From {new Date(formData.dateOfFirstAppointment).getFullYear()} to {new Date(formData.expectedRetirementDate).getFullYear()}
+                  From {new Date(formData.dateOfFirstAppointment).getFullYear()} to {new Date(formData.dateOfRetirement).getFullYear()}
                 </p>
               </div>
 

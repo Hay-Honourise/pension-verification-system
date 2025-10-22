@@ -20,7 +20,7 @@ interface User {
   pensionSchemeType?: string;
   currentLevel?: string;
   dateOfFirstAppointment?: string;
-  expectedRetirementDate?: string;
+  dateOfRetirement?: string;
 }
 
 export default function PensionerDashboard() {
@@ -646,10 +646,10 @@ export default function PensionerDashboard() {
                   {user.yearsOfService}
                 </div>
                 <p className="text-sm text-blue-700 mt-1">years</p>
-                {user.dateOfFirstAppointment && user.expectedRetirementDate && (
+                {user.dateOfFirstAppointment && user.dateOfRetirement && (
                   <p className="text-xs text-blue-600 mt-2">
                     From {new Date(user.dateOfFirstAppointment).getFullYear()}{" "}
-                    to {new Date(user.expectedRetirementDate).getFullYear()}
+                    to {new Date(user.dateOfRetirement).getFullYear()}
                   </p>
                 )}
               </div>

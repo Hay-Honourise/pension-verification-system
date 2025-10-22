@@ -63,8 +63,7 @@ export async function POST(request: NextRequest) {
         salary: pensioner.salary,
         pensionSchemeType: pensioner.pensionSchemeType,
         currentLevel: pensioner.currentLevel,
-        dateOfFirstAppointment: pensioner.dateOfFirstAppointment,
-        expectedRetirementDate: pensioner.expectedRetirementDate
+        dateOfFirstAppointment: pensioner.dateOfFirstAppointment
       }
     });
 

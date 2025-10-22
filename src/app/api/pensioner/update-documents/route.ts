@@ -40,13 +40,14 @@ export async function PUT(request: NextRequest) {
           const uploadResult = await uploadFile(buffer, fileName, file.type);
           const fileUrl = `${process.env.S3_PUBLIC_BASE_URL || 'https://f003.backblazeb2.com/file/PensionerRegisgration'}/${fileName}`;
           
-          const savedFile = await prisma.pensionerFile.create({
+          const savedFile = await prisma.pensionerfile.create({
             data: {
+              id: `${key}-${id}-${Date.now()}`,
               pensionerId: Number(id),
               fileType: key,
               fileUrl,
               originalName: file.name,
-              publicId: uploadResult.fileId,
+              publicId: uploadResult.fileId || '',
             },
           });
           

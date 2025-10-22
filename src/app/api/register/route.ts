@@ -5,7 +5,9 @@ import { copyFile, deleteFile } from '@/lib/backblaze';
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('Registration API called');
     const formData = await request.formData();
+    console.log('Form data received');
     
     // Extract form data
     const pensionId = formData.get('pensionId') as string;
@@ -23,7 +25,6 @@ export async function POST(request: NextRequest) {
     const lastPromotionDate = formData.get('lastPromotionDate') as string;
     const currentLevel = formData.get('currentLevel') as string;
     const salary = formData.get('salary') as string;
-    const expectedRetirementDate = formData.get('expectedRetirementDate') as string;
     const maidenName = formData.get('maidenName') as string;
     const password = formData.get('password') as string;
     
@@ -38,7 +39,7 @@ export async function POST(request: NextRequest) {
     if (!pensionId || !fullName || !nin || !dateOfBirth || !gender || 
         !email || !phone || !residentialAddress || !pensionSchemeType || 
         !dateOfFirstAppointment || !dateOfRetirement || !pfNumber || 
-        !lastPromotionDate || !currentLevel || !salary || !expectedRetirementDate || !password) {
+        !lastPromotionDate || !currentLevel || !salary || !password) {
       return NextResponse.json(
         { message: 'All required fields must be provided' },
         { status: 400 }
@@ -85,7 +86,6 @@ export async function POST(request: NextRequest) {
         lastPromotionDate: new Date(lastPromotionDate),
         currentLevel,
         salary: parseFloat(salary.replace(/[₦,]/g, '')) || 0,
-        expectedRetirementDate: new Date(expectedRetirementDate),
         maidenName: maidenName || null,
         password: hashedPassword,
         status: 'PENDING_VERIFICATION',
@@ -103,43 +103,39 @@ export async function POST(request: NextRequest) {
     });
 
     // Handle file uploads: move files from temp to permanent location in B2
-    const passportPhotoData = formData.get('passportPhoto') as string | null;
-    const retirementLetterData = formData.get('retirementLetter') as string | null;
+    const appointmentLetterData = formData.get('appointmentLetter') as string | null;
     const idCardData = formData.get('idCard') as string | null;
+    const retirementLetterData = formData.get('retirementLetter') as string | null;
+    const birthCertificateData = formData.get('birthCertificate') as string | null;
 
     const uploadedFiles: any[] = [];
 
-    // Process passport photo
-    if (passportPhotoData) {
+    // Process appointment letter
+    if (appointmentLetterData) {
       try {
-        const fileInfo = JSON.parse(passportPhotoData);
-        const permanentFileName = `pensioners/${pensioner.id}/passport-${Date.now()}.${fileInfo.originalName.split('.').pop()}`;
+        const fileInfo = JSON.parse(appointmentLetterData);
+        const permanentFileName = `pensioners/${pensioner.id}/appointment-${Date.now()}.${fileInfo.originalName.split('.').pop()}`;
         
         const copyResult = await copyFile(fileInfo.id, permanentFileName);
         
         // Store in database
-        const savedFile = await prisma.pensionerFile.create({
-          data: {
-            pensionerId: pensioner.id,
-            fileType: 'passport',
-            fileUrl: `${process.env.S3_PUBLIC_BASE_URL || 'https://f003.backblazeb2.com/file/PensionerRegisgration'}/${permanentFileName}`,
-            originalName: fileInfo.originalName,
-            publicId: copyResult.fileId || '',
-          },
-        });
+          const savedFile = await prisma.pensionerfile.create({
+            data: {
+              id: `appointment-${pensioner.id}-${Date.now()}`,
+              pensionerId: pensioner.id,
+              fileType: 'appointmentLetter',
+              fileUrl: `${process.env.S3_PUBLIC_BASE_URL || 'https://f003.backblazeb2.com/file/PensionerRegisgration'}/${permanentFileName}`,
+              originalName: fileInfo.originalName,
+              publicId: copyResult.fileId || '',
+            },
+          });
         
         uploadedFiles.push(savedFile);
-        
-        // Update pensioner photo field
-        await prisma.pensioner.update({
-          where: { id: pensioner.id },
-          data: { photo: savedFile.fileUrl } as any,
-        });
         
         // Delete temp file
         await deleteFile(fileInfo.id, fileInfo.fileName);
       } catch (e) {
-        console.error('Failed to process passport photo:', e);
+        console.error('Failed to process appointment letter:', e);
       }
     }
 
@@ -151,8 +147,9 @@ export async function POST(request: NextRequest) {
         
         const copyResult = await copyFile(fileInfo.id, permanentFileName);
         
-        const savedFile = await prisma.pensionerFile.create({
+        const savedFile = await prisma.pensionerfile.create({
           data: {
+            id: `retirement-${pensioner.id}-${Date.now()}`,
             pensionerId: pensioner.id,
             fileType: 'retirement',
             fileUrl: `${process.env.S3_PUBLIC_BASE_URL || 'https://f003.backblazeb2.com/file/PensionerRegisgration'}/${permanentFileName}`,
@@ -176,8 +173,9 @@ export async function POST(request: NextRequest) {
         
         const copyResult = await copyFile(fileInfo.id, permanentFileName);
         
-        const savedFile = await prisma.pensionerFile.create({
+        const savedFile = await prisma.pensionerfile.create({
           data: {
+            id: `idcard-${pensioner.id}-${Date.now()}`,
             pensionerId: pensioner.id,
             fileType: 'idcard',
             fileUrl: `${process.env.S3_PUBLIC_BASE_URL || 'https://f003.backblazeb2.com/file/PensionerRegisgration'}/${permanentFileName}`,
@@ -190,6 +188,32 @@ export async function POST(request: NextRequest) {
         await deleteFile(fileInfo.id, fileInfo.fileName);
       } catch (e) {
         console.error('Failed to process ID card:', e);
+      }
+    }
+
+    // Process birth certificate
+    if (birthCertificateData) {
+      try {
+        const fileInfo = JSON.parse(birthCertificateData);
+        const permanentFileName = `pensioners/${pensioner.id}/birth-cert-${Date.now()}.${fileInfo.originalName.split('.').pop()}`;
+        
+        const copyResult = await copyFile(fileInfo.id, permanentFileName);
+        
+        const savedFile = await prisma.pensionerfile.create({
+          data: {
+            id: `birthcert-${pensioner.id}-${Date.now()}`,
+            pensionerId: pensioner.id,
+            fileType: 'birthCertificate',
+            fileUrl: `${process.env.S3_PUBLIC_BASE_URL || 'https://f003.backblazeb2.com/file/PensionerRegisgration'}/${permanentFileName}`,
+            originalName: fileInfo.originalName,
+            publicId: copyResult.fileId || '',
+          },
+        });
+        
+        uploadedFiles.push(savedFile);
+        await deleteFile(fileInfo.id, fileInfo.fileName);
+      } catch (e) {
+        console.error('Failed to process birth certificate:', e);
       }
     }
 

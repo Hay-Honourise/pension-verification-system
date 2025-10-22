@@ -60,9 +60,15 @@ export async function getUploadUrl() {
 
 export async function uploadFile(fileBuffer: Buffer, fileName: string, contentType: string) {
   try {
+    console.log('uploadFile called with:', { fileName, contentType, bufferSize: fileBuffer.length });
+    
     if (!B2_BUCKET_ID) throw new Error('B2_BUCKET_ID is not configured');
     
+    console.log('Getting upload URL...');
     const uploadData = await getUploadUrl();
+    console.log('Upload URL obtained:', { uploadUrl: uploadData.uploadUrl ? 'SET' : 'MISSING', authToken: uploadData.authorizationToken ? 'SET' : 'MISSING' });
+    
+    console.log('Uploading file to B2...');
     const response = await b2.uploadFile({
       uploadUrl: uploadData.uploadUrl!,
       uploadAuthToken: uploadData.authorizationToken!,
@@ -70,6 +76,8 @@ export async function uploadFile(fileBuffer: Buffer, fileName: string, contentTy
       data: fileBuffer,
       mime: contentType,
     });
+    
+    console.log('Upload successful:', { fileId: response.data.fileId, fileName: response.data.fileName });
     
     return {
       fileId: response.data.fileId,
@@ -80,6 +88,13 @@ export async function uploadFile(fileBuffer: Buffer, fileName: string, contentTy
     };
   } catch (error) {
     console.error('Upload failed:', error);
+    console.error('Upload error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      fileName,
+      contentType,
+      bufferSize: fileBuffer.length
+    });
     throw new Error('Upload failed');
   }
 }
