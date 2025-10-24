@@ -172,6 +172,7 @@ export default function AdminDashboard() {
   }
 
   const handleLogout = () => {
+    console.log('Logout button clicked!')
     localStorage.removeItem('user')
     localStorage.removeItem('token')
     router.push('/admin/login')
@@ -220,12 +221,22 @@ export default function AdminDashboard() {
   return (
     <div className="flex min-h-screen bg-gray-50">
       {/* Sidebar */}
-      <aside className={`${sidebarOpen ? 'w-64' : 'w-16'} bg-gray-900 text-white flex flex-col fixed h-screen transition-all duration-300 z-50`}>
+      <aside className={`${sidebarOpen ? 'w-64' : 'w-16'} bg-gray-900 text-white flex flex-col fixed h-screen transition-all duration-300 z-50 left-0 top-0`}>
         {/* Header */}
         <div className="p-4 flex-shrink-0">
-          <div className="flex items-center">
-            <div className="text-2xl mr-3">🧮</div>
-            {sidebarOpen && <h1 className="text-xl font-bold">Admin Panel</h1>}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <div className="text-2xl mr-3">🧮</div>
+              {sidebarOpen && <h1 className="text-xl font-bold">Admin Panel</h1>}
+            </div>
+            <button
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="p-1 rounded-lg hover:bg-gray-700 transition-colors"
+            >
+              <div className="w-4 h-4">
+                {sidebarOpen ? '←' : '→'}
+              </div>
+            </button>
           </div>
         </div>
 
@@ -258,12 +269,12 @@ export default function AdminDashboard() {
         </nav>
 
         {/* Footer - Logout Button */}
-        <div className="p-4 border-t border-gray-700 flex-shrink-0">
+        <div className="p-4 border-t border-gray-700 flex-shrink-0 bg-gray-800">
           <button
             onClick={handleLogout}
-            className="w-full flex items-center px-3 py-2 rounded-lg text-gray-300 hover:bg-red-600 hover:text-white transition-colors"
+            className="w-full flex items-center justify-center px-3 py-3 rounded-lg text-white bg-red-600 hover:bg-red-700 transition-colors font-medium"
           >
-            <LogOut className="w-5 h-5 mr-3" />
+            <LogOut className="w-5 h-5 mr-2" />
             {sidebarOpen && <span>Logout</span>}
           </button>
         </div>
@@ -273,23 +284,34 @@ export default function AdminDashboard() {
       <main className={`flex-1 transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'} overflow-y-auto`}>
         <div className="p-6">
           {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">
-              {activePage === 'dashboard' && 'Dashboard Overview'}
-              {activePage === 'pensioners' && 'Pensioner Management'}
-              {activePage === 'enquiries' && 'Enquiry Management'}
-              {activePage === 'notifications' && 'System Notifications'}
-              {activePage === 'reports' && 'Reports & Analytics'}
-              {activePage === 'settings' && 'System Settings'}
-            </h1>
-            <p className="text-gray-600 mt-2">
-              {activePage === 'dashboard' && 'Monitor system performance and key metrics'}
-              {activePage === 'pensioners' && 'Manage pensioner accounts and verification status'}
-              {activePage === 'enquiries' && 'View and manage system enquiries and support requests'}
-              {activePage === 'notifications' && 'View and manage system notifications'}
-              {activePage === 'reports' && 'Generate and download system reports'}
-              {activePage === 'settings' && 'Configure system settings and preferences'}
-            </p>
+          <div className="mb-8 flex justify-between items-start">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">
+                {activePage === 'dashboard' && 'Dashboard Overview'}
+                {activePage === 'pensioners' && 'Pensioner Management'}
+                {activePage === 'enquiries' && 'Enquiry Management'}
+                {activePage === 'notifications' && 'System Notifications'}
+                {activePage === 'reports' && 'Reports & Analytics'}
+                {activePage === 'settings' && 'System Settings'}
+              </h1>
+              <p className="text-gray-600 mt-2">
+                {activePage === 'dashboard' && 'Monitor system performance and key metrics'}
+                {activePage === 'pensioners' && 'Manage pensioner accounts and verification status'}
+                {activePage === 'enquiries' && 'View and manage system enquiries and support requests'}
+                {activePage === 'notifications' && 'View and manage system notifications'}
+                {activePage === 'reports' && 'Generate and download system reports'}
+                {activePage === 'settings' && 'Configure system settings and preferences'}
+              </p>
+            </div>
+            
+            {/* Fallback Logout Button */}
+            <button
+              onClick={handleLogout}
+              className="flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              Logout
+            </button>
           </div>
 
           {/* Dashboard Content */}
