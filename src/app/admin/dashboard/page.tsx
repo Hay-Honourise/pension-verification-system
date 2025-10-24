@@ -1,19 +1,59 @@
 "use client"
 
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { 
+  Home, 
+  Users, 
+  Bell, 
+  BarChart3, 
+  Settings, 
+  LogOut, 
+  Search, 
+  Filter, 
+  Eye, 
+  CheckCircle, 
+  Flag, 
+  Trash2, 
+  Download, 
+  FileText,
+  Calendar,
+  TrendingUp,
+  AlertTriangle,
+  UserCheck,
+  Clock,
+  Mail,
+  Phone,
+  MapPin
+} from 'lucide-react'
 
 export default function AdminDashboard() {
   const router = useRouter()
   const [authorized, setAuthorized] = useState(false)
-  const [token, setToken] = useState<string>('')
-  const [pensionerId, setPensionerId] = useState<string>('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string>('')
-  const [files, setFiles] = useState<Array<{ id: string; fileType: string; fileUrl: string; originalName: string; createdAt: string }>>([])
-  const [opId, setOpId] = useState<string | null>(null)
-  const replaceInputRef = useRef<HTMLInputElement | null>(null)
-  const [replaceTargetId, setReplaceTargetId] = useState<string | null>(null)
+  const [activePage, setActivePage] = useState('dashboard')
+  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [user, setUser] = useState<any>(null)
+
+  // Dashboard metrics state
+  const [metrics, setMetrics] = useState({
+    totalPensioners: 0,
+    verifiedPensioners: 0,
+    pendingReviews: 0,
+    flaggedAccounts: 0
+  })
+
+  // Pensioners state
+  const [pensioners, setPensioners] = useState<any[]>([])
+  const [searchTerm, setSearchTerm] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [pensionTypeFilter, setPensionTypeFilter] = useState('all')
+
+  // Notifications state
+  const [notifications, setNotifications] = useState<any[]>([])
+
+  // Loading states
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     const u = localStorage.getItem('user')
@@ -26,7 +66,8 @@ export default function AdminDashboard() {
       const parsed = JSON.parse(u)
       if (parsed?.role === 'ADMIN') {
         setAuthorized(true)
-        setToken(t)
+        setUser(parsed)
+        loadDashboardData()
       } else {
         router.push('/admin/login')
       }
@@ -35,209 +76,887 @@ export default function AdminDashboard() {
     }
   }, [router])
 
-  const fetchFiles = async (pid: string) => {
-    if (!pid) return
-    setLoading(true)
-    setError('')
+  // Load data when page changes
+  useEffect(() => {
+    if (authorized) {
+      if (activePage === 'dashboard') {
+        loadDashboardData()
+      } else if (activePage === 'pensioners') {
+        loadPensioners()
+      }
+      // Enquiries page will load its own data via the EnquiriesManagement component
+    }
+  }, [activePage, authorized])
+
+  // Reload pensioners when filters change
+  useEffect(() => {
+    if (authorized && activePage === 'pensioners') {
+      loadPensioners()
+    }
+  }, [searchTerm, statusFilter, pensionTypeFilter, authorized, activePage])
+
+  const loadDashboardData = async () => {
     try {
-      const res = await fetch(`/api/files/list?pensionerId=${encodeURIComponent(pid)}`, {
-        headers: { Authorization: `Bearer ${token}` },
+      setLoading(true)
+      setError(null)
+      
+      const token = localStorage.getItem('token')
+      if (!token) {
+        throw new Error('No authentication token found')
+      }
+
+      // Load dashboard metrics and data
+      const response = await fetch('/api/admin/dashboard', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
       })
-      if (!res.ok) throw new Error('Failed to load files')
-      const data = await res.json()
-      setFiles(data.files || [])
-    } catch (e: any) {
-      setError(e?.message || 'Failed to load files')
+
+      if (!response.ok) {
+        throw new Error(`Failed to load dashboard data: ${response.statusText}`)
+      }
+
+      const data = await response.json()
+      
+      setMetrics(data.metrics)
+      setNotifications(data.notifications)
+      setPensioners(data.recentPensioners)
+      
+    } catch (err) {
+      console.error('Error loading dashboard data:', err)
+      setError(err instanceof Error ? err.message : 'Failed to load dashboard data')
     } finally {
       setLoading(false)
     }
   }
 
+  const loadPensioners = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      
+      const token = localStorage.getItem('token')
+      if (!token) {
+        throw new Error('No authentication token found')
+      }
+
+      const params = new URLSearchParams({
+        page: '1',
+        pageSize: '50',
+        ...(searchTerm && { search: searchTerm }),
+        ...(statusFilter !== 'all' && { status: statusFilter }),
+        ...(pensionTypeFilter !== 'all' && { pensionType: pensionTypeFilter })
+      })
+
+      const response = await fetch(`/api/admin/pensioners?${params}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!response.ok) {
+        throw new Error(`Failed to load pensioners: ${response.statusText}`)
+      }
+
+      const data = await response.json()
+      setPensioners(data.pensioners)
+      
+    } catch (err) {
+      console.error('Error loading pensioners:', err)
+      setError(err instanceof Error ? err.message : 'Failed to load pensioners')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleLogout = () => {
+    localStorage.removeItem('user')
+    localStorage.removeItem('token')
+    router.push('/admin/login')
+  }
+
   if (!authorized) return null
 
+  // Loading state
+  if (loading) {
+    return (
+      <div className="flex min-h-screen bg-gray-50 items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading dashboard...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="flex min-h-screen bg-gray-50 items-center justify-center">
+        <div className="text-center">
+          <div className="text-red-600 text-6xl mb-4">⚠️</div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Error Loading Dashboard</h2>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <button
+            onClick={() => {
+              setError(null)
+              if (activePage === 'dashboard') {
+                loadDashboardData()
+              } else if (activePage === 'pensioners') {
+                loadPensioners()
+              }
+            }}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className="min-h-screen bg-gray-100 p-8">
-      <div className="max-w-7xl mx-auto">
-        <h1 className="text-3xl font-bold text-oyoGreen">Admin Dashboard</h1>
-        <p className="mt-2 text-gray-600">Manage documents and staff accounts.</p>
-
-        <div className="mt-6 bg-white rounded shadow p-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold">Enquiries</h2>
-            <button onClick={()=>fetchFiles(pensionerId)} className="hidden" aria-hidden="true" />
+    <div className="flex min-h-screen bg-gray-50">
+      {/* Sidebar */}
+      <aside className={`${sidebarOpen ? 'w-64' : 'w-16'} bg-gray-900 text-white flex flex-col fixed h-screen transition-all duration-300 z-50`}>
+        {/* Header */}
+        <div className="p-4 flex-shrink-0">
+          <div className="flex items-center">
+            <div className="text-2xl mr-3">🧮</div>
+            {sidebarOpen && <h1 className="text-xl font-bold">Admin Panel</h1>}
           </div>
-          <AdminEnquiries />
         </div>
 
-        <div className="mt-6 bg-white rounded shadow p-4">
-          <div className="flex items-end gap-3">
-            <div className="flex-1">
-              <label className="block text-sm font-medium text-gray-700">Pensioner ID</label>
-              <input value={pensionerId} onChange={(e)=>setPensionerId(e.target.value)} placeholder="Enter numeric pensioner id" className="mt-1 block w-full rounded-md border-gray-300 focus:ring-oyoOrange focus:border-oyoOrange" />
-            </div>
-            <button onClick={()=>fetchFiles(pensionerId)} className="h-10 px-4 rounded bg-oyoGreen text-white">Load Files</button>
-          </div>
+        {/* Navigation */}
+        <nav className="flex-1 px-4 py-6 overflow-y-auto">
+          <ul className="space-y-2">
+            {[
+              { id: 'dashboard', label: 'Dashboard', icon: Home },
+              { id: 'pensioners', label: 'Pensioners', icon: Users },
+              { id: 'enquiries', label: 'Enquiries', icon: Mail },
+              { id: 'notifications', label: 'Notifications', icon: Bell },
+              { id: 'reports', label: 'Reports', icon: BarChart3 },
+              { id: 'settings', label: 'Settings', icon: Settings }
+            ].map((item) => (
+              <li key={item.id}>
+                <button
+                  onClick={() => setActivePage(item.id)}
+                  className={`w-full flex items-center px-3 py-2 rounded-lg transition-colors ${
+                    activePage === item.id 
+                      ? 'bg-gray-700 text-white' 
+                      : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                  }`}
+                >
+                  <item.icon className="w-5 h-5 mr-3" />
+                  {sidebarOpen && <span>{item.label}</span>}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </nav>
 
-          {error && <div className="mt-3 bg-red-50 text-red-700 p-2 rounded text-sm">{error}</div>}
-
-          <div className="mt-4 border rounded">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Filename</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Uploaded</th>
-                    <th className="px-4 py-2" />
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {loading ? (
-                    <tr>
-                      <td colSpan={4} className="px-4 py-6 text-sm text-gray-600">Loading…</td>
-                    </tr>
-                  ) : files.length === 0 ? (
-                    <tr>
-                      <td colSpan={4} className="px-4 py-6 text-sm text-gray-600">No files.</td>
-                    </tr>
-                  ) : (
-                    files.map((f) => (
-                      <tr key={f.id}>
-                        <td className="px-4 py-2 text-sm text-gray-900 break-all">{f.originalName}</td>
-                        <td className="px-4 py-2 text-sm text-gray-700">{f.fileType}</td>
-                        <td className="px-4 py-2 text-sm text-gray-700">{new Date(f.createdAt).toLocaleString()}</td>
-                        <td className="px-4 py-2 text-sm text-right space-x-2">
-                          <button type="button" className="px-3 py-1 rounded bg-gray-100 hover:bg-gray-200 text-gray-800" onClick={()=>window.open(f.fileUrl, '_blank')}>
-                            {f.fileType.startsWith('image') ? 'Preview' : 'Download'}
-                          </button>
-                          <button type="button" className="px-3 py-1 rounded bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-60" disabled={opId===f.id} onClick={()=>{ setReplaceTargetId(f.id); replaceInputRef.current?.click(); }}>
-                            {opId===f.id && replaceTargetId===f.id ? 'Replacing…' : 'Replace'}
-                          </button>
-                          <button type="button" className="px-3 py-1 rounded bg-red-600 hover:bg-red-700 text-white disabled:opacity-60" disabled={opId===f.id} onClick={async()=>{
-                            if(!confirm('Delete this file?')) return;
-                            try{
-                              setOpId(f.id)
-                              const res = await fetch('/api/files/delete',{ method:'POST', headers:{ 'Content-Type':'application/json', Authorization:`Bearer ${token}` }, body: JSON.stringify({ fileId: f.id }) })
-                              if(!res.ok) throw new Error('Delete failed')
-                              await fetchFiles(pensionerId)
-                            }catch(e:any){
-                              setError(e?.message||'Delete failed')
-                            }finally{
-                              setOpId(null)
-                            }
-                          }}>
-                            {opId===f.id ? 'Deleting…' : 'Delete'}
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <input ref={replaceInputRef} type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png" onChange={async(e)=>{
-            const nf = e.target.files?.[0]
-            const tid = replaceTargetId
-            setReplaceTargetId(null)
-            if(!nf || !tid) return
-            try{
-              setOpId(tid)
-              const del = await fetch('/api/files/delete',{ method:'POST', headers:{ 'Content-Type':'application/json', Authorization:`Bearer ${token}` }, body: JSON.stringify({ fileId: tid }) })
-              if(!del.ok) throw new Error('Failed to delete old file')
-              const form = new FormData()
-              form.append('pensionerId', pensionerId)
-              const label = nf.type.startsWith('image') ? 'image' : nf.type === 'application/pdf' ? 'pdf' : 'file'
-              form.append('fileType', label)
-              form.append('file', nf)
-              const up = await fetch('/api/files/upload',{ method:'POST', headers:{ Authorization:`Bearer ${token}` }, body: form })
-              if(!up.ok) throw new Error('Upload failed')
-              await fetchFiles(pensionerId)
-            }catch(err:any){
-              setError(err?.message||'Replace failed')
-            }finally{
-              setOpId(null)
-              if(replaceInputRef.current) replaceInputRef.current.value=''
-            }
-          }} />
+        {/* Footer - Logout Button */}
+        <div className="p-4 border-t border-gray-700 flex-shrink-0">
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center px-3 py-2 rounded-lg text-gray-300 hover:bg-red-600 hover:text-white transition-colors"
+          >
+            <LogOut className="w-5 h-5 mr-3" />
+            {sidebarOpen && <span>Logout</span>}
+          </button>
         </div>
+      </aside>
 
-        <div className="mt-6 bg-white rounded shadow p-4">
-          <h2 className="text-lg font-semibold">Staff Management</h2>
-          <p className="text-sm text-gray-600">Use the staff registration route to add admins or verification officers.</p>
+      {/* Main Content */}
+      <main className={`flex-1 transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'} overflow-y-auto`}>
+        <div className="p-6">
+          {/* Header */}
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-gray-900">
+              {activePage === 'dashboard' && 'Dashboard Overview'}
+              {activePage === 'pensioners' && 'Pensioner Management'}
+              {activePage === 'enquiries' && 'Enquiry Management'}
+              {activePage === 'notifications' && 'System Notifications'}
+              {activePage === 'reports' && 'Reports & Analytics'}
+              {activePage === 'settings' && 'System Settings'}
+            </h1>
+            <p className="text-gray-600 mt-2">
+              {activePage === 'dashboard' && 'Monitor system performance and key metrics'}
+              {activePage === 'pensioners' && 'Manage pensioner accounts and verification status'}
+              {activePage === 'enquiries' && 'View and manage system enquiries and support requests'}
+              {activePage === 'notifications' && 'View and manage system notifications'}
+              {activePage === 'reports' && 'Generate and download system reports'}
+              {activePage === 'settings' && 'Configure system settings and preferences'}
+            </p>
+          </div>
+
+          {/* Dashboard Content */}
+          {activePage === 'dashboard' && <DashboardOverview metrics={metrics} />}
+          {activePage === 'pensioners' && <PensionerManagement 
+            pensioners={pensioners} 
+            searchTerm={searchTerm}
+            setSearchTerm={setSearchTerm}
+            statusFilter={statusFilter}
+            setStatusFilter={setStatusFilter}
+            pensionTypeFilter={pensionTypeFilter}
+            setPensionTypeFilter={setPensionTypeFilter}
+          />}
+          {activePage === 'enquiries' && <EnquiriesManagement />}
+          {activePage === 'notifications' && <NotificationsPanel notifications={notifications} />}
+          {activePage === 'reports' && <ReportsSection />}
+          {activePage === 'settings' && <SettingsSection user={user} />}
+        </div>
+      </main>
+    </div>
+  )
+}
+
+// Dashboard Overview Component
+function DashboardOverview({ metrics }: { metrics: any }) {
+  return (
+    <div className="space-y-6">
+      {/* Metrics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <MetricCard
+          title="Total Pensioners"
+          value={metrics.totalPensioners}
+          icon={Users}
+          color="bg-blue-100 text-blue-600"
+          bgColor="bg-blue-50"
+        />
+        <MetricCard
+          title="Verified Pensioners"
+          value={metrics.verifiedPensioners}
+          icon={UserCheck}
+          color="bg-green-100 text-green-600"
+          bgColor="bg-green-50"
+        />
+        <MetricCard
+          title="Pending Reviews"
+          value={metrics.pendingReviews}
+          icon={Clock}
+          color="bg-yellow-100 text-yellow-600"
+          bgColor="bg-yellow-50"
+        />
+        <MetricCard
+          title="Flagged Accounts"
+          value={metrics.flaggedAccounts}
+          icon={AlertTriangle}
+          color="bg-red-100 text-red-600"
+          bgColor="bg-red-50"
+        />
+      </div>
+
+      {/* Chart Section */}
+      <div className="bg-white shadow-md rounded-xl p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-900">Pensioners Verified per Month</h3>
+          <TrendingUp className="w-5 h-5 text-gray-400" />
+        </div>
+        <div className="h-64 bg-gray-50 rounded-lg flex items-center justify-center">
+          <div className="text-center">
+            <BarChart3 className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+            <p className="text-gray-500">Chart visualization will be implemented here</p>
+          </div>
         </div>
       </div>
     </div>
   )
 }
 
-function AdminEnquiries() {
-  const [rows, setRows] = useState<Array<{ id: number; fullName: string; email: string; phone?: string; subject: string; message: string; createdAt: string }>>([])
-  const [page, setPage] = useState(1)
-  const [pageSize] = useState(10)
-  const [total, setTotal] = useState(0)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+// Metric Card Component
+function MetricCard({ title, value, icon: Icon, color, bgColor }: any) {
+  return (
+    <div className={`${bgColor} rounded-xl p-6 shadow-sm`}>
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium text-gray-600">{title}</p>
+          <p className="text-3xl font-bold text-gray-900 mt-2">{value.toLocaleString()}</p>
+        </div>
+        <div className={`p-3 rounded-lg ${color}`}>
+          <Icon className="w-6 h-6" />
+        </div>
+      </div>
+    </div>
+  )
+}
 
-  const load = async () => {
-    setLoading(true)
-    setError('')
+// Pensioner Management Component
+function PensionerManagement({ 
+  pensioners, 
+  searchTerm, 
+  setSearchTerm, 
+  statusFilter, 
+  setStatusFilter, 
+  pensionTypeFilter, 
+  setPensionTypeFilter 
+}: any) {
+  return (
+    <div className="space-y-6">
+      {/* Search and Filters */}
+      <div className="bg-white shadow-md rounded-xl p-6">
+        <div className="flex flex-col lg:flex-row gap-4">
+          <div className="flex-1">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <input
+                type="text"
+                placeholder="Search pensioners..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+          </div>
+          <div className="flex gap-4">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">All Status</option>
+              <option value="verified">Verified</option>
+              <option value="pending">Pending</option>
+              <option value="flagged">Flagged</option>
+            </select>
+            <select
+              value={pensionTypeFilter}
+              onChange={(e) => setPensionTypeFilter(e.target.value)}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">All Types</option>
+              <option value="contributory">Contributory</option>
+              <option value="total">Total</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* Pensioners Table */}
+      <div className="bg-white shadow-md rounded-xl overflow-hidden">
+        {pensioners.length === 0 ? (
+          <div className="p-8 text-center">
+            <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-500">No pensioners found</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pensioner ID</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Documents</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Login</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date Registered</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {pensioners.map((pensioner: any, index: number) => (
+                  <tr key={pensioner.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{pensioner.id}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{pensioner.name}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{pensioner.category}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                        pensioner.status === 'VERIFIED' 
+                          ? 'bg-green-100 text-green-800' 
+                          : pensioner.status === 'PENDING'
+                          ? 'bg-yellow-100 text-yellow-800'
+                          : pensioner.status === 'FLAGGED'
+                          ? 'bg-red-100 text-red-800'
+                          : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        {pensioner.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                      <div className="flex flex-wrap gap-1">
+                        {pensioner.documents.slice(0, 2).map((doc: string, idx: number) => (
+                          <span key={idx} className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
+                            {doc}
+                          </span>
+                        ))}
+                        {pensioner.documents.length > 2 && (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-600">
+                            +{pensioner.documents.length - 2} more
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{pensioner.lastLogin}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{pensioner.dateRegistered}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <div className="flex space-x-2">
+                        <button className="text-blue-600 hover:text-blue-900" title="View Details">
+                          <Eye className="w-4 h-4" />
+                        </button>
+                        <button className="text-green-600 hover:text-green-900" title="Approve">
+                          <CheckCircle className="w-4 h-4" />
+                        </button>
+                        <button className="text-yellow-600 hover:text-yellow-900" title="Flag">
+                          <Flag className="w-4 h-4" />
+                        </button>
+                        <button className="text-red-600 hover:text-red-900" title="Delete">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// Notifications Panel Component
+function NotificationsPanel({ notifications }: { notifications: any[] }) {
+  return (
+    <div className="space-y-4">
+      {notifications.map((notification) => (
+        <div
+          key={notification.id}
+          className={`bg-white shadow-sm rounded-md p-4 ${
+            !notification.read ? 'border-l-4 border-green-500' : ''
+          }`}
+        >
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <p className="text-sm text-gray-900">{notification.message}</p>
+              <p className="text-xs text-gray-500 mt-1">{notification.timestamp}</p>
+            </div>
+            <div className="flex space-x-2 ml-4">
+              {!notification.read && (
+                <button className="text-green-600 hover:text-green-800">
+                  <CheckCircle className="w-4 h-4" />
+                </button>
+              )}
+              <button className="text-red-600 hover:text-red-800">
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// Reports Section Component
+function ReportsSection() {
+  return (
+    <div className="space-y-6">
+      {/* Report Filters */}
+      <div className="bg-white shadow-md rounded-xl p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Generate Reports</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
+            <input
+              type="date"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">End Date</label>
+            <input
+              type="date"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Report Type</label>
+            <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+              <option>Monthly Verification Summary</option>
+              <option>Flagged Pensioners List</option>
+              <option>Total Pensioners by Department</option>
+              <option>System Activity Logs</option>
+            </select>
+          </div>
+        </div>
+        <div className="mt-6 flex space-x-4">
+          <button className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center">
+            <Download className="w-4 h-4 mr-2" />
+            Export PDF
+          </button>
+          <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center">
+            <FileText className="w-4 h-4 mr-2" />
+            Export CSV
+          </button>
+        </div>
+      </div>
+
+      {/* Report Preview */}
+      <div className="bg-white shadow-md rounded-xl p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Report Preview</h3>
+        <div className="h-64 bg-gray-50 rounded-lg flex items-center justify-center">
+          <div className="text-center">
+            <BarChart3 className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+            <p className="text-gray-500">Report preview will appear here</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Settings Section Component
+function SettingsSection({ user }: { user: any }) {
+  const [settings, setSettings] = useState({
+    systemName: 'Computerised Pension Verification System',
+    verificationInterval: 3,
+    fingerprintVerification: true,
+    email: user?.email || '',
+    phone: user?.phone || '',
+    address: user?.address || ''
+  })
+
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  })
+
+  const handleSaveSettings = () => {
+    // Save settings logic
+    console.log('Saving settings:', settings)
+  }
+
+  const handleChangePassword = () => {
+    // Change password logic
+    console.log('Changing password:', passwordForm)
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* System Settings */}
+      <div className="bg-white shadow-md rounded-xl p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-6">System Configuration</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">System Name</label>
+            <input
+              type="text"
+              value={settings.systemName}
+              onChange={(e) => setSettings({...settings, systemName: e.target.value})}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Verification Interval (years)</label>
+            <input
+              type="number"
+              value={settings.verificationInterval}
+              onChange={(e) => setSettings({...settings, verificationInterval: parseInt(e.target.value)})}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div className="md:col-span-2">
+            <label className="flex items-center">
+              <input
+                type="checkbox"
+                checked={settings.fingerprintVerification}
+                onChange={(e) => setSettings({...settings, fingerprintVerification: e.target.checked})}
+                className="mr-2"
+              />
+              <span className="text-sm font-medium text-gray-700">Enable Fingerprint Verification</span>
+            </label>
+          </div>
+        </div>
+        <button
+          onClick={handleSaveSettings}
+          className="mt-6 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+        >
+          Save Changes
+        </button>
+      </div>
+
+      {/* Admin Profile Settings */}
+      <div className="bg-white shadow-md rounded-xl p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-6">Admin Profile</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
+            <input
+              type="email"
+              value={settings.email}
+              onChange={(e) => setSettings({...settings, email: e.target.value})}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
+            <input
+              type="tel"
+              value={settings.phone}
+              onChange={(e) => setSettings({...settings, phone: e.target.value})}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Address</label>
+            <textarea
+              value={settings.address}
+              onChange={(e) => setSettings({...settings, address: e.target.value})}
+              rows={3}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Change Password */}
+      <div className="bg-white shadow-md rounded-xl p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-6">Change Password</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Current Password</label>
+            <input
+              type="password"
+              value={passwordForm.currentPassword}
+              onChange={(e) => setPasswordForm({...passwordForm, currentPassword: e.target.value})}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">New Password</label>
+            <input
+              type="password"
+              value={passwordForm.newPassword}
+              onChange={(e) => setPasswordForm({...passwordForm, newPassword: e.target.value})}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Confirm Password</label>
+            <input
+              type="password"
+              value={passwordForm.confirmPassword}
+              onChange={(e) => setPasswordForm({...passwordForm, confirmPassword: e.target.value})}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+        </div>
+        <button
+          onClick={handleChangePassword}
+          className="mt-6 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+        >
+          Change Password
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// Enquiries Management Component
+function EnquiriesManagement() {
+  const [enquiries, setEnquiries] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all')
+
+  useEffect(() => {
+    loadEnquiries()
+  }, [])
+
+  const loadEnquiries = async () => {
     try {
-      const token = localStorage.getItem('token') || ''
-      const res = await fetch(`/api/enquiry/list?page=${page}&pageSize=${pageSize}`, { headers: { Authorization: `Bearer ${token}` } })
-      const data = await res.json()
-      if (!res.ok || !data?.success) throw new Error(data?.error || 'Failed to load enquiries')
-      setRows(data.rows || [])
-      setTotal(data.total || 0)
-    } catch (e: any) {
-      setError(e?.message || 'Failed to load enquiries')
+      setLoading(true)
+      setError(null)
+      
+      const token = localStorage.getItem('token')
+      if (!token) {
+        throw new Error('No authentication token found')
+      }
+
+      const params = new URLSearchParams({
+        page: '1',
+        pageSize: '50',
+        ...(searchTerm && { subject: searchTerm }),
+        ...(statusFilter !== 'all' && { status: statusFilter })
+      })
+
+      const response = await fetch(`/api/enquiry/list?${params}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!response.ok) {
+        throw new Error(`Failed to load enquiries: ${response.statusText}`)
+      }
+
+      const data = await response.json()
+      setEnquiries(data.rows || [])
+      
+    } catch (err) {
+      console.error('Error loading enquiries:', err)
+      setError(err instanceof Error ? err.message : 'Failed to load enquiries')
     } finally {
       setLoading(false)
     }
   }
 
-  useEffect(() => { load() }, [page])
+  const handleStatusUpdate = async (enquiryId: number, newStatus: string) => {
+    try {
+      const token = localStorage.getItem('token')
+      if (!token) return
 
-  const totalPages = Math.max(1, Math.ceil(total / pageSize))
+      const response = await fetch(`/api/enquiry/${enquiryId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ status: newStatus })
+      })
+
+      if (response.ok) {
+        loadEnquiries() // Reload enquiries
+      }
+    } catch (err) {
+      console.error('Error updating enquiry status:', err)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-12">
+        <div className="text-red-600 text-6xl mb-4">⚠️</div>
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">Error Loading Enquiries</h3>
+        <p className="text-gray-600 mb-4">{error}</p>
+        <button
+          onClick={loadEnquiries}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+        >
+          Retry
+        </button>
+      </div>
+    )
+  }
 
   return (
-    <div>
-      {error && <div className="mb-3 bg-red-50 text-red-700 p-2 rounded text-sm">{error}</div>}
-      <div className="border rounded overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subject</th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Message</th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {loading ? (
-                <tr><td colSpan={5} className="px-4 py-6 text-sm text-gray-600">Loading…</td></tr>
-              ) : rows.length === 0 ? (
-                <tr><td colSpan={5} className="px-4 py-6 text-sm text-gray-600">No enquiries.</td></tr>
-              ) : rows.map((r) => (
-                <tr key={r.id}>
-                  <td className="px-4 py-2 text-sm text-gray-900">{r.fullName}</td>
-                  <td className="px-4 py-2 text-sm text-gray-700">{r.email}</td>
-                  <td className="px-4 py-2 text-sm text-gray-700">{r.subject}</td>
-                  <td className="px-4 py-2 text-sm text-gray-700 max-w-md truncate" title={r.message}>{r.message}</td>
-                  <td className="px-4 py-2 text-sm text-gray-700">{new Date(r.createdAt).toLocaleString()}</td>
+    <div className="space-y-6">
+      {/* Search and Filters */}
+      <div className="bg-white shadow-md rounded-xl p-6">
+        <div className="flex flex-col lg:flex-row gap-4">
+          <div className="flex-1">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <input
+                type="text"
+                placeholder="Search enquiries..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+          </div>
+          <div className="flex gap-4">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">All Status</option>
+              <option value="PENDING">Pending</option>
+              <option value="RESOLVED">Resolved</option>
+              <option value="CLOSED">Closed</option>
+            </select>
+            <button
+              onClick={loadEnquiries}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center"
+            >
+              <Search className="w-4 h-4 mr-2" />
+              Search
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Enquiries Table */}
+      <div className="bg-white shadow-md rounded-xl overflow-hidden">
+        {enquiries.length === 0 ? (
+          <div className="p-8 text-center">
+            <Mail className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-500">No enquiries found</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subject</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Message</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <div className="p-3 flex items-center justify-between border-t">
-          <button disabled={page===1} onClick={()=>setPage(p=>Math.max(1,p-1))} className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50">Prev</button>
-          <div className="text-xs text-gray-600">Page {page} of {totalPages}</div>
-          <button disabled={page>=totalPages} onClick={()=>setPage(p=>p+1)} className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50">Next</button>
-        </div>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {enquiries.map((enquiry: any, index: number) => (
+                  <tr key={enquiry.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{enquiry.id}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{enquiry.subject}</td>
+                    <td className="px-6 py-4 text-sm text-gray-700 max-w-xs truncate">{enquiry.message}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                        enquiry.status === 'RESOLVED' 
+                          ? 'bg-green-100 text-green-800' 
+                          : enquiry.status === 'PENDING'
+                          ? 'bg-yellow-100 text-yellow-800'
+                          : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        {enquiry.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                      {new Date(enquiry.createdAt).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <div className="flex space-x-2">
+                        <button 
+                          onClick={() => handleStatusUpdate(enquiry.id, 'RESOLVED')}
+                          className="text-green-600 hover:text-green-900" 
+                          title="Mark as Resolved"
+                        >
+                          <CheckCircle className="w-4 h-4" />
+                        </button>
+                        <button 
+                          onClick={() => handleStatusUpdate(enquiry.id, 'CLOSED')}
+                          className="text-gray-600 hover:text-gray-900" 
+                          title="Close Enquiry"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   )

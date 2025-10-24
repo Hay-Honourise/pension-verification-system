@@ -25,6 +25,7 @@
     "bcryptjs": "^3.0.2",
     "framer-motion": "^12.23.12",
     "jsonwebtoken": "^9.0.2",
+    "lucide-react": "^0.547.0",
     "mysql2": "^3.14.3",
     "next": "^15.5.2",
     "nodemailer": "^7.0.6",
