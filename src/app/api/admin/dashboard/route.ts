@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
     if (!bearer) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
 
     const token = verifyToken(bearer);
-    if (!token?.id || token.role !== 'ADMIN') {
+    if (!token?.id || token.role !== 'admin') {
       return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
     }
 
@@ -111,7 +111,7 @@ export async function GET(request: NextRequest) {
       name: pensioner.fullName,
       category: pensioner.pensionSchemeType || 'Unknown',
       status: pensioner.status,
-      documents: pensioner.pensionerfile.map(file => file.originalName),
+      documents: pensioner.pensionerfile.map((file: { originalName: any; }) => file.originalName),
       lastLogin: 'N/A', // This field doesn't exist in the schema
       dateRegistered: new Date(pensioner.createdAt).toLocaleDateString()
     }));

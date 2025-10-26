@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
     const bearer = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null
     if (!bearer) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 })
     const token = verifyToken(bearer)
-    if (!token?.id || (token.role !== 'VERIFICATION_OFFICER' && token.role !== 'ADMIN')) {
+    if (!token?.id || (token.role !== 'VERIFICATION_OFFICER' && token.role !== 'admin')) {
       return NextResponse.json({ message: 'Forbidden' }, { status: 403 })
     }
 

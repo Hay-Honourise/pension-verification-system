@@ -103,7 +103,7 @@ export default function Navbar() {
                       Pensioner Login
                     </Link>
                     <Link
-                      href="/register"
+                      href="/pensioner/register"
                       className="block px-4 py-2 text-sm text-gray-700 hover:bg-oyoGreen hover:text-oyoWhite transition-colors duration-200"
                       role="menuitem"
                       onClick={() => setIsGetStartedOpen(false)}
@@ -156,21 +156,21 @@ export default function Navbar() {
                     >
                       Admin Login
                     </Link>
-                    <Link
+                    {/* <Link
                       href="/officer/login"
                       className="block px-4 py-2 text-sm text-gray-700 hover:bg-oyoGreen hover:text-oyoWhite transition-colors duration-200"
                       role="menuitem"
                       onClick={() => setIsAdminOpen(false)}
                     >
                       Verification Officer Login
-                    </Link>
+                    </Link> */}
                     <Link
-                      href="/register-staff"
+                      href="/admin/register"
                       className="block px-4 py-2 text-sm text-gray-700 hover:bg-oyoGreen hover:text-oyoWhite transition-colors duration-200"
                       role="menuitem"
                       onClick={() => setIsAdminOpen(false)}
                     >
-                      Register Staff (Admin/Verification Officer)
+                      Admin Register
                     </Link>
                     {/* View Enquiries moved inside Admin Dashboard and protected */}
                   </div>
@@ -244,7 +244,7 @@ export default function Navbar() {
               Pensioner Login
             </Link>
             <Link
-              href="/register"
+              href="/pensioner/register"
               className="block px-3 py-2 rounded-md text-base font-medium text-oyoWhite hover:text-oyoOrange hover:bg-white/10 transition-all duration-200"
               onClick={closeMobileMenu}
             >
@@ -267,32 +267,18 @@ export default function Navbar() {
             className={`pl-6 space-y-1 overflow-hidden transition-all duration-300 ease-in-out ${isAdminOpen ? 'max-h-96 opacity-100 visible' : 'max-h-0 opacity-0 invisible'}`}
           >
             <Link
-              href="/admin-login"
+              href="/admin/login"
               className="block px-3 py-2 rounded-md text-base font-medium text-oyoWhite hover:text-oyoOrange hover:bg-white/10 transition-all duration-200"
               onClick={closeMobileMenu}
             >
-              Login Admin
+              Admin Login
             </Link>
             <Link
-              href="/register?role=admin"
+              href="/admin/register"
               className="block px-3 py-2 rounded-md text-base font-medium text-oyoWhite hover:text-oyoOrange hover:bg-white/10 transition-all duration-200"
               onClick={closeMobileMenu}
             >
-              Register Admin
-            </Link>
-            <Link
-              href="/admin-login?role=officer"
-              className="block px-3 py-2 rounded-md text-base font-medium text-oyoWhite hover:text-oyoOrange hover:bg-white/10 transition-all duration-200"
-              onClick={closeMobileMenu}
-            >
-              Login Verification Officer
-            </Link>
-            <Link
-              href="/register?role=officer"
-              className="block px-3 py-2 rounded-md text-base font-medium text-oyoWhite hover:text-oyoOrange hover:bg-white/10 transition-all duration-200"
-              onClick={closeMobileMenu}
-            >
-              Register Verification Officer
+              Admin Register
             </Link>
             {/* View Enquiries moved inside Admin Dashboard and protected */}
           </div>

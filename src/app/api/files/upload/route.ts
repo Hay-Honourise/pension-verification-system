@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
 
     // Security: Only owner or ADMIN can upload for this pensioner
     const isOwner = Number(token.id) === pensionerId && token.role === 'pensioner'
-    const isAdmin = token.role === 'ADMIN'
+    const isAdmin = token.role === 'admin'
     if (!isOwner && !isAdmin) {
       return NextResponse.json({ message: 'Forbidden' }, { status: 403 })
     }
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
     const uploadResult = await uploadFile(buffer, fileName, file.type)
 
     const url: string = `${process.env.S3_PUBLIC_BASE_URL || 'https://f003.backblazeb2.com/file/PensionerRegisgration'}/${fileName}`
-    const publicId: string = uploadResult.fileId
+    const publicId: string = uploadResult.fileId || ''
     const originalName: string = file.name || 'upload'
 
     const saved = await prisma.pensionerfile.create({

@@ -24,7 +24,8 @@ import {
   Clock,
   Mail,
   Phone,
-  MapPin
+  MapPin,
+  X
 } from 'lucide-react'
 
 export default function AdminDashboard() {
@@ -54,6 +55,18 @@ export default function AdminDashboard() {
   // Loading states
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  
+  // Logout modal state
+  const [showLogoutModal, setShowLogoutModal] = useState(false)
+  
+  // Pensioner action modals state
+  const [showViewModal, setShowViewModal] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [showFlagModal, setShowFlagModal] = useState(false)
+  const [showApproveModal, setShowApproveModal] = useState(false)
+  const [selectedPensioner, setSelectedPensioner] = useState<any>(null)
+  const [flagReason, setFlagReason] = useState('')
+  const [actionLoading, setActionLoading] = useState(false)
 
   useEffect(() => {
     const u = localStorage.getItem('user')
@@ -64,7 +77,7 @@ export default function AdminDashboard() {
     }
     try {
       const parsed = JSON.parse(u)
-      if (parsed?.role === 'ADMIN') {
+      if (parsed?.role === 'admin') {
         setAuthorized(true)
         setUser(parsed)
         loadDashboardData()
@@ -173,9 +186,158 @@ export default function AdminDashboard() {
 
   const handleLogout = () => {
     console.log('Logout button clicked!')
+    setShowLogoutModal(true)
+  }
+
+  const confirmLogout = () => {
     localStorage.removeItem('user')
     localStorage.removeItem('token')
     router.push('/admin/login')
+  }
+
+  // Pensioner action handlers
+  const handleViewPensioner = async (pensioner: any) => {
+    try {
+      setActionLoading(true)
+      const token = localStorage.getItem('token')
+      
+      const response = await fetch(`/api/admin/pensioners/${pensioner.id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setSelectedPensioner(data.pensioner)
+        setShowViewModal(true)
+      } else {
+        alert('Failed to load pensioner details')
+      }
+    } catch (error) {
+      console.error('Error loading pensioner details:', error)
+      alert('Error loading pensioner details')
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const handleApprovePensioner = (pensioner: any) => {
+    setSelectedPensioner(pensioner)
+    setShowApproveModal(true)
+  }
+
+  const confirmApprovePensioner = async () => {
+    try {
+      setActionLoading(true)
+      const token = localStorage.getItem('token')
+      
+      const response = await fetch(`/api/admin/pensioners/${selectedPensioner.id}/update-status`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ action: 'approve' })
+      })
+
+      if (response.ok) {
+        alert('Pensioner approved successfully!')
+        setShowApproveModal(false)
+        loadPensioners() // Refresh the list
+      } else {
+        const error = await response.json()
+        alert(error.message || 'Failed to approve pensioner')
+      }
+    } catch (error) {
+      console.error('Error approving pensioner:', error)
+      alert('Error approving pensioner')
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const handleFlagPensioner = (pensioner: any) => {
+    setSelectedPensioner(pensioner)
+    setFlagReason('')
+    setShowFlagModal(true)
+  }
+
+  const confirmFlagPensioner = async () => {
+    if (!flagReason.trim()) {
+      alert('Please provide a reason for flagging this pensioner')
+      return
+    }
+
+    try {
+      setActionLoading(true)
+      const token = localStorage.getItem('token')
+      
+      const response = await fetch(`/api/admin/pensioners/${selectedPensioner.id}/update-status`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ 
+          action: 'flag',
+          reason: flagReason
+        })
+      })
+
+      if (response.ok) {
+        alert('Pensioner flagged successfully!')
+        setShowFlagModal(false)
+        loadPensioners() // Refresh the list
+      } else {
+        const error = await response.json()
+        alert(error.message || 'Failed to flag pensioner')
+      }
+    } catch (error) {
+      console.error('Error flagging pensioner:', error)
+      alert('Error flagging pensioner')
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const handleDeletePensioner = (pensioner: any) => {
+    setSelectedPensioner(pensioner)
+    setShowDeleteModal(true)
+  }
+
+  const confirmDeletePensioner = async () => {
+    try {
+      setActionLoading(true)
+      const token = localStorage.getItem('token')
+      
+      const response = await fetch(`/api/admin/pensioners/${selectedPensioner.id}/delete`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (response.ok) {
+        alert('Pensioner deleted successfully!')
+        setShowDeleteModal(false)
+        loadPensioners() // Refresh the list
+      } else {
+        const error = await response.json()
+        alert(error.message || 'Failed to delete pensioner')
+      }
+    } catch (error) {
+      console.error('Error deleting pensioner:', error)
+      alert('Error deleting pensioner')
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const cancelLogout = () => {
+    setShowLogoutModal(false)
   }
 
   if (!authorized) return null
@@ -221,7 +383,7 @@ export default function AdminDashboard() {
   return (
     <div className="flex min-h-screen bg-gray-50">
       {/* Sidebar */}
-      <aside className={`${sidebarOpen ? 'w-64' : 'w-16'} bg-gray-900 text-white flex flex-col fixed h-screen transition-all duration-300 z-50 left-0 top-0`}>
+      <aside className={`${sidebarOpen ? 'w-64' : 'w-16'} bg-oyoGreen text-oyoWhite flex flex-col fixed h-screen transition-all duration-300 z-50 left-0 top-0`}>
         {/* Header */}
         <div className="p-4 flex-shrink-0">
           <div className="flex items-center justify-between">
@@ -231,7 +393,7 @@ export default function AdminDashboard() {
             </div>
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="p-1 rounded-lg hover:bg-gray-700 transition-colors"
+              className="p-1 rounded-lg hover:bg-white/10 hover:text-oyoOrange transition-colors"
             >
               <div className="w-4 h-4">
                 {sidebarOpen ? '←' : '→'}
@@ -256,8 +418,8 @@ export default function AdminDashboard() {
                   onClick={() => setActivePage(item.id)}
                   className={`w-full flex items-center px-3 py-2 rounded-lg transition-colors ${
                     activePage === item.id 
-                      ? 'bg-gray-700 text-white' 
-                      : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                      ? 'bg-white/20 text-oyoWhite' 
+                      : 'text-oyoWhite hover:bg-white/10 hover:text-oyoOrange'
                   }`}
                 >
                   <item.icon className="w-5 h-5 mr-3" />
@@ -269,10 +431,10 @@ export default function AdminDashboard() {
         </nav>
 
         {/* Footer - Logout Button */}
-        <div className="p-4 border-t border-gray-700 flex-shrink-0 bg-gray-800">
+        <div className="p-4 border-t border-white/20 flex-shrink-0">
           <button
             onClick={handleLogout}
-            className="w-full flex items-center justify-center px-3 py-3 rounded-lg text-white bg-red-600 hover:bg-red-700 transition-colors font-medium"
+            className="w-full flex items-center justify-center px-3 py-3 rounded-lg text-oyoWhite bg-red-600 hover:bg-red-700 transition-colors font-medium"
           >
             <LogOut className="w-5 h-5 mr-2" />
             {sidebarOpen && <span>Logout</span>}
@@ -324,6 +486,11 @@ export default function AdminDashboard() {
             setStatusFilter={setStatusFilter}
             pensionTypeFilter={pensionTypeFilter}
             setPensionTypeFilter={setPensionTypeFilter}
+            handleViewPensioner={handleViewPensioner}
+            handleApprovePensioner={handleApprovePensioner}
+            handleFlagPensioner={handleFlagPensioner}
+            handleDeletePensioner={handleDeletePensioner}
+            actionLoading={actionLoading}
           />}
           {activePage === 'enquiries' && <EnquiriesManagement />}
           {activePage === 'notifications' && <NotificationsPanel notifications={notifications} />}
@@ -331,6 +498,290 @@ export default function AdminDashboard() {
           {activePage === 'settings' && <SettingsSection user={user} />}
         </div>
       </main>
+
+      {/* Logout Confirmation Modal */}
+      {showLogoutModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex items-center mb-4">
+              <div className="flex-shrink-0">
+                <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                  <LogOut className="w-6 h-6 text-red-600" />
+                </div>
+              </div>
+              <div className="ml-3">
+                <h3 className="text-lg font-medium text-gray-900">Confirm Logout</h3>
+                <p className="text-sm text-gray-500">Are you sure you want to logout?</p>
+              </div>
+            </div>
+            
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={cancelLogout}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmLogout}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
+              >
+                Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* View Pensioner Modal */}
+      {showViewModal && selectedPensioner && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-semibold text-gray-900">Pensioner Details</h3>
+              <button
+                onClick={() => setShowViewModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Personal Information */}
+              <div className="space-y-4">
+                <h4 className="font-semibold text-gray-800">Personal Information</h4>
+                <div className="space-y-2 text-sm">
+                  <div><span className="font-medium">Name:</span> {selectedPensioner.fullName}</div>
+                  <div><span className="font-medium">Pension ID:</span> {selectedPensioner.pensionId}</div>
+                  <div><span className="font-medium">Email:</span> {selectedPensioner.email}</div>
+                  <div><span className="font-medium">Phone:</span> {selectedPensioner.phone}</div>
+                  <div><span className="font-medium">NIN:</span> {selectedPensioner.nin}</div>
+                  <div><span className="font-medium">Gender:</span> {selectedPensioner.gender}</div>
+                  <div><span className="font-medium">Date of Birth:</span> {new Date(selectedPensioner.dateOfBirth).toLocaleDateString()}</div>
+                </div>
+              </div>
+
+              {/* Employment Information */}
+              <div className="space-y-4">
+                <h4 className="font-semibold text-gray-800">Employment Information</h4>
+                <div className="space-y-2 text-sm">
+                  <div><span className="font-medium">Scheme Type:</span> {selectedPensioner.pensionSchemeType}</div>
+                  <div><span className="font-medium">Current Level:</span> {selectedPensioner.currentLevel}</div>
+                  <div><span className="font-medium">PF Number:</span> {selectedPensioner.pfNumber}</div>
+                  <div><span className="font-medium">First Appointment:</span> {new Date(selectedPensioner.dateOfFirstAppointment).toLocaleDateString()}</div>
+                  <div><span className="font-medium">Retirement Date:</span> {new Date(selectedPensioner.dateOfRetirement).toLocaleDateString()}</div>
+                  <div><span className="font-medium">Last Salary:</span> ₦{selectedPensioner.salary?.toLocaleString()}</div>
+                </div>
+              </div>
+
+              {/* Pension Benefits */}
+              <div className="space-y-4">
+                <h4 className="font-semibold text-gray-800">Pension Benefits</h4>
+                <div className="space-y-2 text-sm">
+                  <div><span className="font-medium">Years of Service:</span> {selectedPensioner.yearsOfService || 'N/A'}</div>
+                  <div><span className="font-medium">Gratuity Rate:</span> {selectedPensioner.gratuityRate ? `${(selectedPensioner.gratuityRate * 100).toFixed(1)}%` : 'N/A'}</div>
+                  <div><span className="font-medium">Pension Rate:</span> {selectedPensioner.pensionRate ? `${(selectedPensioner.pensionRate * 100).toFixed(1)}%` : 'N/A'}</div>
+                  <div><span className="font-medium">Total Gratuity:</span> ₦{selectedPensioner.totalGratuity?.toLocaleString() || 'N/A'}</div>
+                  <div><span className="font-medium">Monthly Pension:</span> ₦{selectedPensioner.monthlyPension?.toLocaleString() || 'N/A'}</div>
+                </div>
+              </div>
+
+              {/* Status */}
+              <div className="space-y-4">
+                <h4 className="font-semibold text-gray-800">Status</h4>
+                <div className="space-y-2 text-sm">
+                  <div><span className="font-medium">Status:</span> 
+                    <span className={`ml-2 px-2 py-1 rounded-full text-xs ${
+                      selectedPensioner.status === 'VERIFIED' ? 'bg-green-100 text-green-800' :
+                      selectedPensioner.status === 'PENDING_VERIFICATION' ? 'bg-yellow-100 text-yellow-800' :
+                      selectedPensioner.status === 'FLAGGED' ? 'bg-red-100 text-red-800' :
+                      'bg-gray-100 text-gray-800'
+                    }`}>
+                      {selectedPensioner.status}
+                    </span>
+                  </div>
+                  <div><span className="font-medium">Created:</span> {new Date(selectedPensioner.createdAt).toLocaleDateString()}</div>
+                  <div><span className="font-medium">Updated:</span> {new Date(selectedPensioner.updatedAt).toLocaleDateString()}</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Documents */}
+            {selectedPensioner.pensionerfile && selectedPensioner.pensionerfile.length > 0 && (
+              <div className="mt-6">
+                <h4 className="font-semibold text-gray-800 mb-4">Documents</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {selectedPensioner.pensionerfile.map((file: any) => (
+                    <div key={file.id} className="border rounded-lg p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="font-medium text-sm">{file.fileType}</div>
+                          <div className="text-xs text-gray-500">{file.originalName}</div>
+                          <div className="text-xs text-gray-500">{new Date(file.createdAt).toLocaleDateString()}</div>
+                        </div>
+                        <a
+                          href={file.fileUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:text-blue-800"
+                        >
+                          <Download className="w-4 h-4" />
+                        </a>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-end mt-6">
+              <button
+                onClick={() => setShowViewModal(false)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Flag Pensioner Modal */}
+      {showFlagModal && selectedPensioner && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex items-center mb-4">
+              <div className="flex-shrink-0">
+                <div className="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center">
+                  <Flag className="w-6 h-6 text-yellow-600" />
+                </div>
+              </div>
+              <div className="ml-3">
+                <h3 className="text-lg font-medium text-gray-900">Flag Pensioner</h3>
+                <p className="text-sm text-gray-500">Flag {selectedPensioner.fullName} for suspicious activity</p>
+              </div>
+            </div>
+            
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Reason for Flagging</label>
+              <textarea
+                value={flagReason}
+                onChange={(e) => setFlagReason(e.target.value)}
+                placeholder="Please provide a detailed reason for flagging this pensioner..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
+                rows={4}
+              />
+            </div>
+            
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setShowFlagModal(false)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmFlagPensioner}
+                disabled={actionLoading}
+                className="px-4 py-2 text-sm font-medium text-white bg-yellow-600 rounded-lg hover:bg-yellow-700 disabled:opacity-50 transition-colors"
+              >
+                {actionLoading ? 'Flagging...' : 'Flag Pensioner'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Approve Pensioner Modal */}
+      {showApproveModal && selectedPensioner && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex items-center mb-4">
+              <div className="flex-shrink-0">
+                <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                  <CheckCircle className="w-6 h-6 text-green-600" />
+                </div>
+              </div>
+              <div className="ml-3">
+                <h3 className="text-lg font-medium text-gray-900">Approve Pensioner</h3>
+                <p className="text-sm text-gray-500">Approve {selectedPensioner.fullName} for verification</p>
+              </div>
+            </div>
+            
+            <div className="mb-6">
+              <p className="text-sm text-gray-700">
+                Are you sure you want to approve <strong>{selectedPensioner.fullName}</strong> 
+                ({selectedPensioner.pensionId}) for pension verification?
+              </p>
+              <p className="text-sm text-green-600 mt-2">
+                This will mark the pensioner as verified and eligible for pension benefits.
+              </p>
+            </div>
+            
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setShowApproveModal(false)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmApprovePensioner}
+                disabled={actionLoading}
+                className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
+              >
+                {actionLoading ? 'Approving...' : 'Approve Pensioner'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Pensioner Modal */}
+      {showDeleteModal && selectedPensioner && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex items-center mb-4">
+              <div className="flex-shrink-0">
+                <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                  <Trash2 className="w-6 h-6 text-red-600" />
+                </div>
+              </div>
+              <div className="ml-3">
+                <h3 className="text-lg font-medium text-gray-900">Delete Pensioner</h3>
+                <p className="text-sm text-gray-500">This action cannot be undone</p>
+              </div>
+            </div>
+            
+            <div className="mb-6">
+              <p className="text-sm text-gray-700">
+                Are you sure you want to permanently delete <strong>{selectedPensioner.fullName}</strong> 
+                ({selectedPensioner.pensionId}) from the system?
+              </p>
+              <p className="text-sm text-red-600 mt-2">
+                This will delete all associated data including documents and verification logs.
+              </p>
+            </div>
+            
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDeletePensioner}
+                disabled={actionLoading}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors"
+              >
+                {actionLoading ? 'Deleting...' : 'Delete Pensioner'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -413,7 +864,12 @@ function PensionerManagement({
   statusFilter, 
   setStatusFilter, 
   pensionTypeFilter, 
-  setPensionTypeFilter 
+  setPensionTypeFilter,
+  handleViewPensioner,
+  handleApprovePensioner,
+  handleFlagPensioner,
+  handleDeletePensioner,
+  actionLoading
 }: any) {
   return (
     <div className="space-y-6">
@@ -515,16 +971,36 @@ function PensionerManagement({
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{pensioner.dateRegistered}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex space-x-2">
-                        <button className="text-blue-600 hover:text-blue-900" title="View Details">
+                        <button 
+                          onClick={() => handleViewPensioner(pensioner)}
+                          disabled={actionLoading}
+                          className="text-blue-600 hover:text-blue-900 disabled:opacity-50" 
+                          title="View Details"
+                        >
                           <Eye className="w-4 h-4" />
                         </button>
-                        <button className="text-green-600 hover:text-green-900" title="Approve">
+                        <button 
+                          onClick={() => handleApprovePensioner(pensioner)}
+                          disabled={actionLoading || pensioner.status === 'VERIFIED'}
+                          className="text-green-600 hover:text-green-900 disabled:opacity-50" 
+                          title="Approve"
+                        >
                           <CheckCircle className="w-4 h-4" />
                         </button>
-                        <button className="text-yellow-600 hover:text-yellow-900" title="Flag">
+                        <button 
+                          onClick={() => handleFlagPensioner(pensioner)}
+                          disabled={actionLoading}
+                          className="text-yellow-600 hover:text-yellow-900 disabled:opacity-50" 
+                          title="Flag"
+                        >
                           <Flag className="w-4 h-4" />
                         </button>
-                        <button className="text-red-600 hover:text-red-900" title="Delete">
+                        <button 
+                          onClick={() => handleDeletePensioner(pensioner)}
+                          disabled={actionLoading}
+                          className="text-red-600 hover:text-red-900 disabled:opacity-50" 
+                          title="Delete"
+                        >
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>

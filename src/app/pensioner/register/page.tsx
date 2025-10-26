@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
@@ -78,6 +78,8 @@ export default function RegisterPage() {
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [isAutoSaving, setIsAutoSaving] = useState(false);
   
   // Upload states for each file type
   const [uploadStates, setUploadStates] = useState<{
@@ -91,6 +93,154 @@ export default function RegisterPage() {
     retirementLetter: 'idle',
     birthCertificate: 'idle'
   });
+
+  // Load saved data on component mount
+  useEffect(() => {
+    console.log('🔍 Checking for saved registration data...');
+    const savedData = localStorage.getItem('pensionerRegistrationData');
+    const savedStep = localStorage.getItem('pensionerRegistrationStep');
+    const savedLastSaved = localStorage.getItem('pensionerRegistrationLastSaved');
+    
+    console.log('📊 Found saved data:', {
+      hasData: !!savedData,
+      hasStep: !!savedStep,
+      hasLastSaved: !!savedLastSaved,
+      stepValue: savedStep,
+      lastSavedValue: savedLastSaved
+    });
+    
+    if (savedData) {
+      try {
+        const parsedData = JSON.parse(savedData);
+        console.log('📝 Parsed saved data:', {
+          pensionId: parsedData.pensionId,
+          fullName: parsedData.fullName,
+          email: parsedData.email,
+          currentStep: parsedData.currentStep
+        });
+        
+        setFormData(parsedData);
+        console.log('✅ Loaded saved registration data');
+        
+        if (savedStep) {
+          const stepNumber = parseInt(savedStep);
+          setCurrentStep(stepNumber);
+          console.log('✅ Restored to step:', stepNumber);
+        }
+        
+        if (savedLastSaved) {
+          const lastSavedDate = new Date(savedLastSaved);
+          setLastSaved(lastSavedDate);
+          console.log('✅ Last saved:', lastSavedDate.toLocaleString());
+        }
+      } catch (error) {
+        console.error('❌ Error loading saved data:', error);
+        // Clear corrupted data
+        localStorage.removeItem('pensionerRegistrationData');
+        localStorage.removeItem('pensionerRegistrationStep');
+        localStorage.removeItem('pensionerRegistrationLastSaved');
+      }
+    } else {
+      console.log('ℹ️ No saved data found, starting fresh');
+    }
+  }, []);
+
+  // Manual save function
+  const manualSave = () => {
+    try {
+      setIsAutoSaving(true);
+      localStorage.setItem('pensionerRegistrationData', JSON.stringify(formData));
+      localStorage.setItem('pensionerRegistrationStep', currentStep.toString());
+      localStorage.setItem('pensionerRegistrationLastSaved', new Date().toISOString());
+      setLastSaved(new Date());
+      console.log('💾 Manual save completed');
+    } catch (error) {
+      console.error('❌ Manual save failed:', error);
+    } finally {
+      setIsAutoSaving(false);
+    }
+  };
+
+  // Auto-save function
+  const autoSave = useCallback(() => {
+    try {
+      setIsAutoSaving(true);
+      localStorage.setItem('pensionerRegistrationData', JSON.stringify(formData));
+      localStorage.setItem('pensionerRegistrationStep', currentStep.toString());
+      localStorage.setItem('pensionerRegistrationLastSaved', new Date().toISOString());
+      setLastSaved(new Date());
+      console.log('💾 Auto-saved registration data');
+    } catch (error) {
+      console.error('❌ Auto-save failed:', error);
+    } finally {
+      setIsAutoSaving(false);
+    }
+  }, [formData, currentStep]);
+
+  // Auto-save with debouncing - only save if there's meaningful data
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      // Only auto-save if there's meaningful data entered
+      if (formData.pensionId || formData.fullName || formData.email || formData.phone) {
+        console.log('🔄 Triggering auto-save due to form data change');
+        autoSave();
+      }
+    }, 2000); // Auto-save after 2 seconds of inactivity
+
+    return () => clearTimeout(timeoutId);
+  }, [formData.pensionId, formData.fullName, formData.email, formData.phone, formData.nin, formData.gender, formData.dateOfBirth, formData.residentialAddress, formData.pensionSchemeType, formData.dateOfFirstAppointment, formData.dateOfRetirement, formData.pfNumber, formData.lastPromotionDate, formData.currentLevel, formData.salary, formData.maidenName, formData.password, formData.confirmPassword, autoSave]);
+
+  // Save on step change
+  useEffect(() => {
+    console.log('🔄 Triggering auto-save due to step change');
+    autoSave();
+  }, [currentStep, autoSave]);
+
+  // Clear saved data function
+  const clearSavedData = () => {
+    localStorage.removeItem('pensionerRegistrationData');
+    localStorage.removeItem('pensionerRegistrationStep');
+    localStorage.removeItem('pensionerRegistrationLastSaved');
+    setLastSaved(null);
+    console.log('🗑️ Cleared saved registration data');
+  };
+
+  // Debug function to check localStorage status
+  const debugLocalStorage = () => {
+    console.log('🔍 Debugging localStorage...');
+    console.log('Current formData:', {
+      pensionId: formData.pensionId,
+      fullName: formData.fullName,
+      email: formData.email,
+      currentStep: currentStep
+    });
+    
+    const savedData = localStorage.getItem('pensionerRegistrationData');
+    const savedStep = localStorage.getItem('pensionerRegistrationStep');
+    const savedLastSaved = localStorage.getItem('pensionerRegistrationLastSaved');
+    
+    console.log('localStorage contents:', {
+      hasData: !!savedData,
+      hasStep: !!savedStep,
+      hasLastSaved: !!savedLastSaved,
+      dataLength: savedData?.length || 0,
+      stepValue: savedStep,
+      lastSavedValue: savedLastSaved
+    });
+    
+    if (savedData) {
+      try {
+        const parsed = JSON.parse(savedData);
+        console.log('Parsed saved data sample:', {
+          pensionId: parsed.pensionId,
+          fullName: parsed.fullName,
+          email: parsed.email
+        });
+      } catch (error) {
+        console.error('Error parsing saved data:', error);
+      }
+    }
+  };
 
   const updateFormData = (field: keyof FormData, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -175,7 +325,7 @@ export default function RegisterPage() {
       uploadFormData.append('fileType', field);
       uploadFormData.append('pensionId', formData.pensionId || 'temp');
 
-      const response = await fetch('/api/register/upload-document', {
+      const response = await fetch('/api/pensioner/register/upload-document-local', {
         method: 'POST',
         body: uploadFormData,
       });
@@ -214,7 +364,7 @@ export default function RegisterPage() {
       sessionStorage.setItem('registrationData', JSON.stringify(formData));
       
       console.log('Redirecting to verification page');
-      router.push('/register/verification');
+      router.push('/pensioner/register/verification');
       // Don't set isSubmitting to false here as we're navigating away
     } catch (error) {
       console.error('Error in handleSubmit:', error);
@@ -247,6 +397,49 @@ export default function RegisterPage() {
       </div>
       <div className="text-center mt-2 text-sm text-gray-600">
         Step {currentStep} of 5 (Verification follows)
+      </div>
+      
+      {/* Auto-save status indicator */}
+      <div className="flex items-center justify-center mt-4 space-x-4">
+        {isAutoSaving && (
+          <div className="flex items-center text-blue-600 text-sm">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+            <span>Saving...</span>
+          </div>
+        )}
+        
+        {lastSaved && !isAutoSaving && (
+          <div className="flex items-center text-green-600 text-sm">
+            <svg className="h-4 w-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+            </svg>
+            <span>Last saved: {lastSaved.toLocaleTimeString()}</span>
+          </div>
+        )}
+        
+        <button
+          onClick={manualSave}
+          className="text-blue-600 hover:text-blue-800 text-sm underline"
+          title="Save your progress now"
+        >
+          Save Now
+        </button>
+        
+        <button
+          onClick={clearSavedData}
+          className="text-red-600 hover:text-red-800 text-sm underline"
+          title="Clear all saved data and start over"
+        >
+          Clear Saved Data
+        </button>
+        
+        <button
+          onClick={debugLocalStorage}
+          className="text-gray-600 hover:text-gray-800 text-sm underline"
+          title="Debug localStorage status (check console)"
+        >
+          Debug
+        </button>
       </div>
     </div>
   );

@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
     if (!bearer) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
 
     const token = verifyToken(bearer);
-    if (!token?.id || token.role !== 'ADMIN') {
+    if (!token?.id || token.role !== 'admin') {
       return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
     }
 
@@ -67,8 +67,10 @@ export async function GET(request: NextRequest) {
 
     // Format pensioners data
     const formattedPensioners = pensioners.map(pensioner => ({
-      id: pensioner.pensionId,
-      name: pensioner.fullName,
+      id: pensioner.id, // Use database ID, not pensionId
+      pensionId: pensioner.pensionId,
+      fullName: pensioner.fullName,
+      name: pensioner.fullName, // Keep both for compatibility
       category: pensioner.pensionSchemeType || 'Unknown',
       status: pensioner.status,
       documents: pensioner.pensionerfile.map(file => file.originalName),

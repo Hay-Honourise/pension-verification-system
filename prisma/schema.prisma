@@ -74,6 +74,7 @@ model pensioner {
   pensionerfile          pensionerfile[]
   verificationlog        verificationlog[]
   verificationreview     verificationreview[]
+  biometriccredential    biometriccredential[]
 }
 
 model pensionerfile {
@@ -127,6 +128,18 @@ model verificationreview {
 
   @@index([officerId], map: "VerificationReview_officerId_fkey")
   @@index([pensionerId], map: "VerificationReview_pensionerId_fkey")
+}
+
+model biometriccredential {
+  id           String    @id @default(cuid())
+  pensionerId  Int
+  type         String    // "FACE" | "FINGERPRINT"
+  credentialId String
+  publicKey    String    // JSON string of the credential data
+  registeredAt DateTime  @default(now())
+  pensioner    pensioner @relation(fields: [pensionerId], references: [id], map: "BiometricCredential_pensionerId_fkey")
+
+  @@index([pensionerId], map: "BiometricCredential_pensionerId_fkey")
 }
 
 enum user_role {

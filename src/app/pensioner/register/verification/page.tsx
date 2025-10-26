@@ -231,7 +231,7 @@ export default function VerificationPage() {
         formDataToSend.append('pensionRate', calculatedBenefits.pensionRate.toString());
       }
 
-      const response = await fetch('/api/register', {
+      const response = await fetch('/api/pensioner/register', {
         method: 'POST',
         body: formDataToSend,
       });
@@ -240,6 +240,10 @@ export default function VerificationPage() {
         const result = await response.json();
         // Clear session storage
         sessionStorage.removeItem('registrationData');
+        // Clear localStorage data
+        localStorage.removeItem('pensionerRegistrationData');
+        localStorage.removeItem('pensionerRegistrationStep');
+        localStorage.removeItem('pensionerRegistrationLastSaved');
         // Set flag to show success message on dashboard
         sessionStorage.setItem('registrationCompleted', 'true');
         alert('Registration successful! Please check your email for verification.');
@@ -256,7 +260,13 @@ export default function VerificationPage() {
   };
 
   const handleGoBack = () => {
-    router.back();
+    // Save current data back to localStorage before going back
+    if (formData) {
+      localStorage.setItem('pensionerRegistrationData', JSON.stringify(formData));
+      localStorage.setItem('pensionerRegistrationStep', '5'); // Go back to step 5 (documents)
+      localStorage.setItem('pensionerRegistrationLastSaved', new Date().toISOString());
+    }
+    router.push('/pensioner/register');
   };
 
   if (error && !formData) {
@@ -267,7 +277,7 @@ export default function VerificationPage() {
             <div className="text-red-600 text-lg font-semibold mb-2">Error</div>
             <p className="text-red-700 mb-4">{error}</p>
             <Link
-              href="/register"
+              href="/pensioner/register"
               className="inline-block px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
             >
               Start Registration

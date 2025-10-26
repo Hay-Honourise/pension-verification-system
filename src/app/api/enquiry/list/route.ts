@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
         const bearer = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
         if (!bearer) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
         const token = verifyToken(bearer);
-        if (!token?.id || token.role !== 'ADMIN') {
+        if (!token?.id || token.role !== 'admin') {
             return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
         }
 		const { searchParams } = new URL(req.url);

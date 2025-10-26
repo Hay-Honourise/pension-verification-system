@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { hash } from 'bcryptjs';
 import { prisma } from '@/lib/db';
 import { copyFile, deleteFile } from '@/lib/backblaze';
+import { calculatePension } from '@/lib/pension-calculator';
 
 export async function POST(request: NextRequest) {
   try {
@@ -68,6 +69,18 @@ export async function POST(request: NextRequest) {
     // Hash password
     const hashedPassword = await hash(password, 12);
 
+    // Calculate pension benefits
+    console.log('Calculating pension benefits...');
+    const pensionCalculation = calculatePension({
+      salary: parseFloat(salary.replace(/[₦,]/g, '')) || 0,
+      dateOfFirstAppointment: new Date(dateOfFirstAppointment),
+      dateOfRetirement: new Date(dateOfRetirement),
+      pensionSchemeType,
+      currentLevel
+    });
+    
+    console.log('Pension calculation result:', pensionCalculation);
+
     // Create pensioner record
     const pensioner = await prisma.pensioner.create({
       data: {
@@ -90,12 +103,12 @@ export async function POST(request: NextRequest) {
         password: hashedPassword,
         status: 'PENDING_VERIFICATION',
         
-        // Calculated benefits
-        yearsOfService: yearsOfService ? parseInt(yearsOfService) : null,
-        totalGratuity: totalGratuity ? parseFloat(totalGratuity) : null,
-        monthlyPension: monthlyPension ? parseFloat(monthlyPension) : null,
-        gratuityRate: gratuityRate ? parseFloat(gratuityRate) : null,
-        pensionRate: pensionRate ? parseFloat(pensionRate) : null,
+        // Calculated benefits (use calculated values instead of form data)
+        yearsOfService: pensionCalculation.yearsOfService,
+        totalGratuity: pensionCalculation.totalGratuity,
+        monthlyPension: pensionCalculation.monthlyPension,
+        gratuityRate: pensionCalculation.gratuityRate,
+        pensionRate: pensionCalculation.pensionRate,
         
         createdAt: new Date(),
         updatedAt: new Date(),

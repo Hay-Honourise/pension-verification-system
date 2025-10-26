@@ -15,7 +15,7 @@ export default function AdminLoginPage() {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch('/api/staff/login', {
+      const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
@@ -24,9 +24,9 @@ export default function AdminLoginPage() {
       if (!res.ok) return setError(data.error || 'Invalid credentials');
       if (data?.token) {
         localStorage.setItem('token', data.token);
-        localStorage.setItem('user', JSON.stringify(data.user));
+        localStorage.setItem('user', JSON.stringify(data.admin));
       }
-      router.push('/admin-dashboard');
+      router.push('/admin/dashboard');
     } catch (err) {
       setError('Something went wrong');
     } finally {

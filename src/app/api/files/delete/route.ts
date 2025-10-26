@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     if (!file) return NextResponse.json({ message: 'Not found' }, { status: 404 })
 
     const isOwner = token.role === 'pensioner' && Number(token.id) === file.pensionerId
-    const isAdmin = token.role === 'ADMIN'
+    const isAdmin = token.role === 'admin'
     if (!isOwner && !isAdmin) {
       return NextResponse.json({ message: 'Forbidden' }, { status: 403 })
     }
