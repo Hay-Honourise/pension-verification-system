@@ -151,7 +151,7 @@ export async function generateDownloadUrl(fileUrl: string, filename?: string) {
     console.log('Generating B2 download URL for:', fileUrl);
     
     // Check if it's a Backblaze B2 URL
-    if (fileUrl.includes('backblazeb2.com') || fileUrl.includes('f003.backblazeb2.com')) {
+    if (fileUrl.includes('backblazeb2.com')) {
       // Extract the file path from the URL
       const url = new URL(fileUrl);
       const pathParts = url.pathname.split('/').filter(part => part);
@@ -159,29 +159,32 @@ export async function generateDownloadUrl(fileUrl: string, filename?: string) {
       console.log('URL path parts:', pathParts);
       
       // For Backblaze B2 URLs, the structure is usually:
-      // https://f003.backblazeb2.com/file/bucket-name/path/to/file
+      // https://f005.backblazeb2.com/file/bucket-name/path/to/file
       
-      let filePath: string;
-      
-      if (url.hostname.includes('f003.backblazeb2.com')) {
-        // f003 URLs: /file/bucket-name/path/to/file
-        const fileIndex = pathParts.findIndex(part => part === 'file');
-        if (fileIndex !== -1) {
-          // Skip the 'file' part and the bucket name
-          filePath = pathParts.slice(fileIndex + 2).join('/');
-        } else {
-          filePath = pathParts.slice(1).join('/'); // Skip 'file' part
-        }
-      } else {
-        // Other B2 URLs
-        const bucketIndex = pathParts.findIndex(part => 
-          part === B2_BUCKET_NAME || 
-          part === 'pensionVerification' || 
-          part === 'PensionerRegisgration'
-        );
-        filePath = bucketIndex !== -1 ? pathParts.slice(bucketIndex + 1).join('/') : pathParts.join('/');
+      // If the URL already has an Authorization parameter, it's already signed, return it
+      if (url.searchParams.has('Authorization')) {
+        console.log('URL already has authorization, returning as-is');
+        return fileUrl;
       }
       
+      // Extract full path including bucket name
+      const fileIndex = pathParts.findIndex(part => part === 'file');
+      if (fileIndex === -1) {
+        throw new Error('Could not find "file" in URL path');
+      }
+      
+      // Get everything after 'file' - this includes bucket name and file path
+      const pathAfterFile = pathParts.slice(fileIndex + 1);
+      
+      if (pathAfterFile.length === 0) {
+        throw new Error('Could not extract file path from URL');
+      }
+      
+      // The first part is the bucket name, the rest is the file path
+      const bucketName = pathAfterFile[0];
+      const filePath = pathAfterFile.slice(1).join('/');
+      
+      console.log('Extracted bucket:', bucketName);
       console.log('Extracted file path:', filePath);
       
       if (!filePath) {
@@ -193,16 +196,12 @@ export async function generateDownloadUrl(fileUrl: string, filename?: string) {
       const response = await b2.getDownloadAuthorization({
         bucketId: B2_BUCKET_ID,
         fileNamePrefix: filePath,
-        validDurationInSeconds: 300, // 5 minutes
+        validDurationInSeconds: 3600, // 1 hour
       });
       
-      // Generate signed download URL with download parameters
-      let signedUrl = `${auth.downloadUrl}/file/${B2_BUCKET_NAME}/${filePath}?Authorization=${response.data.authorizationToken}`;
-      
-      // Add filename parameter for download if provided
-      if (filename) {
-        signedUrl += `&response-content-disposition=attachment; filename="${encodeURIComponent(filename)}"`;
-      }
+      // Build the download URL using the auth's download URL
+      // Format: {downloadUrl}/file/{bucket}/{filePath}?Authorization={token}
+      const signedUrl = `${auth.downloadUrl}/file/${bucketName}/${filePath}?Authorization=${response.data.authorizationToken}`;
       
       console.log('Generated B2 signed URL:', signedUrl);
       
@@ -220,7 +219,9 @@ export async function generateDownloadUrl(fileUrl: string, filename?: string) {
       fileUrl,
       filename
     });
-    throw new Error('Failed to generate download URL');
+    // Return the original URL as fallback
+    console.log('Returning original URL as fallback');
+    return fileUrl;
   }
 }
 

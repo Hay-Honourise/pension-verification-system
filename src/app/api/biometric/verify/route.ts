@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
       await prisma.verificationreview.create({
         data: {
           pensionerId: pensioner.id,
-          capturedPhoto: null, // No photo for biometric verification
+          capturedPhoto: '', // Empty string for biometric verification
           status: 'PENDING'
         }
       });

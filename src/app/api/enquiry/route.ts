@@ -6,7 +6,10 @@ import { sendMail } from '@/lib/mailer';
 export async function POST(req: NextRequest) {
 	try {
 		// Basic per-IP rate limiting: 5 requests per 5 minutes
-		const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || req.ip || 'unknown';
+		const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 
+		           req.headers.get('x-real-ip') || 
+		           req.headers.get('cf-connecting-ip') ||
+		           'unknown';
 		const rl = rateLimit(`enquiry:${ip}`, 5, 5 * 60 * 1000);
 		if (!rl.ok) {
 			return NextResponse.json(

@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { 
   Home, 
   Users, 
@@ -52,6 +53,9 @@ export default function AdminDashboard() {
   // Notifications state
   const [notifications, setNotifications] = useState<any[]>([])
 
+  // Chart data state
+  const [monthlyVerifications, setMonthlyVerifications] = useState<any[]>([])
+
   // Loading states
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -96,6 +100,9 @@ export default function AdminDashboard() {
         loadDashboardData()
       } else if (activePage === 'pensioners') {
         loadPensioners()
+      } else if (activePage === 'notifications') {
+        // Reload notifications when navigating to notifications tab
+        loadDashboardData()
       }
       // Enquiries page will load its own data via the EnquiriesManagement component
     }
@@ -135,6 +142,7 @@ export default function AdminDashboard() {
       setMetrics(data.metrics)
       setNotifications(data.notifications)
       setPensioners(data.recentPensioners)
+      setMonthlyVerifications(data.monthlyVerifications || [])
       
     } catch (err) {
       console.error('Error loading dashboard data:', err)
@@ -477,7 +485,7 @@ export default function AdminDashboard() {
           </div>
 
           {/* Dashboard Content */}
-          {activePage === 'dashboard' && <DashboardOverview metrics={metrics} />}
+          {activePage === 'dashboard' && <DashboardOverview metrics={metrics} monthlyVerifications={monthlyVerifications} />}
           {activePage === 'pensioners' && <PensionerManagement 
             pensioners={pensioners} 
             searchTerm={searchTerm}
@@ -787,7 +795,31 @@ export default function AdminDashboard() {
 }
 
 // Dashboard Overview Component
-function DashboardOverview({ metrics }: { metrics: any }) {
+function DashboardOverview({ metrics, monthlyVerifications }: { metrics: any, monthlyVerifications: any[] }) {
+  // Prepare chart data
+  const chartData = monthlyVerifications.length > 0 
+    ? monthlyVerifications.map(item => ({
+        month: item.label,
+        verified: item.count
+      }))
+    : [
+        { month: 'No Data', verified: 0 }
+      ];
+
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-3">
+          <p className="text-sm font-semibold text-gray-700">{label}</p>
+          <p className="text-sm text-blue-600">
+            Verified: <span className="font-bold">{payload[0].value}</span>
+          </p>
+        </div>
+      );
+    }
+    return null;
+  };
+
   return (
     <div className="space-y-6">
       {/* Metrics Cards */}
@@ -824,16 +856,56 @@ function DashboardOverview({ metrics }: { metrics: any }) {
 
       {/* Chart Section */}
       <div className="bg-white shadow-md rounded-xl p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">Pensioners Verified per Month</h3>
-          <TrendingUp className="w-5 h-5 text-gray-400" />
-        </div>
-        <div className="h-64 bg-gray-50 rounded-lg flex items-center justify-center">
-          <div className="text-center">
-            <BarChart3 className="w-12 h-12 text-gray-400 mx-auto mb-2" />
-            <p className="text-gray-500">Chart visualization will be implemented here</p>
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">Pensioners Verified per Month</h3>
+            <p className="text-sm text-gray-500 mt-1">Last 6 months of verification activity</p>
           </div>
+          <TrendingUp className="w-6 h-6 text-blue-600" />
         </div>
+        
+        {chartData[0].month === 'No Data' ? (
+          <div className="h-64 bg-gray-50 rounded-lg flex items-center justify-center">
+            <div className="text-center">
+              <BarChart3 className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+              <p className="text-gray-500">No verification data available</p>
+              <p className="text-sm text-gray-400 mt-1">Data will appear here as pensioners are verified</p>
+            </div>
+          </div>
+        ) : (
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart
+              data={chartData}
+              margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+              barSize={60}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+              <XAxis 
+                dataKey="month" 
+                tick={{ fill: '#6b7280', fontSize: 12 }}
+                axisLine={{ stroke: '#e5e7eb' }}
+              />
+              <YAxis 
+                tick={{ fill: '#6b7280', fontSize: 12 }}
+                axisLine={{ stroke: '#e5e7eb' }}
+                label={{ value: 'Count', angle: -90, position: 'insideLeft', style: { fill: '#6b7280' } }}
+              />
+              <Tooltip content={<CustomTooltip />} />
+              <Legend 
+                wrapperStyle={{ paddingTop: '20px' }}
+                iconType="circle"
+                iconSize={8}
+                formatter={(value) => <span className="text-gray-700 text-sm">{value}</span>}
+              />
+              <Bar 
+                dataKey="verified" 
+                fill="#3b82f6" 
+                radius={[8, 8, 0, 0]}
+                name="Verified Pensioners"
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        )}
       </div>
     </div>
   )
@@ -1018,33 +1090,119 @@ function PensionerManagement({
 
 // Notifications Panel Component
 function NotificationsPanel({ notifications }: { notifications: any[] }) {
+  const [localNotifications, setLocalNotifications] = useState(notifications)
+  const [showEmptyState, setShowEmptyState] = useState(false)
+
+  useEffect(() => {
+    if (notifications.length === 0) {
+      setShowEmptyState(true)
+    } else {
+      setShowEmptyState(false)
+      // Update local notifications when prop changes
+      setLocalNotifications(notifications)
+    }
+  }, [notifications])
+
+  const handleMarkAsRead = (id: number) => {
+    setLocalNotifications(prev => 
+      prev.map(notif => 
+        notif.id === id ? { ...notif, read: true } : notif
+      )
+    )
+  }
+
+  const handleDeleteNotification = (id: number) => {
+    setLocalNotifications(prev => prev.filter(notif => notif.id !== id))
+    if (localNotifications.length === 1) {
+      setShowEmptyState(true)
+    }
+  }
+
+  const handleMarkAllAsRead = () => {
+    setLocalNotifications(prev => 
+      prev.map(notif => ({ ...notif, read: true }))
+    )
+  }
+
   return (
-    <div className="space-y-4">
-      {notifications.map((notification) => (
-        <div
-          key={notification.id}
-          className={`bg-white shadow-sm rounded-md p-4 ${
-            !notification.read ? 'border-l-4 border-green-500' : ''
-          }`}
-        >
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <p className="text-sm text-gray-900">{notification.message}</p>
-              <p className="text-xs text-gray-500 mt-1">{notification.timestamp}</p>
-            </div>
-            <div className="flex space-x-2 ml-4">
-              {!notification.read && (
-                <button className="text-green-600 hover:text-green-800">
-                  <CheckCircle className="w-4 h-4" />
-                </button>
-              )}
-              <button className="text-red-600 hover:text-red-800">
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </div>
+    <div className="space-y-6">
+      {/* Header with actions */}
+      <div className="bg-white shadow-md rounded-xl p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">System Notifications</h3>
+            <p className="text-sm text-gray-500 mt-1">
+              {localNotifications.filter(n => !n.read).length} unread notifications
+            </p>
           </div>
+          <button
+            onClick={handleMarkAllAsRead}
+            disabled={localNotifications.filter(n => !n.read).length === 0}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-sm font-medium"
+          >
+            Mark All as Read
+          </button>
         </div>
-      ))}
+      </div>
+
+      {/* Notifications List */}
+      <div className="space-y-4">
+        {showEmptyState || localNotifications.length === 0 ? (
+          <div className="bg-white shadow-md rounded-xl p-12 text-center">
+            <Bell className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">No Notifications</h3>
+            <p className="text-gray-500">You're all caught up! New notifications will appear here.</p>
+          </div>
+        ) : (
+          localNotifications.map((notification) => (
+            <div
+              key={notification.id}
+              className={`bg-white shadow-sm rounded-md p-4 border-l-4 ${
+                !notification.read ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
+              }`}
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <div className="flex items-start gap-3">
+                    <div className={`flex-shrink-0 w-2 h-2 rounded-full mt-2 ${
+                      !notification.read ? 'bg-blue-500' : 'bg-gray-300'
+                    }`} />
+                    <div className="flex-1">
+                      <p className="text-sm text-gray-900 font-medium">{notification.message}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <p className="text-xs text-gray-500">{notification.timestamp}</p>
+                        {notification.type && (
+                          <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full">
+                            {notification.type}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex space-x-2 ml-4">
+                  {!notification.read && (
+                    <button
+                      onClick={() => handleMarkAsRead(notification.id)}
+                      className="text-green-600 hover:text-green-800 transition-colors"
+                      title="Mark as read"
+                    >
+                      <CheckCircle className="w-5 h-5" />
+                    </button>
+                  )}
+                  <button
+                    onClick={() => handleDeleteNotification(notification.id)}
+                    className="text-red-600 hover:text-red-800 transition-colors"
+                    title="Delete notification"
+                  >
+                    <Trash2 className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
     </div>
   )
 }

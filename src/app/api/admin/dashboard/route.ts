@@ -105,6 +105,65 @@ export async function GET(request: NextRequest) {
       console.error('Error fetching recent notifications:', err);
     }
 
+    // Get monthly verification data for chart
+    let monthlyVerifications: any[] = [];
+    try {
+      const sixMonthsAgo = new Date();
+      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
+      sixMonthsAgo.setDate(1); // Start of the month
+      
+      const verificationLogs = await prisma.verificationlog.findMany({
+        where: {
+          status: {
+            in: ['SUCCESS', 'VERIFIED']
+          },
+          verifiedAt: {
+            gte: sixMonthsAgo
+          }
+        },
+        select: {
+          verifiedAt: true
+        }
+      });
+
+      // Group by month
+      interface MonthlyData {
+        count: number;
+        label: string;
+        sortKey: string;
+      }
+      
+      const monthMap = new Map<string, MonthlyData>();
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      
+      verificationLogs.forEach(log => {
+        if (log.verifiedAt) {
+          const date = new Date(log.verifiedAt);
+          const month = date.getMonth();
+          const year = date.getFullYear();
+          const monthKey = `${year}-${month}`;
+          const monthLabel = `${monthNames[month]} ${year}`;
+          
+          if (!monthMap.has(monthKey)) {
+            monthMap.set(monthKey, { count: 0, label: monthLabel, sortKey: monthKey });
+          }
+          const current = monthMap.get(monthKey);
+          if (current) {
+            current.count++;
+            monthMap.set(monthKey, current);
+          }
+        }
+      });
+
+      // Convert to array and sort by date (ascending)
+      monthlyVerifications = Array.from(monthMap.values()).sort((a, b) => 
+        a.sortKey.localeCompare(b.sortKey)
+      );
+      console.log('Monthly verifications:', monthlyVerifications.length);
+    } catch (err) {
+      console.error('Error fetching monthly verifications:', err);
+    }
+
     // Format recent pensioners data
     const formattedPensioners = recentPensioners.map(pensioner => ({
       id: pensioner.pensionId,
@@ -133,7 +192,8 @@ export async function GET(request: NextRequest) {
         flaggedAccounts
       },
       recentPensioners: formattedPensioners,
-      notifications: formattedNotifications
+      notifications: formattedNotifications,
+      monthlyVerifications
     });
 
   } catch (err) {

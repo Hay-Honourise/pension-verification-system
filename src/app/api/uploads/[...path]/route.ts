@@ -7,10 +7,11 @@ const UPLOAD_DIR = join(process.cwd(), 'uploads', 'pensioner-documents');
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { path: string[] } }
+  { params }: { params: Promise<{ path: string[] }> }
 ) {
   try {
-    const fileName = params.path.join('/');
+    const resolvedParams = await params;
+    const fileName = resolvedParams.path.join('/');
     const filePath = join(UPLOAD_DIR, fileName);
 
     // Security check - ensure file is within upload directory
@@ -47,7 +48,8 @@ export async function GET(
     }
 
     // Return file with appropriate headers
-    return new NextResponse(fileBuffer, {
+    // Note: Buffer works directly in NextResponse
+    return new NextResponse(fileBuffer as any, {
       status: 200,
       headers: {
         'Content-Type': contentType,

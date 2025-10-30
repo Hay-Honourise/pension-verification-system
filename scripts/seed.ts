@@ -11,12 +11,16 @@ async function main() {
   
   const admin = await prisma.admin.upsert({
     where: { email: 'admin@oyopension.com' },
-    update: {},
+    update: {
+      updatedAt: new Date()
+    },
     create: {
+      id: `admin_${Date.now()}`,
       email: 'admin@oyopension.com',
       password: hashedPassword,
       name: 'System Administrator',
-      role: 'admin'
+      role: 'admin',
+      updatedAt: new Date()
     }
   });
 
@@ -26,7 +30,9 @@ async function main() {
   const pensioners = await Promise.all([
     prisma.pensioner.upsert({
       where: { pensionId: 'PEN001' },
-      update: {},
+      update: {
+        updatedAt: new Date()
+      },
       create: {
         pensionId: 'PEN001',
         fullName: 'John Doe',
@@ -39,19 +45,21 @@ async function main() {
         pensionSchemeType: 'total',
         dateOfFirstAppointment: new Date('1980-01-15'),
         dateOfRetirement: new Date('2015-03-20'),
-        pfNumber: 'PF001', // PF Number for pensioner
+        pfNumber: 'PF001',
         lastPromotionDate: new Date('2010-06-15'),
         currentLevel: 'Level 12',
         salary: 150000.00,
-        expectedRetirementDate: new Date('2015-03-20'),
         maidenName: null,
         password: await bcrypt.hash('password123', 12),
-        status: 'PENDING_VERIFICATION'
+        status: 'PENDING_VERIFICATION',
+        updatedAt: new Date()
       }
     }),
     prisma.pensioner.upsert({
       where: { pensionId: 'PEN002' },
-      update: {},
+      update: {
+        updatedAt: new Date()
+      },
       create: {
         pensionId: 'PEN002',
         fullName: 'Jane Smith',
@@ -64,14 +72,14 @@ async function main() {
         pensionSchemeType: 'contributory',
         dateOfFirstAppointment: new Date('1978-06-20'),
         dateOfRetirement: new Date('2013-07-15'),
-        pfNumber: 'PF002', // PF Number for pensioner
+        pfNumber: 'PF002',
         lastPromotionDate: new Date('2008-03-10'),
         currentLevel: 'Level 14',
         salary: 180000.00,
-        expectedRetirementDate: new Date('2013-07-15'),
         maidenName: 'Johnson',
         password: await bcrypt.hash('password123', 12),
-        status: 'VERIFIED'
+        status: 'VERIFIED',
+        updatedAt: new Date()
       }
     })
   ]);

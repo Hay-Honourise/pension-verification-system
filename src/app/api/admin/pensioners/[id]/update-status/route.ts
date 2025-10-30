@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { verifyToken } from '@/lib/auth';
 
-export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const authHeader = request.headers.get('authorization');
     const bearer = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
@@ -16,7 +16,8 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
     }
 
-    const pensionerId = params.id;
+    const resolvedParams = await params;
+    const pensionerId = resolvedParams.id;
     const { action, reason } = await request.json();
 
     if (!pensionerId) {

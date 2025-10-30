@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { verifyToken } from '@/lib/auth'
 
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const authHeader = request.headers.get('authorization')
     const bearer = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null
@@ -12,7 +12,8 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       return NextResponse.json({ message: 'Forbidden' }, { status: 403 })
     }
 
-    const id = Number(params.id)
+    const resolvedParams = await params;
+    const id = Number(resolvedParams.id)
     const body = await request.json()
     const decision = String(body?.decision || '').toUpperCase()
     const notes = String(body?.notes || '')

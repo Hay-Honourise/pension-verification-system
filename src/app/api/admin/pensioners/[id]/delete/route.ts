@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { verifyToken } from '@/lib/auth';
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const authHeader = request.headers.get('authorization');
     const bearer = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
@@ -16,7 +16,8 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
       return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
     }
 
-    const pensionerId = params.id;
+    const resolvedParams = await params;
+    const pensionerId = resolvedParams.id;
 
     if (!pensionerId) {
       return NextResponse.json({ message: 'Pensioner ID is required' }, { status: 400 });

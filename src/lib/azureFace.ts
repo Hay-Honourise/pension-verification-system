@@ -29,13 +29,20 @@ export async function detectFaceFromBuffer(buffer: Buffer): Promise<string | nul
     return 'mock-face-id-buffer';
   }
   const endpoint = `${FACE_ENDPOINT.replace(/\/$/, '')}/face/v1.0/detect?returnFaceId=true`;
+  
+  // Convert Buffer to ArrayBuffer for fetch
+  const arrayBuffer = buffer.buffer.slice(
+    buffer.byteOffset,
+    buffer.byteOffset + buffer.byteLength
+  );
+  
   const res = await fetch(endpoint, {
     method: 'POST',
     headers: {
       'Ocp-Apim-Subscription-Key': FACE_KEY,
       'Content-Type': 'application/octet-stream',
     },
-    body: buffer,
+    body: arrayBuffer as BodyInit,
   });
   if (!res.ok) return null;
   const data: DetectResult = await res.json();

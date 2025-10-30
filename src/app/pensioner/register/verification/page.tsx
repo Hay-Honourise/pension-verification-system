@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
 interface FormData {
@@ -58,7 +58,6 @@ interface CalculatedBenefits {
 
 export default function VerificationPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [formData, setFormData] = useState<FormData | null>(null);
   const [calculatedBenefits, setCalculatedBenefits] = useState<CalculatedBenefits | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
