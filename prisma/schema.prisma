@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -28,7 +28,7 @@ model document {
   status       String    @default("pending")
   pensioner    pensioner @relation(fields: [pensionerId], references: [id], map: "Document_pensionerId_fkey")
 
-  @@index([pensionerId], map: "Document_pensionerId_fkey")
+  @@index([pensionerId], map: "Document_pensionerId_idx")
 }
 
 model enquiry {
@@ -88,7 +88,7 @@ model pensionerfile {
   createdAt    DateTime  @default(now())
   pensioner    pensioner @relation(fields: [pensionerId], references: [id], map: "PensionerFile_pensionerId_fkey")
 
-  @@index([pensionerId], map: "PensionerFile_pensionerId_fkey")
+  @@index([pensionerId], map: "PensionerFile_pensionerId_idx")
 }
 
 model user {
@@ -113,7 +113,7 @@ model verificationlog {
   nextDueAt   DateTime?
   pensioner   pensioner @relation(fields: [pensionerId], references: [id], map: "VerificationLog_pensionerId_fkey")
 
-  @@index([pensionerId], map: "VerificationLog_pensionerId_fkey")
+  @@index([pensionerId], map: "VerificationLog_pensionerId_idx")
 }
 
 model verificationreview {
@@ -126,8 +126,8 @@ model verificationreview {
   user          user?     @relation(fields: [officerId], references: [id], map: "VerificationReview_officerId_fkey")
   pensioner     pensioner @relation(fields: [pensionerId], references: [id], map: "VerificationReview_pensionerId_fkey")
 
-  @@index([officerId], map: "VerificationReview_officerId_fkey")
-  @@index([pensionerId], map: "VerificationReview_pensionerId_fkey")
+  @@index([officerId], map: "VerificationReview_officerId_idx")
+  @@index([pensionerId], map: "VerificationReview_pensionerId_idx")
 }
 
 model biometriccredential {
@@ -139,7 +139,7 @@ model biometriccredential {
   registeredAt DateTime  @default(now())
   pensioner    pensioner @relation(fields: [pensionerId], references: [id], map: "BiometricCredential_pensionerId_fkey")
 
-  @@index([pensionerId], map: "BiometricCredential_pensionerId_fkey")
+  @@index([pensionerId], map: "BiometricCredential_pensionerId_idx")
 }
 
 enum user_role {
