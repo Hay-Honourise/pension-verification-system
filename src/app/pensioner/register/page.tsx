@@ -325,7 +325,7 @@ export default function RegisterPage() {
       uploadFormData.append('fileType', field);
       uploadFormData.append('pensionId', formData.pensionId || 'temp');
 
-      const response = await fetch('/api/pensioner/register/upload-document-local', {
+      const response = await fetch('/api/pensioner/register/upload-document', {
         method: 'POST',
         body: uploadFormData,
       });

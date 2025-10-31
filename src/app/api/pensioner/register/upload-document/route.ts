@@ -12,14 +12,14 @@ const ALLOWED_TYPES = new Set([
 
 export async function POST(request: NextRequest) {
   try {
-    // Check if Backblaze B2 environment variables are configured
-    const requiredEnvVars = ['B2_KEY_ID', 'B2_APPLICATION_KEY', 'B2_BUCKET_ID', 'B2_BUCKET_NAME'];
+    // Check if S3-compatible Backblaze environment variables are configured
+    const requiredEnvVars = ['S3_ACCESS_KEY_ID', 'S3_SECRET_ACCESS_KEY', 'S3_BUCKET', 'S3_ENDPOINT', 'S3_REGION'];
     const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
     
     if (missingVars.length > 0) {
-      console.error('Missing Backblaze B2 environment variables:', missingVars);
+      console.error('Missing S3 environment variables:', missingVars);
       return NextResponse.json({ 
-        message: 'Backblaze B2 configuration is missing. Please check environment variables.' 
+        message: 'S3 configuration is missing. Please check environment variables.' 
       }, { status: 500 });
     }
 
@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
 
     console.log('Generated filename:', fileName);
 
-    // Upload to Backblaze B2
+    // Upload to S3-compatible Backblaze
     const uploadResult = await uploadFile(buffer, fileName, file.type);
 
     // Return the file information for storage in sessionStorage
@@ -97,20 +97,14 @@ export async function POST(request: NextRequest) {
     // Provide more specific error messages
     let errorMessage = 'Upload failed. Please try again.';
     
-    if (error.message?.includes('S3_BUCKET is not configured')) {
-      errorMessage = 'Backblaze B2 bucket configuration is missing.';
-    } else if (error.message?.includes('Failed to authenticate')) {
-      errorMessage = 'Backblaze B2 authentication failed. Please check your credentials.';
-    } else if (error.message?.includes('Failed to get upload URL')) {
-      errorMessage = 'Failed to get upload URL from Backblaze B2.';
-    } else if (error.message?.includes('Failed to upload file')) {
-      errorMessage = 'File upload to Backblaze B2 failed.';
-    } else if (error.message?.includes('Authentication error')) {
-      errorMessage = 'Backblaze B2 authentication error. Please check your credentials.';
+    if (error.message?.includes('Missing required S3 environment variables')) {
+      errorMessage = 'S3 bucket configuration is missing.';
+    } else if (error.message?.includes('AccessDenied') || error.message?.includes('Access denied')) {
+      errorMessage = 'S3 access denied. Please check your credentials and bucket policy.';
     } else if (error.message?.includes('Access denied')) {
-      errorMessage = 'Backblaze B2 access denied. Please check your permissions.';
+      errorMessage = 'S3 access denied. Please check your permissions.';
     } else if (error.message?.includes('Bad request')) {
-      errorMessage = `Backblaze B2 bad request: ${error.message}`;
+      errorMessage = `S3 bad request: ${error.message}`;
     }
     
     return NextResponse.json({ 
