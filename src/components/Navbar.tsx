@@ -49,17 +49,17 @@ export default function Navbar() {
   return (
     <nav className="bg-oyoGreen text-oyoWhite shadow-lg sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
+        <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <div className="flex-shrink-0">
+          <div className="flex-shrink-0 leading-none">
             <Link href="/" className="text-xl font-bold hover:text-oyoOrange transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-oyoOrange focus:ring-offset-2 focus:ring-offset-oyoGreen rounded">
               Oyo Pension Verification
             </Link>
           </div>
 
           {/* Desktop Menu */}
-          <div className="hidden md:block">
-            <div className="ml-10 flex items-baseline space-x-1">
+          <div className="hidden md:flex md:items-center md:justify-end md:flex-1">
+            <div className="ml-6 flex items-center gap-3 lg:gap-4">
               {/* Get Started dropdown */}
               <div className="relative" ref={getStartedDropdownRef}>
                 <button
@@ -67,14 +67,14 @@ export default function Navbar() {
                   ref={getStartedButtonRef}
                   onClick={() => setIsGetStartedOpen(!isGetStartedOpen)}
                   onMouseEnter={() => setIsGetStartedOpen(true)}
-                  className="px-3 py-2 rounded-md text-sm font-medium hover:text-oyoOrange hover:bg-white/10 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-oyoOrange focus:ring-offset-2 focus:ring-offset-oyoGreen"
+                  className="px-3 py-2 rounded-md text-sm lg:text-base font-medium hover:text-oyoOrange hover:bg-white/10 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-oyoOrange focus:ring-offset-2 focus:ring-offset-oyoGreen leading-none"
                   aria-expanded={isGetStartedOpen}
                   aria-haspopup="true"
                   aria-controls="get-started-menu"
                 >
                   Get Started
                   <svg
-                    className={`ml-1 inline-block w-4 h-4 transition-transform duration-200 ${isGetStartedOpen ? 'rotate-180' : ''}`}
+                    className={`ml-1 inline-block w-4 h-4 align-middle transition-transform duration-200 ${isGetStartedOpen ? 'rotate-180' : ''}`}
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -85,7 +85,7 @@ export default function Navbar() {
                 {/* Dropdown Menu */}
                 <div
                   id="get-started-menu"
-                  className={`absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 transition-all duration-200 ${
+                  className={`absolute right-0 mt-2 min-w-48 w-56 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50 transition-all duration-200 ${
                     isGetStartedOpen ? 'opacity-100 visible translate-y-0' : 'opacity-0 invisible -translate-y-2'
                   }`}
                   role="menu"
@@ -96,7 +96,7 @@ export default function Navbar() {
                   <div className="py-1">
                     <Link
                       href="/pensioner/login"
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-oyoGreen hover:text-oyoWhite transition-colors duration-200"
+                      className="block px-4 py-2 text-sm lg:text-base text-gray-700 hover:bg-oyoGreen hover:text-oyoWhite transition-colors duration-200"
                       role="menuitem"
                       onClick={() => setIsGetStartedOpen(false)}
                     >
@@ -104,7 +104,7 @@ export default function Navbar() {
                     </Link>
                     <Link
                       href="/pensioner/register"
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-oyoGreen hover:text-oyoWhite transition-colors duration-200"
+                      className="block px-4 py-2 text-sm lg:text-base text-gray-700 hover:bg-oyoGreen hover:text-oyoWhite transition-colors duration-200"
                       role="menuitem"
                       onClick={() => setIsGetStartedOpen(false)}
                     >
@@ -121,14 +121,14 @@ export default function Navbar() {
                   ref={adminButtonRef}
                   onClick={() => setIsAdminOpen(!isAdminOpen)}
                   onMouseEnter={() => setIsAdminOpen(true)}
-                  className="px-3 py-2 rounded-md text-sm font-medium hover:text-oyoOrange hover:bg-white/10 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-oyoOrange focus:ring-offset-2 focus:ring-offset-oyoGreen"
+                  className="px-3 py-2 rounded-md text-sm lg:text-base font-medium hover:text-oyoOrange hover:bg-white/10 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-oyoOrange focus:ring-offset-2 focus:ring-offset-oyoGreen leading-none"
                   aria-expanded={isAdminOpen}
                   aria-haspopup="true"
                   aria-controls="admin-access-menu"
                 >
                   Admin Access
                   <svg
-                    className={`ml-1 inline-block w-4 h-4 transition-transform duration-200 ${isAdminOpen ? 'rotate-180' : ''}`}
+                    className={`ml-1 inline-block w-4 h-4 align-middle transition-transform duration-200 ${isAdminOpen ? 'rotate-180' : ''}`}
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -139,7 +139,7 @@ export default function Navbar() {
                 {/* Dropdown Menu */}
                 <div
                   id="admin-access-menu"
-                  className={`absolute right-0 mt-2 w-64 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 transition-all duration-200 ${
+                  className={`absolute right-0 mt-2 min-w-56 w-64 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50 transition-all duration-200 ${
                     isAdminOpen ? 'opacity-100 visible translate-y-0' : 'opacity-0 invisible -translate-y-2'
                   }`}
                   role="menu"
@@ -150,7 +150,7 @@ export default function Navbar() {
                   <div className="py-1">
                     <Link
                       href="/admin/login"
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-oyoGreen hover:text-oyoWhite transition-colors duration-200"
+                      className="block px-4 py-2 text-sm lg:text-base text-gray-700 hover:bg-oyoGreen hover:text-oyoWhite transition-colors duration-200"
                       role="menuitem"
                       onClick={() => setIsAdminOpen(false)}
                     >
@@ -158,7 +158,7 @@ export default function Navbar() {
                     </Link>
                     {/* <Link
                       href="/officer/login"
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-oyoGreen hover:text-oyoWhite transition-colors duration-200"
+                      className="block px-4 py-2 text-sm lg:text-base text-gray-700 hover:bg-oyoGreen hover:text-oyoWhite transition-colors duration-200"
                       role="menuitem"
                       onClick={() => setIsAdminOpen(false)}
                     >
@@ -182,7 +182,7 @@ export default function Navbar() {
                 <Link
                   key={item.name}
                   href={item.href}
-                  className="px-3 py-2 rounded-md text-sm font-medium hover:text-oyoOrange hover:bg-white/10 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-oyoOrange focus:ring-offset-2 focus:ring-offset-oyoGreen"
+                  className="px-3 py-2 rounded-md text-sm lg:text-base font-medium hover:text-oyoOrange hover:bg-white/10 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-oyoOrange focus:ring-offset-2 focus:ring-offset-oyoGreen leading-none"
                 >
                   {item.name}
                 </Link>
