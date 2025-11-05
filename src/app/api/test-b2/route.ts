@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { authenticate, getUploadUrl, uploadFile } from '@/lib/backblaze';
+import { authenticate, uploadFile } from '@/lib/backblaze';
 
 export async function GET(request: NextRequest) {
   try {
@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     const authResult = await authenticate();
     
     // Test getting upload URL
-    const uploadUrlResult = await getUploadUrl();
+    // const uploadUrlResult = await getUploadUrl();
     
     // Test a small file upload
     const testBuffer = Buffer.from('test file content');
@@ -35,10 +35,10 @@ export async function GET(request: NextRequest) {
         downloadUrl: authResult.downloadUrl,
         apiUrl: authResult.apiUrl
       },
-      uploadUrl: {
-        hasUrl: !!uploadUrlResult.uploadUrl,
-        hasToken: !!uploadUrlResult.authorizationToken
-      },
+      // uploadUrl: {
+      //   hasUrl: !!uploadUrlResult.uploadUrl,
+      //   hasToken: !!uploadUrlResult.authorizationToken
+      // },
       testUpload: {
         fileId: uploadResult.fileId,
         fileName: uploadResult.fileName,
