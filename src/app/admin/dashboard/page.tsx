@@ -559,47 +559,47 @@ export default function AdminDashboard() {
               {/* Personal Information */}
               <div className="space-y-4">
                 <h4 className="font-semibold text-gray-800">Personal Information</h4>
-                <div className="space-y-2 text-sm">
-                  <div><span className="font-medium">Name:</span> {selectedPensioner.fullName}</div>
-                  <div><span className="font-medium">Pension ID:</span> {selectedPensioner.pensionId}</div>
-                  <div><span className="font-medium">Email:</span> {selectedPensioner.email}</div>
-                  <div><span className="font-medium">Phone:</span> {selectedPensioner.phone}</div>
-                  <div><span className="font-medium">NIN:</span> {selectedPensioner.nin}</div>
-                  <div><span className="font-medium">Gender:</span> {selectedPensioner.gender}</div>
-                  <div><span className="font-medium">Date of Birth:</span> {new Date(selectedPensioner.dateOfBirth).toLocaleDateString()}</div>
+                <div className="space-y-2 text-sm text-gray-900">
+                  <div className="text-gray-900"><span className="font-medium text-gray-900">Name:</span> <span className="text-gray-900">{selectedPensioner.fullName}</span></div>
+                  <div className="text-gray-900"><span className="font-medium text-gray-900">Pension ID:</span> <span className="text-gray-900">{selectedPensioner.pensionId}</span></div>
+                  <div className="text-gray-900"><span className="font-medium text-gray-900">Email:</span> <span className="text-gray-900">{selectedPensioner.email}</span></div>
+                  <div className="text-gray-900"><span className="font-medium text-gray-900">Phone:</span> <span className="text-gray-900">{selectedPensioner.phone}</span></div>
+                  <div className="text-gray-900"><span className="font-medium text-gray-900">NIN:</span> <span className="text-gray-900">{selectedPensioner.nin}</span></div>
+                  <div className="text-gray-900"><span className="font-medium text-gray-900">Gender:</span> <span className="text-gray-900">{selectedPensioner.gender}</span></div>
+                  <div className="text-gray-900"><span className="font-medium text-gray-900">Date of Birth:</span> <span className="text-gray-900">{new Date(selectedPensioner.dateOfBirth).toLocaleDateString()}</span></div>
                 </div>
               </div>
 
               {/* Employment Information */}
               <div className="space-y-4">
                 <h4 className="font-semibold text-gray-800">Employment Information</h4>
-                <div className="space-y-2 text-sm">
-                  <div><span className="font-medium">Scheme Type:</span> {selectedPensioner.pensionSchemeType}</div>
-                  <div><span className="font-medium">Current Level:</span> {selectedPensioner.currentLevel}</div>
-                  <div><span className="font-medium">PF Number:</span> {selectedPensioner.pfNumber}</div>
-                  <div><span className="font-medium">First Appointment:</span> {new Date(selectedPensioner.dateOfFirstAppointment).toLocaleDateString()}</div>
-                  <div><span className="font-medium">Retirement Date:</span> {new Date(selectedPensioner.dateOfRetirement).toLocaleDateString()}</div>
-                  <div><span className="font-medium">Last Salary:</span> ₦{selectedPensioner.salary?.toLocaleString()}</div>
+                <div className="space-y-2 text-sm text-gray-900">
+                  <div className="text-gray-900"><span className="font-medium text-gray-900">Scheme Type:</span> <span className="text-gray-900">{selectedPensioner.pensionSchemeType}</span></div>
+                  <div className="text-gray-900"><span className="font-medium text-gray-900">Current Level:</span> <span className="text-gray-900">{selectedPensioner.currentLevel}</span></div>
+                  <div className="text-gray-900"><span className="font-medium text-gray-900">PF Number:</span> <span className="text-gray-900">{selectedPensioner.pfNumber}</span></div>
+                  <div className="text-gray-900"><span className="font-medium text-gray-900">First Appointment:</span> <span className="text-gray-900">{new Date(selectedPensioner.dateOfFirstAppointment).toLocaleDateString()}</span></div>
+                  <div className="text-gray-900"><span className="font-medium text-gray-900">Retirement Date:</span> <span className="text-gray-900">{new Date(selectedPensioner.dateOfRetirement).toLocaleDateString()}</span></div>
+                  <div className="text-gray-900"><span className="font-medium text-gray-900">Last Salary:</span> <span className="text-gray-900">₦{selectedPensioner.salary?.toLocaleString()}</span></div>
                 </div>
               </div>
 
               {/* Pension Benefits */}
               <div className="space-y-4">
                 <h4 className="font-semibold text-gray-800">Pension Benefits</h4>
-                <div className="space-y-2 text-sm">
-                  <div><span className="font-medium">Years of Service:</span> {selectedPensioner.yearsOfService || 'N/A'}</div>
-                  <div><span className="font-medium">Gratuity Rate:</span> {selectedPensioner.gratuityRate ? `${(selectedPensioner.gratuityRate * 100).toFixed(1)}%` : 'N/A'}</div>
-                  <div><span className="font-medium">Pension Rate:</span> {selectedPensioner.pensionRate ? `${(selectedPensioner.pensionRate * 100).toFixed(1)}%` : 'N/A'}</div>
-                  <div><span className="font-medium">Total Gratuity:</span> ₦{selectedPensioner.totalGratuity?.toLocaleString() || 'N/A'}</div>
-                  <div><span className="font-medium">Monthly Pension:</span> ₦{selectedPensioner.monthlyPension?.toLocaleString() || 'N/A'}</div>
+                <div className="space-y-2 text-sm text-gray-900">
+                  <div className="text-gray-900"><span className="font-medium text-gray-900">Years of Service:</span> <span className="text-gray-900">{selectedPensioner.yearsOfService || 'N/A'}</span></div>
+                  <div className="text-gray-900"><span className="font-medium text-gray-900">Gratuity Rate:</span> <span className="text-gray-900">{selectedPensioner.gratuityRate ? `${(selectedPensioner.gratuityRate * 100).toFixed(1)}%` : 'N/A'}</span></div>
+                  <div className="text-gray-900"><span className="font-medium text-gray-900">Pension Rate:</span> <span className="text-gray-900">{selectedPensioner.pensionRate ? `${(selectedPensioner.pensionRate * 100).toFixed(1)}%` : 'N/A'}</span></div>
+                  <div className="text-gray-900"><span className="font-medium text-gray-900">Total Gratuity:</span> <span className="text-gray-900">₦{selectedPensioner.totalGratuity?.toLocaleString() || 'N/A'}</span></div>
+                  <div className="text-gray-900"><span className="font-medium text-gray-900">Monthly Pension:</span> <span className="text-gray-900">₦{selectedPensioner.monthlyPension?.toLocaleString() || 'N/A'}</span></div>
                 </div>
               </div>
 
               {/* Status */}
               <div className="space-y-4">
                 <h4 className="font-semibold text-gray-800">Status</h4>
-                <div className="space-y-2 text-sm">
-                  <div><span className="font-medium">Status:</span> 
+                <div className="space-y-2 text-sm text-gray-900">
+                  <div className="text-gray-900"><span className="font-medium text-gray-900">Status:</span> 
                     <span className={`ml-2 px-2 py-1 rounded-full text-xs ${
                       selectedPensioner.status === 'VERIFIED' ? 'bg-green-100 text-green-800' :
                       selectedPensioner.status === 'PENDING_VERIFICATION' ? 'bg-yellow-100 text-yellow-800' :
@@ -609,8 +609,8 @@ export default function AdminDashboard() {
                       {selectedPensioner.status}
                     </span>
                   </div>
-                  <div><span className="font-medium">Created:</span> {new Date(selectedPensioner.createdAt).toLocaleDateString()}</div>
-                  <div><span className="font-medium">Updated:</span> {new Date(selectedPensioner.updatedAt).toLocaleDateString()}</div>
+                  <div className="text-gray-900"><span className="font-medium text-gray-900">Created:</span> <span className="text-gray-900">{new Date(selectedPensioner.createdAt).toLocaleDateString()}</span></div>
+                  <div className="text-gray-900"><span className="font-medium text-gray-900">Updated:</span> <span className="text-gray-900">{new Date(selectedPensioner.updatedAt).toLocaleDateString()}</span></div>
                 </div>
               </div>
             </div>
@@ -621,10 +621,10 @@ export default function AdminDashboard() {
                 <h4 className="font-semibold text-gray-800 mb-4">Documents</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {selectedPensioner.pensionerfile.map((file: any) => (
-                    <div key={file.id} className="border rounded-lg p-4">
+                    <div key={file.id} className="border rounded-lg p-4 bg-white">
                       <div className="flex items-center justify-between">
                         <div>
-                          <div className="font-medium text-sm">{file.fileType}</div>
+                          <div className="font-medium text-sm text-gray-900">{file.fileType}</div>
                           <div className="text-xs text-gray-500">{file.originalName}</div>
                           <div className="text-xs text-gray-500">{new Date(file.createdAt).toLocaleDateString()}</div>
                         </div>
