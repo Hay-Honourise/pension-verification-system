@@ -318,51 +318,51 @@ export default function VerificationPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Personal Information Review */}
             <div className="bg-white rounded-lg shadow-lg p-6">
-              <h2 className="text-xl font-semibold text-gray-800 mb-6">Personal Information</h2>
+              <h2 className="text-xl font-semibold text-gray-900 mb-6">Personal Information</h2>
               
               <div className="space-y-4">
                 <div>
-                  <h3 className="font-medium text-gray-700 mb-3">Basic Identity</h3>
-                  <div className="space-y-2 text-sm">
-                    <div><span className="font-medium">Pension ID:</span> {formData.pensionId}</div>
-                    <div><span className="font-medium">Full Name:</span> {formData.fullName}</div>
-                    <div><span className="font-medium">NIN:</span> {formData.nin}</div>
-                    <div><span className="font-medium">Date of Birth:</span> {formData.dateOfBirth}</div>
-                    <div><span className="font-medium">Gender:</span> {formData.gender}</div>
+                  <h3 className="font-medium text-gray-900 mb-3">Basic Identity</h3>
+                  <div className="space-y-2 text-sm text-gray-900">
+                    <div className="text-gray-900"><span className="font-medium text-gray-900">Pension ID:</span> <span className="text-gray-900">{formData.pensionId}</span></div>
+                    <div className="text-gray-900"><span className="font-medium text-gray-900">Full Name:</span> <span className="text-gray-900">{formData.fullName}</span></div>
+                    <div className="text-gray-900"><span className="font-medium text-gray-900">NIN:</span> <span className="text-gray-900">{formData.nin}</span></div>
+                    <div className="text-gray-900"><span className="font-medium text-gray-900">Date of Birth:</span> <span className="text-gray-900">{formData.dateOfBirth}</span></div>
+                    <div className="text-gray-900"><span className="font-medium text-gray-900">Gender:</span> <span className="text-gray-900">{formData.gender}</span></div>
                   </div>
                 </div>
 
                 <div>
-                  <h3 className="font-medium text-gray-700 mb-3">Contact Information</h3>
-                  <div className="space-y-2 text-sm">
-                    <div><span className="font-medium">Email:</span> {formData.email}</div>
-                    <div><span className="font-medium">Phone:</span> {formData.phone}</div>
-                    <div><span className="font-medium">Address:</span> {formData.residentialAddress}</div>
+                  <h3 className="font-medium text-gray-900 mb-3">Contact Information</h3>
+                  <div className="space-y-2 text-sm text-gray-900">
+                    <div className="text-gray-900"><span className="font-medium text-gray-900">Email:</span> <span className="text-gray-900">{formData.email}</span></div>
+                    <div className="text-gray-900"><span className="font-medium text-gray-900">Phone:</span> <span className="text-gray-900">{formData.phone}</span></div>
+                    <div className="text-gray-900"><span className="font-medium text-gray-900">Address:</span> <span className="text-gray-900">{formData.residentialAddress}</span></div>
                   </div>
                 </div>
 
                 <div>
-                  <h3 className="font-medium text-gray-700 mb-3">Employment Details</h3>
-                  <div className="space-y-2 text-sm">
-                    <div><span className="font-medium">PF Number:</span> {formData.pfNumber}</div>
-                    <div><span className="font-medium">Scheme Type:</span> {formData.pensionSchemeType}</div>
-                    <div><span className="font-medium">First Appointment:</span> {formData.dateOfFirstAppointment}</div>
-                    <div><span className="font-medium">Last Promotion:</span> {formData.lastPromotionDate}</div>
-                    <div><span className="font-medium">Current Level:</span> {formData.currentLevel}</div>
-                    <div><span className="font-medium">Salary:</span> {formData.salary}</div>
+                  <h3 className="font-medium text-gray-900 mb-3">Employment Details</h3>
+                  <div className="space-y-2 text-sm text-gray-900">
+                    <div className="text-gray-900"><span className="font-medium text-gray-900">PF Number:</span> <span className="text-gray-900">{formData.pfNumber}</span></div>
+                    <div className="text-gray-900"><span className="font-medium text-gray-900">Scheme Type:</span> <span className="text-gray-900">{formData.pensionSchemeType}</span></div>
+                    <div className="text-gray-900"><span className="font-medium text-gray-900">First Appointment:</span> <span className="text-gray-900">{formData.dateOfFirstAppointment}</span></div>
+                    <div className="text-gray-900"><span className="font-medium text-gray-900">Last Promotion:</span> <span className="text-gray-900">{formData.lastPromotionDate}</span></div>
+                    <div className="text-gray-900"><span className="font-medium text-gray-900">Current Level:</span> <span className="text-gray-900">{formData.currentLevel}</span></div>
+                    <div className="text-gray-900"><span className="font-medium text-gray-900">Salary:</span> <span className="text-gray-900">{formData.salary}</span></div>
                     {formData.gender === 'female' && formData.maidenName && (
-                      <div><span className="font-medium">Maiden Name:</span> {formData.maidenName}</div>
+                      <div className="text-gray-900"><span className="font-medium text-gray-900">Maiden Name:</span> <span className="text-gray-900">{formData.maidenName}</span></div>
                     )}
                   </div>
                 </div>
 
                 <div>
-                  <h3 className="font-medium text-gray-700 mb-3">Uploaded Documents</h3>
-                  <div className="space-y-2 text-sm">
-                    <div><span className="font-medium">Appointment Letter:</span> {formData.appointmentLetter ? formData.appointmentLetter.originalName : 'Not uploaded'}</div>
-                    <div><span className="font-medium">ID Card:</span> {formData.idCard ? formData.idCard.originalName : 'Not uploaded'}</div>
-                    <div><span className="font-medium">Retirement Letter:</span> {formData.retirementLetter ? formData.retirementLetter.originalName : 'Not uploaded'}</div>
-                    <div><span className="font-medium">Birth Certificate:</span> {formData.birthCertificate ? formData.birthCertificate.originalName : 'Not uploaded'}</div>
+                  <h3 className="font-medium text-gray-900 mb-3">Uploaded Documents</h3>
+                  <div className="space-y-2 text-sm text-gray-900">
+                    <div className="text-gray-900"><span className="font-medium text-gray-900">Appointment Letter:</span> <span className="text-gray-900">{formData.appointmentLetter ? formData.appointmentLetter.originalName : 'Not uploaded'}</span></div>
+                    <div className="text-gray-900"><span className="font-medium text-gray-900">ID Card:</span> <span className="text-gray-900">{formData.idCard ? formData.idCard.originalName : 'Not uploaded'}</span></div>
+                    <div className="text-gray-900"><span className="font-medium text-gray-900">Retirement Letter:</span> <span className="text-gray-900">{formData.retirementLetter ? formData.retirementLetter.originalName : 'Not uploaded'}</span></div>
+                    <div className="text-gray-900"><span className="font-medium text-gray-900">Birth Certificate:</span> <span className="text-gray-900">{formData.birthCertificate ? formData.birthCertificate.originalName : 'Not uploaded'}</span></div>
                   </div>
                 </div>
               </div>
@@ -417,51 +417,51 @@ export default function VerificationPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Personal Information Review */}
           <div className="bg-white rounded-lg shadow-lg p-6">
-            <h2 className="text-xl font-semibold text-gray-800 mb-6">Personal Information</h2>
+            <h2 className="text-xl font-semibold text-gray-900 mb-6">Personal Information</h2>
             
             <div className="space-y-4">
               <div>
-                <h3 className="font-medium text-gray-700 mb-3">Basic Identity</h3>
-                <div className="space-y-2 text-sm">
-                  <div><span className="font-medium">Pension ID:</span> {formData.pensionId}</div>
-                  <div><span className="font-medium">Full Name:</span> {formData.fullName}</div>
-                  <div><span className="font-medium">NIN:</span> {formData.nin}</div>
-                  <div><span className="font-medium">Date of Birth:</span> {formData.dateOfBirth}</div>
-                  <div><span className="font-medium">Gender:</span> {formData.gender}</div>
+                <h3 className="font-medium text-gray-900 mb-3">Basic Identity</h3>
+                <div className="space-y-2 text-sm text-gray-900">
+                  <div className="text-gray-900"><span className="font-medium text-gray-900">Pension ID:</span> <span className="text-gray-900">{formData.pensionId}</span></div>
+                  <div className="text-gray-900"><span className="font-medium text-gray-900">Full Name:</span> <span className="text-gray-900">{formData.fullName}</span></div>
+                  <div className="text-gray-900"><span className="font-medium text-gray-900">NIN:</span> <span className="text-gray-900">{formData.nin}</span></div>
+                  <div className="text-gray-900"><span className="font-medium text-gray-900">Date of Birth:</span> <span className="text-gray-900">{formData.dateOfBirth}</span></div>
+                  <div className="text-gray-900"><span className="font-medium text-gray-900">Gender:</span> <span className="text-gray-900">{formData.gender}</span></div>
                 </div>
               </div>
 
               <div>
-                <h3 className="font-medium text-gray-700 mb-3">Contact Information</h3>
-                <div className="space-y-2 text-sm">
-                  <div><span className="font-medium">Email:</span> {formData.email}</div>
-                  <div><span className="font-medium">Phone:</span> {formData.phone}</div>
-                  <div><span className="font-medium">Address:</span> {formData.residentialAddress}</div>
+                <h3 className="font-medium text-gray-900 mb-3">Contact Information</h3>
+                <div className="space-y-2 text-sm text-gray-900">
+                  <div className="text-gray-900"><span className="font-medium text-gray-900">Email:</span> <span className="text-gray-900">{formData.email}</span></div>
+                  <div className="text-gray-900"><span className="font-medium text-gray-900">Phone:</span> <span className="text-gray-900">{formData.phone}</span></div>
+                  <div className="text-gray-900"><span className="font-medium text-gray-900">Address:</span> <span className="text-gray-900">{formData.residentialAddress}</span></div>
                 </div>
               </div>
 
               <div>
-                <h3 className="font-medium text-gray-700 mb-3">Employment Details</h3>
-                <div className="space-y-2 text-sm">
-                  <div><span className="font-medium">PF Number:</span> {formData.pfNumber}</div>
-                  <div><span className="font-medium">Scheme Type:</span> {formData.pensionSchemeType}</div>
-                  <div><span className="font-medium">First Appointment:</span> {formData.dateOfFirstAppointment}</div>
-                  <div><span className="font-medium">Last Promotion:</span> {formData.lastPromotionDate}</div>
-                  <div><span className="font-medium">Current Level:</span> {formData.currentLevel}</div>
-                  <div><span className="font-medium">Salary:</span> {formatCurrency(parseFloat(formData.salary.replace(/[₦,]/g, '')))}</div>
+                <h3 className="font-medium text-gray-900 mb-3">Employment Details</h3>
+                <div className="space-y-2 text-sm text-gray-900">
+                  <div className="text-gray-900"><span className="font-medium text-gray-900">PF Number:</span> <span className="text-gray-900">{formData.pfNumber}</span></div>
+                  <div className="text-gray-900"><span className="font-medium text-gray-900">Scheme Type:</span> <span className="text-gray-900">{formData.pensionSchemeType}</span></div>
+                  <div className="text-gray-900"><span className="font-medium text-gray-900">First Appointment:</span> <span className="text-gray-900">{formData.dateOfFirstAppointment}</span></div>
+                  <div className="text-gray-900"><span className="font-medium text-gray-900">Last Promotion:</span> <span className="text-gray-900">{formData.lastPromotionDate}</span></div>
+                  <div className="text-gray-900"><span className="font-medium text-gray-900">Current Level:</span> <span className="text-gray-900">{formData.currentLevel}</span></div>
+                  <div className="text-gray-900"><span className="font-medium text-gray-900">Salary:</span> <span className="text-gray-900">{formatCurrency(parseFloat(formData.salary.replace(/[₦,]/g, '')))}</span></div>
                   {formData.gender === 'female' && formData.maidenName && (
-                    <div><span className="font-medium">Maiden Name:</span> {formData.maidenName}</div>
+                    <div className="text-gray-900"><span className="font-medium text-gray-900">Maiden Name:</span> <span className="text-gray-900">{formData.maidenName}</span></div>
                   )}
                 </div>
               </div>
 
               <div>
-                <h3 className="font-medium text-gray-700 mb-3">Uploaded Documents</h3>
-                <div className="space-y-2 text-sm">
-                  <div><span className="font-medium">Appointment Letter:</span> {formData.appointmentLetter ? formData.appointmentLetter.originalName : 'Not uploaded'}</div>
-                  <div><span className="font-medium">ID Card:</span> {formData.idCard ? formData.idCard.originalName : 'Not uploaded'}</div>
-                  <div><span className="font-medium">Retirement Letter:</span> {formData.retirementLetter ? formData.retirementLetter.originalName : 'Not uploaded'}</div>
-                  <div><span className="font-medium">Birth Certificate:</span> {formData.birthCertificate ? formData.birthCertificate.originalName : 'Not uploaded'}</div>
+                <h3 className="font-medium text-gray-900 mb-3">Uploaded Documents</h3>
+                <div className="space-y-2 text-sm text-gray-900">
+                  <div className="text-gray-900"><span className="font-medium text-gray-900">Appointment Letter:</span> <span className="text-gray-900">{formData.appointmentLetter ? formData.appointmentLetter.originalName : 'Not uploaded'}</span></div>
+                  <div className="text-gray-900"><span className="font-medium text-gray-900">ID Card:</span> <span className="text-gray-900">{formData.idCard ? formData.idCard.originalName : 'Not uploaded'}</span></div>
+                  <div className="text-gray-900"><span className="font-medium text-gray-900">Retirement Letter:</span> <span className="text-gray-900">{formData.retirementLetter ? formData.retirementLetter.originalName : 'Not uploaded'}</span></div>
+                  <div className="text-gray-900"><span className="font-medium text-gray-900">Birth Certificate:</span> <span className="text-gray-900">{formData.birthCertificate ? formData.birthCertificate.originalName : 'Not uploaded'}</span></div>
                 </div>
               </div>
             </div>
