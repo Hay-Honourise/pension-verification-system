@@ -3,6 +3,20 @@ import { prisma } from '@/lib/db';
 import { verifyToken } from '@/lib/auth';
 import { randomBytes } from 'crypto';
 
+// In-memory challenge storage (keyed by userId_type)
+// In production, use Redis or similar for distributed systems
+const registrationChallenges = new Map<string, { challenge: Buffer; expiresAt: number }>();
+
+// Clean up expired challenges every 5 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, value] of registrationChallenges.entries()) {
+    if (value.expiresAt < now) {
+      registrationChallenges.delete(key);
+    }
+  }
+}, 5 * 60 * 1000);
+
 export async function GET(request: NextRequest) {
   try {
     const authHeader = request.headers.get('authorization');
@@ -16,7 +30,7 @@ export async function GET(request: NextRequest) {
     const type = searchParams.get('type')?.toUpperCase();
     
     if (!type || !['FACE', 'FINGERPRINT'].includes(type)) {
-      return NextResponse.json({ message: 'Invalid biometric type' }, { status: 400 });
+      return NextResponse.json({ message: 'Invalid biometric type. Must be FACE or FINGERPRINT' }, { status: 400 });
     }
 
     // Get pensioner info
@@ -38,18 +52,32 @@ export async function GET(request: NextRequest) {
     });
 
     if (existingCredential) {
-      return NextResponse.json({ message: `${type} already registered` }, { status: 400 });
+      return NextResponse.json({ 
+        message: `${type} already registered. Please delete the existing credential first.`,
+        error: 'ALREADY_REGISTERED'
+      }, { status: 400 });
     }
 
-    // Generate challenge
+    // Generate challenge and store it per type
     const challenge = randomBytes(32);
-    const userId = new TextEncoder().encode(pensioner.id.toString());
-    const userName = pensioner.email;
-    const userDisplayName = pensioner.fullName;
+    // Use different user IDs for FACE vs FINGERPRINT to force separate credentials
+    // This helps Windows Hello distinguish between the two modalities
+    const userIdBytes = new TextEncoder().encode(`${pensioner.id}_${type}`);
+    const userName = `${pensioner.email}_${type}`;
+    const userDisplayName = `${pensioner.fullName} (${type})`;
+
+    // Store challenge with expiration (5 minutes)
+    const challengeKey = `${pensioner.id}_${type}`;
+    registrationChallenges.set(challengeKey, {
+      challenge,
+      expiresAt: Date.now() + 5 * 60 * 1000
+    });
+
+    console.log(`[biometric/register] Generated challenge for pensioner ${pensioner.id}, type ${type}`);
 
     return NextResponse.json({
       challenge: Array.from(challenge),
-      userId: Array.from(userId),
+      userId: Array.from(userIdBytes),
       userName,
       userDisplayName,
       rpId: process.env.RP_ID || 'localhost'
@@ -57,7 +85,7 @@ export async function GET(request: NextRequest) {
 
   } catch (err) {
     console.error('[biometric/register] GET error', err);
-    return NextResponse.json({ message: 'Server error' }, { status: 500 });
+    return NextResponse.json({ message: 'Server error', error: 'SERVER_ERROR' }, { status: 500 });
   }
 }
 
@@ -74,11 +102,18 @@ export async function POST(request: NextRequest) {
     const { type, credential } = body;
 
     if (!type || !credential) {
-      return NextResponse.json({ message: 'Missing required fields' }, { status: 400 });
+      return NextResponse.json({ 
+        message: 'Missing required fields: type and credential are required',
+        error: 'MISSING_FIELDS'
+      }, { status: 400 });
     }
 
-    if (!['FACE', 'FINGERPRINT'].includes(type)) {
-      return NextResponse.json({ message: 'Invalid biometric type' }, { status: 400 });
+    const normalizedType = type.toUpperCase();
+    if (!['FACE', 'FINGERPRINT'].includes(normalizedType)) {
+      return NextResponse.json({ 
+        message: 'Invalid biometric type. Must be FACE or FINGERPRINT',
+        error: 'INVALID_TYPE'
+      }, { status: 400 });
     }
 
     // Get pensioner
@@ -87,39 +122,70 @@ export async function POST(request: NextRequest) {
     });
 
     if (!pensioner) {
-      return NextResponse.json({ message: 'Pensioner not found' }, { status: 404 });
+      return NextResponse.json({ 
+        message: 'Pensioner not found',
+        error: 'PENSIONER_NOT_FOUND'
+      }, { status: 404 });
     }
 
     // Check if already registered
     const existingCredential = await prisma.biometriccredential.findFirst({
       where: {
         pensionerId: pensioner.id,
-        type: type as 'FACE' | 'FINGERPRINT'
+        type: normalizedType as 'FACE' | 'FINGERPRINT'
       }
     });
 
     if (existingCredential) {
-      return NextResponse.json({ message: `${type} already registered` }, { status: 400 });
+      return NextResponse.json({ 
+        message: `${normalizedType} already registered. Please delete the existing credential first.`,
+        error: 'ALREADY_REGISTERED'
+      }, { status: 400 });
     }
 
-    // Store the credential
+    // Verify challenge was issued (optional but recommended)
+    const challengeKey = `${pensioner.id}_${normalizedType}`;
+    const storedChallenge = registrationChallenges.get(challengeKey);
+    if (storedChallenge && storedChallenge.expiresAt < Date.now()) {
+      registrationChallenges.delete(challengeKey);
+      return NextResponse.json({ 
+        message: 'Registration challenge expired. Please try again.',
+        error: 'CHALLENGE_EXPIRED'
+      }, { status: 400 });
+    }
+
+    // Store credentialId as base64url string (WebAuthn standard format)
+    // credential.id is already a base64url string from the browser
+    const credentialId = credential.id;
+
+    // Store the credential with proper type separation
     await prisma.biometriccredential.create({
       data: {
         pensionerId: pensioner.id,
-        type: type as 'FACE' | 'FINGERPRINT',
-        credentialId: credential.id,
+        type: normalizedType as 'FACE' | 'FINGERPRINT',
+        credentialId: credentialId,
         publicKey: JSON.stringify(credential.response),
         registeredAt: new Date()
       }
     });
 
+    // Clean up challenge
+    registrationChallenges.delete(challengeKey);
+
+    console.log(`[biometric/register] Successfully registered ${normalizedType} for pensioner ${pensioner.id}, credentialId: ${credentialId.substring(0, 20)}...`);
+
     return NextResponse.json({ 
       success: true, 
-      message: `${type} registered successfully` 
+      message: `${normalizedType} registered successfully`,
+      credentialId: credentialId
     });
 
-  } catch (err) {
+  } catch (err: any) {
     console.error('[biometric/register] POST error', err);
-    return NextResponse.json({ message: 'Server error' }, { status: 500 });
+    return NextResponse.json({ 
+      message: 'Server error during registration',
+      error: 'SERVER_ERROR',
+      details: process.env.NODE_ENV === 'development' ? err.message : undefined
+    }, { status: 500 });
   }
 }

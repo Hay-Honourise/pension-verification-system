@@ -42,6 +42,8 @@ export default function BiometricVerificationPage() {
   const [isWebAuthnSupported, setIsWebAuthnSupported] = useState(false);
   const [isWindowsHelloSupported, setIsWindowsHelloSupported] = useState(false);
   const [showHelpModal, setShowHelpModal] = useState(false);
+  const [showDebugPanel, setShowDebugPanel] = useState(false);
+  const [debugCredentials, setDebugCredentials] = useState<Array<{id: string; type: string; credentialId: string; registeredAt: string}>>([]);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -79,6 +81,8 @@ export default function BiometricVerificationPage() {
       if (credentialsRes.ok) {
         const credentialsData = await credentialsRes.json();
         setRegisteredCredentials(credentialsData.credentials || []);
+        // Store full credential data for debug panel
+        setDebugCredentials(credentialsData.credentials || []);
       }
 
       // Load verification history
@@ -115,7 +119,11 @@ export default function BiometricVerificationPage() {
       });
       
       if (!challengeRes.ok) {
-        throw new Error('Failed to get registration challenge');
+        const errorData = await challengeRes.json().catch(() => ({}));
+        if (errorData.error === 'ALREADY_REGISTERED') {
+          throw new Error(`${type} is already registered. Please delete it first if you want to re-register.`);
+        }
+        throw new Error(errorData.message || 'Failed to get registration challenge');
       }
 
       const challengeData = await challengeRes.json();
@@ -207,17 +215,39 @@ export default function BiometricVerificationPage() {
       });
       
       if (!challengeRes.ok) {
-        throw new Error('Failed to get verification challenge');
+        const errorData = await challengeRes.json().catch(() => ({}));
+        if (errorData.error === 'NO_CREDENTIALS') {
+          throw new Error(`No ${type} credentials registered. Please register ${type} first.`);
+        }
+        throw new Error(errorData.message || 'Failed to get verification challenge');
       }
 
       const challengeData = await challengeRes.json();
       
+      // Helper to decode base64url string to Uint8Array
+      const base64UrlToUint8Array = (base64url: string): Uint8Array => {
+        // Convert base64url to base64
+        let base64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
+        // Add padding if needed
+        while (base64.length % 4) {
+          base64 += '=';
+        }
+        // Convert to binary string then to Uint8Array
+        const binaryString = atob(base64);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        return bytes;
+      };
+
       // Get credential for verification
+      // The server sends credentialId as base64url string, we need to decode it
       const credential = await navigator.credentials.get({
         publicKey: {
           challenge: new Uint8Array(challengeData.challenge),
           allowCredentials: challengeData.allowCredentials.map((cred: any) => ({
-            id: new Uint8Array(cred.id),
+            id: base64UrlToUint8Array(cred.id), // Decode base64url string to Uint8Array
             type: 'public-key',
             transports: ['internal']
           })),
@@ -288,15 +318,84 @@ export default function BiometricVerificationPage() {
             <p className="text-gray-600">Register and verify using Windows Hello (Face or Fingerprint)</p>
           </div>
           
-          {/* Help Button */}
-          <button
-            onClick={() => setShowHelpModal(true)}
-            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <BookOpen className="w-4 h-4 mr-2" />
-            How to Use
-          </button>
+          <div className="flex gap-2">
+            {/* Debug Panel Button (always visible, but only useful in dev) */}
+            <button
+              onClick={() => setShowDebugPanel(!showDebugPanel)}
+              className="flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+            >
+              <HelpCircle className="w-4 h-4 mr-2" />
+              Debug Info
+            </button>
+            {/* Help Button */}
+            <button
+              onClick={() => setShowHelpModal(true)}
+              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <BookOpen className="w-4 h-4 mr-2" />
+              How to Use
+            </button>
+          </div>
         </div>
+
+        {/* Windows Hello Modality Info */}
+        {isWebAuthnSupported && isWindowsHelloSupported && (
+          <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="flex items-start">
+              <AlertTriangle className="w-5 h-5 text-blue-600 mr-2 mt-0.5" />
+              <div>
+                <h3 className="text-sm font-medium text-blue-800">About Windows Hello Modality Selection</h3>
+                <p className="text-sm text-blue-700 mt-1">
+                  Windows Hello chooses the biometric modality (face or fingerprint) based on your device settings and what's available. 
+                  If you register "Face" but see a fingerprint prompt (or vice versa), this is normal Windows Hello behavior. 
+                  The system stores separate credentials for each type, so make sure to register both if you want to use both modalities.
+                </p>
+                <p className="text-sm text-blue-700 mt-2">
+                  <strong>Tip:</strong> To ensure Face registration works, make sure Face is set up in Windows Settings → Accounts → Sign-in options → Windows Hello Face.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Debug Panel */}
+        {showDebugPanel && (
+          <div className="mb-6 bg-gray-900 text-white rounded-lg p-4 font-mono text-sm">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-bold">Debug Information</h3>
+              <button
+                onClick={() => setShowDebugPanel(false)}
+                className="text-gray-400 hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="space-y-2">
+              <div>
+                <strong>WebAuthn Supported:</strong> {isWebAuthnSupported ? 'Yes' : 'No'}
+              </div>
+              <div>
+                <strong>Windows Hello Available:</strong> {isWindowsHelloSupported ? 'Yes' : 'No'}
+              </div>
+              <div className="mt-4">
+                <strong>Registered Credentials:</strong>
+                {debugCredentials.length === 0 ? (
+                  <div className="text-gray-400 mt-1">None</div>
+                ) : (
+                  <div className="mt-2 space-y-2">
+                    {debugCredentials.map((cred: any, idx: number) => (
+                      <div key={idx} className="bg-gray-800 p-2 rounded">
+                        <div><strong>Type:</strong> {cred.type}</div>
+                        <div><strong>Credential ID:</strong> {cred.credentialId || cred.credentialIdPreview || 'N/A'}</div>
+                        <div><strong>Registered:</strong> {new Date(cred.registeredAt).toLocaleString()}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Support Detection */}
         {!isWebAuthnSupported && (

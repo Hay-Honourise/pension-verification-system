@@ -19,6 +19,7 @@ export async function GET(request: NextRequest) {
       select: {
         id: true,
         type: true,
+        credentialId: true,
         registeredAt: true
       },
       orderBy: {
@@ -26,10 +27,15 @@ export async function GET(request: NextRequest) {
       }
     });
 
+    // In dev mode, include credentialId for debugging
+    const isDev = process.env.NODE_ENV === 'development';
+
     return NextResponse.json({ 
       credentials: credentials.map(cred => ({
         id: cred.id,
         type: cred.type,
+        credentialId: isDev ? cred.credentialId : undefined, // Only expose in dev mode
+        credentialIdPreview: cred.credentialId.substring(0, 20) + '...', // Always show preview
         registeredAt: cred.registeredAt.toISOString()
       }))
     });
