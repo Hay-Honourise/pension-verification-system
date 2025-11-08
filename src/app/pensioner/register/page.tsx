@@ -449,12 +449,12 @@ export default function RegisterPage() {
       <h3 className="text-xl font-semibold text-gray-800 mb-6">Basic Identity Information</h3>
       
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Pension ID *</label>
+        <label className="block text-sm font-medium text-gray-800 mb-2">Pension ID *</label>
         <input
           type="text"
           value={formData.pensionId}
           onChange={(e) => updateFormData('pensionId', e.target.value)}
-          className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+          className={`w-full px-3 py-2 bg-white text-gray-900 border rounded-md focus:outline-none focus:ring-2 focus:ring-oyoOrange focus:border-oyoOrange ${
             errors.pensionId ? 'border-red-500' : 'border-gray-300'
           }`}
           placeholder="Enter your Pension ID"
@@ -463,12 +463,12 @@ export default function RegisterPage() {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Full Name *</label>
+        <label className="block text-sm font-medium text-gray-800 mb-2">Full Name *</label>
         <input
           type="text"
           value={formData.fullName}
           onChange={(e) => updateFormData('fullName', e.target.value)}
-          className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+          className={`w-full px-3 py-2 bg-white text-gray-900 border rounded-md focus:outline-none focus:ring-2 focus:ring-oyoOrange focus:border-oyoOrange ${
             errors.fullName ? 'border-red-500' : 'border-gray-300'
           }`}
           placeholder="Enter your full name"
@@ -477,12 +477,12 @@ export default function RegisterPage() {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">NIN (National Identification Number) *</label>
+        <label className="block text-sm font-medium text-gray-800 mb-2">NIN (National Identification Number) *</label>
         <input
           type="text"
           value={formData.nin}
           onChange={(e) => updateFormData('nin', e.target.value)}
-          className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+          className={`w-full px-3 py-2 bg-white text-gray-900 border rounded-md focus:outline-none focus:ring-2 focus:ring-oyoOrange focus:border-oyoOrange ${
             errors.nin ? 'border-red-500' : 'border-gray-300'
           }`}
           placeholder="Enter your NIN"
@@ -491,12 +491,12 @@ export default function RegisterPage() {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Date of Birth *</label>
+        <label className="block text-sm font-medium text-gray-800 mb-2">Date of Birth *</label>
         <input
           type="date"
           value={formData.dateOfBirth}
           onChange={(e) => updateFormData('dateOfBirth', e.target.value)}
-          className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+          className={`w-full px-3 py-2 bg-white text-gray-900 border rounded-md focus:outline-none focus:ring-2 focus:ring-oyoOrange focus:border-oyoOrange ${
             errors.dateOfBirth ? 'border-red-500' : 'border-gray-300'
           }`}
         />
@@ -504,11 +504,11 @@ export default function RegisterPage() {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Gender *</label>
+        <label className="block text-sm font-medium text-gray-800 mb-2">Gender *</label>
         <select
           value={formData.gender}
           onChange={(e) => updateFormData('gender', e.target.value)}
-          className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+          className={`w-full px-3 py-2 bg-white text-gray-900 border rounded-md focus:outline-none focus:ring-2 focus:ring-oyoOrange focus:border-oyoOrange ${
             errors.gender ? 'border-red-500' : 'border-gray-300'
           }`}
         >
@@ -526,12 +526,12 @@ export default function RegisterPage() {
       <h3 className="text-xl font-semibold text-gray-800 mb-6">Contact Information</h3>
       
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Email Address *</label>
+        <label className="block text-sm font-medium text-gray-800 mb-2">Email Address *</label>
         <input
           type="email"
           value={formData.email}
           onChange={(e) => updateFormData('email', e.target.value)}
-          className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+          className={`w-full px-3 py-2 bg-white text-gray-900 border rounded-md focus:outline-none focus:ring-2 focus:ring-oyoOrange focus:border-oyoOrange ${
             errors.email ? 'border-red-500' : 'border-gray-300'
           }`}
           placeholder="Enter your email address"
@@ -540,12 +540,12 @@ export default function RegisterPage() {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number *</label>
+        <label className="block text-sm font-medium text-gray-800 mb-2">Phone Number *</label>
         <input
           type="tel"
           value={formData.phone}
           onChange={(e) => updateFormData('phone', e.target.value)}
-          className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+          className={`w-full px-3 py-2 bg-white text-gray-900 border rounded-md focus:outline-none focus:ring-2 focus:ring-oyoOrange focus:border-oyoOrange ${
             errors.phone ? 'border-red-500' : 'border-gray-300'
           }`}
           placeholder="Enter your phone number"
@@ -554,12 +554,12 @@ export default function RegisterPage() {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Residential Address *</label>
+        <label className="block text-sm font-medium text-gray-800 mb-2">Residential Address *</label>
         <textarea
           value={formData.residentialAddress}
           onChange={(e) => updateFormData('residentialAddress', e.target.value)}
           rows={3}
-          className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+          className={`w-full px-3 py-2 bg-white text-gray-900 border rounded-md focus:outline-none focus:ring-2 focus:ring-oyoOrange focus:border-oyoOrange ${
             errors.residentialAddress ? 'border-red-500' : 'border-gray-300'
           }`}
           placeholder="Enter your complete residential address"
@@ -574,11 +574,11 @@ export default function RegisterPage() {
       <h3 className="text-xl font-semibold text-gray-800 mb-6">Pension Information</h3>
       
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Pension Scheme Type *</label>
+        <label className="block text-sm font-medium text-gray-800 mb-2">Pension Scheme Type *</label>
         <select
           value={formData.pensionSchemeType}
           onChange={(e) => updateFormData('pensionSchemeType', e.target.value)}
-          className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+          className={`w-full px-3 py-2 bg-white text-gray-900 border rounded-md focus:outline-none focus:ring-2 focus:ring-oyoOrange focus:border-oyoOrange ${
             errors.pensionSchemeType ? 'border-red-500' : 'border-gray-300'
           }`}
         >
@@ -590,12 +590,12 @@ export default function RegisterPage() {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">PF Number *</label>
+        <label className="block text-sm font-medium text-gray-800 mb-2">PF Number *</label>
         <input
           type="text"
           value={formData.pfNumber}
           onChange={(e) => updateFormData('pfNumber', e.target.value)}
-          className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+          className={`w-full px-3 py-2 bg-white text-gray-900 border rounded-md focus:outline-none focus:ring-2 focus:ring-oyoOrange focus:border-oyoOrange ${
             errors.pfNumber ? 'border-red-500' : 'border-gray-300'
           }`}
           placeholder="Enter your PF Number"
@@ -604,12 +604,12 @@ export default function RegisterPage() {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Date of First Appointment *</label>
+        <label className="block text-sm font-medium text-gray-800 mb-2">Date of First Appointment *</label>
         <input
           type="date"
           value={formData.dateOfFirstAppointment}
           onChange={(e) => updateFormData('dateOfFirstAppointment', e.target.value)}
-          className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+          className={`w-full px-3 py-2 bg-white text-gray-900 border rounded-md focus:outline-none focus:ring-2 focus:ring-oyoOrange focus:border-oyoOrange ${
             errors.dateOfFirstAppointment ? 'border-red-500' : 'border-gray-300'
           }`}
         />
@@ -617,12 +617,12 @@ export default function RegisterPage() {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Date of Last Promotion *</label>
+        <label className="block text-sm font-medium text-gray-800 mb-2">Date of Last Promotion *</label>
         <input
           type="date"
           value={formData.lastPromotionDate}
           onChange={(e) => updateFormData('lastPromotionDate', e.target.value)}
-          className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+          className={`w-full px-3 py-2 bg-white text-gray-900 border rounded-md focus:outline-none focus:ring-2 focus:ring-oyoOrange focus:border-oyoOrange ${
             errors.lastPromotionDate ? 'border-red-500' : 'border-gray-300'
           }`}
         />
@@ -630,12 +630,12 @@ export default function RegisterPage() {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Current Level *</label>
+        <label className="block text-sm font-medium text-gray-800 mb-2">Current Level *</label>
         <input
           type="text"
           value={formData.currentLevel}
           onChange={(e) => updateFormData('currentLevel', e.target.value)}
-          className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+          className={`w-full px-3 py-2 bg-white text-gray-900 border rounded-md focus:outline-none focus:ring-2 focus:ring-oyoOrange focus:border-oyoOrange ${
             errors.currentLevel ? 'border-red-500' : 'border-gray-300'
           }`}
           placeholder="Enter your current level (e.g., Level 12, Grade Level 10)"
@@ -644,7 +644,7 @@ export default function RegisterPage() {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Salary *</label>
+        <label className="block text-sm font-medium text-gray-800 mb-2">Salary *</label>
         <div className="relative">
           <span className="absolute left-3 top-2 text-gray-500">₦</span>
           <input
@@ -655,7 +655,7 @@ export default function RegisterPage() {
               const value = e.target.value.replace(/[^₦0-9,]/g, '');
               updateFormData('salary', value);
             }}
-            className={`w-full pl-8 pr-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+            className={`w-full pl-8 pr-3 py-2 bg-white text-gray-900 border rounded-md focus:outline-none focus:ring-2 focus:ring-oyoOrange focus:border-oyoOrange ${
               errors.salary ? 'border-red-500' : 'border-gray-300'
             }`}
             placeholder="Enter your salary"
@@ -666,12 +666,12 @@ export default function RegisterPage() {
 
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Date of Retirement *</label>
+        <label className="block text-sm font-medium text-gray-800 mb-2">Date of Retirement *</label>
         <input
           type="date"
           value={formData.dateOfRetirement}
           onChange={(e) => updateFormData('dateOfRetirement', e.target.value)}
-          className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+          className={`w-full px-3 py-2 bg-white text-gray-900 border rounded-md focus:outline-none focus:ring-2 focus:ring-oyoOrange focus:border-oyoOrange ${
             errors.dateOfRetirement ? 'border-red-500' : 'border-gray-300'
           }`}
         />
@@ -680,12 +680,12 @@ export default function RegisterPage() {
 
       {formData.gender === 'female' && (
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Maiden Name</label>
+          <label className="block text-sm font-medium text-gray-800 mb-2">Maiden Name</label>
           <input
             type="text"
             value={formData.maidenName}
             onChange={(e) => updateFormData('maidenName', e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 bg-white text-gray-900 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-oyoOrange focus:border-oyoOrange"
             placeholder="Enter your maiden name (optional)"
           />
           <p className="text-xs text-gray-500 mt-1">Optional field for female pensioners</p>
@@ -699,12 +699,12 @@ export default function RegisterPage() {
       <h3 className="text-xl font-semibold text-gray-800 mb-6">Account Security</h3>
       
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Password *</label>
+        <label className="block text-sm font-medium text-gray-800 mb-2">Password *</label>
         <input
           type="password"
           value={formData.password}
           onChange={(e) => updateFormData('password', e.target.value)}
-          className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+          className={`w-full px-3 py-2 bg-white text-gray-900 border rounded-md focus:outline-none focus:ring-2 focus:ring-oyoOrange focus:border-oyoOrange ${
             errors.password ? 'border-red-500' : 'border-gray-300'
           }`}
           placeholder="Create a password (minimum 6 characters)"
@@ -713,12 +713,12 @@ export default function RegisterPage() {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Confirm Password *</label>
+        <label className="block text-sm font-medium text-gray-800 mb-2">Confirm Password *</label>
         <input
           type="password"
           value={formData.confirmPassword}
           onChange={(e) => updateFormData('confirmPassword', e.target.value)}
-          className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+          className={`w-full px-3 py-2 bg-white text-gray-900 border rounded-md focus:outline-none focus:ring-2 focus:ring-oyoOrange focus:border-oyoOrange ${
             errors.confirmPassword ? 'border-red-500' : 'border-gray-300'
           }`}
           placeholder="Confirm your password"
@@ -735,13 +735,13 @@ export default function RegisterPage() {
 
     return (
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">{label} *</label>
+        <label className="block text-sm font-medium text-gray-800 mb-2">{label} *</label>
         <input
           type="file"
           accept={accept}
           onChange={(e) => handleFileUpload(field, e.target.files?.[0] || null)}
           disabled={uploadState === 'uploading'}
-          className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed ${
+          className={`w-full px-3 py-2 bg-white text-gray-900 border rounded-md focus:outline-none focus:ring-2 focus:ring-oyoOrange focus:border-oyoOrange disabled:opacity-50 disabled:cursor-not-allowed ${
             error ? 'border-red-500' : 'border-gray-300'
           }`}
         />
