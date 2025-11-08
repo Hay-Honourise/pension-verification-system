@@ -396,22 +396,30 @@ export default function AdminDashboard() {
         <div className="p-4 flex-shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center">
-              <div className="text-2xl mr-3">🧮</div>
+              <div className={`text-2xl ${sidebarOpen ? 'mr-3' : 'mx-auto'}`}>🧮</div>
               {sidebarOpen && <h1 className="text-xl font-bold">Admin Panel</h1>}
             </div>
+            {sidebarOpen && (
+              <button
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                className="p-1 rounded-lg hover:bg-white/10 hover:text-oyoOrange transition-colors"
+              >
+                <div className="w-4 h-4 text-white">←</div>
+              </button>
+            )}
+          </div>
+          {!sidebarOpen && (
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="p-1 rounded-lg hover:bg-white/10 hover:text-oyoOrange transition-colors"
+              className="w-full mt-2 p-1 rounded-lg hover:bg-white/10 transition-colors flex justify-center"
             >
-              <div className="w-4 h-4">
-                {sidebarOpen ? '←' : '→'}
-              </div>
+              <div className="w-4 h-4 text-white">→</div>
             </button>
-          </div>
+          )}
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 px-4 py-6 overflow-y-auto">
+        <nav className={`flex-1 py-6 overflow-y-auto ${sidebarOpen ? 'px-4' : 'px-2'}`}>
           <ul className="space-y-2">
             {[
               { id: 'dashboard', label: 'Dashboard', icon: Home },
@@ -424,14 +432,14 @@ export default function AdminDashboard() {
               <li key={item.id}>
                 <button
                   onClick={() => setActivePage(item.id)}
-                  className={`w-full flex items-center px-3 py-2 rounded-lg transition-colors ${
+                  className={`w-full flex items-center ${sidebarOpen ? 'px-3' : 'px-0 justify-center'} py-2 rounded-lg transition-colors ${
                     activePage === item.id 
-                      ? 'bg-white/20 text-oyoWhite' 
-                      : 'text-oyoWhite hover:bg-white/10 hover:text-oyoOrange'
+                      ? 'bg-white/20 text-white' 
+                      : 'text-white hover:bg-white/10 hover:text-oyoOrange'
                   }`}
                 >
-                  <item.icon className="w-5 h-5 mr-3" />
-                  {sidebarOpen && <span>{item.label}</span>}
+                  <item.icon className={`w-5 h-5 text-white ${sidebarOpen ? 'mr-3' : 'mr-0'}`} />
+                  {sidebarOpen && <span className="text-white">{item.label}</span>}
                 </button>
               </li>
             ))}
@@ -439,13 +447,13 @@ export default function AdminDashboard() {
         </nav>
 
         {/* Footer - Logout Button */}
-        <div className="p-4 border-t border-white/20 flex-shrink-0">
+        <div className={`border-t border-white/20 flex-shrink-0 ${sidebarOpen ? 'p-4' : 'p-2'}`}>
           <button
             onClick={handleLogout}
-            className="w-full flex items-center justify-center px-3 py-3 rounded-lg text-oyoWhite bg-red-600 hover:bg-red-700 transition-colors font-medium"
+            className={`w-full flex items-center ${sidebarOpen ? 'justify-start px-3' : 'justify-center px-0'} py-3 rounded-lg text-white bg-red-600 hover:bg-red-700 transition-colors font-medium`}
           >
-            <LogOut className="w-5 h-5 mr-2" />
-            {sidebarOpen && <span>Logout</span>}
+            <LogOut className={`w-5 h-5 text-white ${sidebarOpen ? 'mr-2' : 'mr-0'}`} />
+            {sidebarOpen && <span className="text-white">Logout</span>}
           </button>
         </div>
       </aside>
