@@ -27,13 +27,27 @@ export async function GET(req: NextRequest) {
     } catch (generateError) {
       console.error('Failed to generate presigned URL:', generateError);
       
+      // Extract bucket info for debugging
+      const backblazePattern = /https?:\/\/[^\/]+\/file\/([^\/]+)\/(.+)/;
+      const match = fileUrl.match(backblazePattern);
+      const bucketFromUrl = match ? match[1] : null;
+      const keyFromUrl = match ? match[2] : null;
+      
       // Fallback: return the original URL if presigned URL generation fails
       console.log('Falling back to original URL');
       return NextResponse.json({ 
         url: fileUrl,
         fallback: true,
         warning: "Using direct URL (less secure)",
-        error: generateError instanceof Error ? generateError.message : 'Unknown error'
+        error: generateError instanceof Error ? generateError.message : 'Unknown error',
+        debug: {
+          bucketFromUrl,
+          keyFromUrl,
+          envBucket: process.env.S3_BUCKET,
+          message: bucketFromUrl && bucketFromUrl !== process.env.S3_BUCKET
+            ? `Bucket mismatch: URL uses "${bucketFromUrl}" but env uses "${process.env.S3_BUCKET}"`
+            : 'Check server logs for detailed error information'
+        }
       });
     }
   } catch (error) {

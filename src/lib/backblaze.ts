@@ -97,13 +97,20 @@ export async function copyFile(sourceFileId: string, newFileName: string) {
   }
 }
 
-export async function getSignedUrl(fileName: string, validitySeconds = 3600) {
+export async function getSignedUrl(fileName: string, validitySeconds = 3600, bucketName?: string) {
   try {
+    const bucket = bucketName || S3_BUCKET;
+    console.log('getSignedUrl called with:', { fileName, bucket, usingEnvBucket: !bucketName });
     const s3 = createS3Client();
-    const command = new GetObjectCommand({ Bucket: S3_BUCKET, Key: fileName });
+    const command = new GetObjectCommand({ Bucket: bucket, Key: fileName });
     return await awsGetSignedUrl(s3, command, { expiresIn: validitySeconds });
   } catch (error) {
     console.error('Failed to get signed URL:', error);
+    console.error('Error details:', {
+      fileName,
+      bucket: bucketName || S3_BUCKET,
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
     throw new Error('Failed to get signed URL');
   }
 }
@@ -111,13 +118,52 @@ export async function getSignedUrl(fileName: string, validitySeconds = 3600) {
 export async function generateDownloadUrl(fileUrl: string, filename?: string) {
   try {
     console.log('Generating S3 download URL for:', fileUrl);
+    console.log('Current S3_BUCKET from env:', S3_BUCKET);
+    console.log('Current S3_PUBLIC_BASE_URL from env:', S3_PUBLIC_BASE_URL);
+    
     // If a public base URL is configured, prefer it
     if (S3_PUBLIC_BASE_URL && !fileUrl.includes('http')) {
       return `${S3_PUBLIC_BASE_URL.replace(/\/$/, '')}/${fileUrl}`;
     }
-    // If it's already a URL, return as-is
-    if (fileUrl.startsWith('http')) return fileUrl;
-    // Otherwise, return a presigned URL
+    
+    // If it's already a URL, try to extract bucket and key from Backblaze URL
+    if (fileUrl.startsWith('http')) {
+      // Check if it's a Backblaze B2 URL
+      // Format: https://f003.backblazeb2.com/file/{bucket}/{key}
+      // Also handle: https://f003.backblazeb2.com/file/{bucket}/{key/path}
+      const backblazePattern = /https?:\/\/[^\/]+\/file\/([^\/]+)\/(.+)/;
+      const match = fileUrl.match(backblazePattern);
+      
+      if (match) {
+        const bucketFromUrl = match[1];
+        const keyFromUrl = match[2];
+        console.log('Extracted from Backblaze URL:', { 
+          bucketFromUrl, 
+          keyFromUrl,
+          fullUrl: fileUrl 
+        });
+        console.log('Environment S3_BUCKET:', S3_BUCKET);
+        console.log('Bucket comparison:', {
+          urlBucket: bucketFromUrl,
+          envBucket: S3_BUCKET,
+          match: bucketFromUrl === S3_BUCKET,
+          caseSensitive: bucketFromUrl.toLowerCase() === S3_BUCKET.toLowerCase()
+        });
+        
+        // Always use the bucket from the URL since that's where the file actually is
+        // This handles cases where the URL bucket differs from env bucket
+        console.log(`Using bucket from URL: "${bucketFromUrl}" for key: "${keyFromUrl}"`);
+        return await getSignedUrl(keyFromUrl, 3600, bucketFromUrl);
+      }
+      
+      // If it's not a Backblaze URL or doesn't match pattern, return as-is
+      console.log('URL does not match Backblaze pattern, returning as-is');
+      console.log('URL pattern check failed for:', fileUrl);
+      return fileUrl;
+    }
+    
+    // Otherwise, return a presigned URL using env bucket
+    console.log('Using fileUrl as key with env bucket:', S3_BUCKET);
     return await getSignedUrl(fileUrl, 3600);
   } catch (error) {
     console.error('Error generating download URL:', error);
@@ -125,10 +171,26 @@ export async function generateDownloadUrl(fileUrl: string, filename?: string) {
       message: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : undefined,
       fileUrl,
-      filename
+      filename,
+      envBucket: S3_BUCKET,
+      publicBaseUrl: S3_PUBLIC_BASE_URL
     });
+    
+    // Try to extract bucket info for better error message
+    if (fileUrl.startsWith('http')) {
+      const backblazePattern = /https?:\/\/[^\/]+\/file\/([^\/]+)\/(.+)/;
+      const match = fileUrl.match(backblazePattern);
+      if (match) {
+        console.error('Failed to generate presigned URL for:', {
+          bucketFromUrl: match[1],
+          keyFromUrl: match[2],
+          envBucket: S3_BUCKET
+        });
+      }
+    }
+    
     // Return the original URL as fallback
-    console.log('Returning original key as fallback');
+    console.log('Returning original URL as fallback');
     return fileUrl;
   }
 }

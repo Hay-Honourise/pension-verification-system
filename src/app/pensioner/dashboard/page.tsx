@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { User as UserIcon } from "lucide-react";
 
 interface User {
   id: string;
@@ -455,7 +456,8 @@ export default function PensionerDashboard() {
               </h1>
             </div>
             <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-600">
+              <span className="text-sm text-gray-600 flex items-center gap-2">
+                <UserIcon className="w-4 h-4 text-gray-500" />
                 Welcome, {user.fullName}
               </span>
               <>
@@ -598,9 +600,12 @@ export default function PensionerDashboard() {
                 <span className="font-medium text-gray-700">Pension ID:</span>
                 <span className="ml-2 text-gray-900">{user.pensionId}</span>
               </div>
-              <div>
+              <div className="flex items-center">
                 <span className="font-medium text-gray-700">Full Name:</span>
-                <span className="ml-2 text-gray-900">{user.fullName}</span>
+                <span className="ml-2 text-gray-900 flex items-center gap-2">
+                  <UserIcon className="w-4 h-4 text-gray-500" />
+                  {user.fullName}
+                </span>
               </div>
               <div>
                 <span className="font-medium text-gray-700">Email:</span>

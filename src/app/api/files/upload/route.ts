@@ -47,7 +47,13 @@ export async function POST(request: NextRequest) {
     const fileName = `pensioners/${pensionerId}/${fileType}-${Date.now()}.${file.name.split('.').pop()}`
     const uploadResult = await uploadFile(buffer, fileName, file.type)
 
-    const url: string = `${process.env.S3_PUBLIC_BASE_URL || 'https://f003.backblazeb2.com/file/PensionerRegisgration'}/${fileName}`
+    // Construct URL using S3_PUBLIC_BASE_URL or build from S3_BUCKET
+    // Ensure the bucket name in the URL matches the bucket used for upload
+    const bucketName = process.env.S3_BUCKET || 'pensionVerification'
+    const publicBaseUrl = process.env.S3_PUBLIC_BASE_URL || `https://f003.backblazeb2.com/file/${bucketName}`
+    const url: string = `${publicBaseUrl.replace(/\/$/, '')}/${fileName}`
+    
+    console.log('File upload URL constructed:', { url, bucketName, fileName })
     const publicId: string = uploadResult.fileId || ''
     const originalName: string = file.name || 'upload'
 

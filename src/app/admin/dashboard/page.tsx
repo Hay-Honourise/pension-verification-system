@@ -26,7 +26,8 @@ import {
   Mail,
   Phone,
   MapPin,
-  X
+  X,
+  User
 } from 'lucide-react'
 
 export default function AdminDashboard() {
@@ -568,7 +569,13 @@ export default function AdminDashboard() {
               <div className="space-y-4">
                 <h4 className="font-semibold text-gray-800">Personal Information</h4>
                 <div className="space-y-2 text-sm text-gray-900">
-                  <div className="text-gray-900"><span className="font-medium text-gray-900">Name:</span> <span className="text-gray-900">{selectedPensioner.fullName}</span></div>
+                  <div className="text-gray-900 flex items-center gap-2">
+                    <span className="font-medium text-gray-900">Name:</span>
+                    <div className="flex items-center gap-2">
+                      <User className="w-4 h-4 text-gray-500" />
+                      <span className="text-gray-900">{selectedPensioner.fullName}</span>
+                    </div>
+                  </div>
                   <div className="text-gray-900"><span className="font-medium text-gray-900">Pension ID:</span> <span className="text-gray-900">{selectedPensioner.pensionId}</span></div>
                   <div className="text-gray-900"><span className="font-medium text-gray-900">Email:</span> <span className="text-gray-900">{selectedPensioner.email}</span></div>
                   <div className="text-gray-900"><span className="font-medium text-gray-900">Phone:</span> <span className="text-gray-900">{selectedPensioner.phone}</span></div>
@@ -1018,7 +1025,12 @@ function PensionerManagement({
                 {pensioners.map((pensioner: any, index: number) => (
                   <tr key={pensioner.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{pensioner.id}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{pensioner.name}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <div className="flex items-center gap-2">
+                        <User className="w-4 h-4 text-gray-500" />
+                        <span>{pensioner.name}</span>
+                      </div>
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{pensioner.category}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${

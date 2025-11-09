@@ -123,8 +123,8 @@ const LandingPage = () => {
               </p>
               <p className="text-xs sm:text-sm">
                 Phone:{" "}
-                <a href="tel:+234802xxxxxxx" className="hover:text-oyoOrange">
-                  +234 802 xxx xxxx
+                <a href="tel:+2349035631361, +234 8051715400" className="hover:text-oyoOrange">
+                +2349035631361, +234 8051715400
                 </a>
               </p>
               {/* Social Media Links */}

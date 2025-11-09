@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { UserPlus, Mail, Lock, User, Shield, AlertTriangle, Phone, Building } from 'lucide-react';
+import { UserPlus, Mail, Lock, User, Shield, AlertTriangle, Phone, Building, Eye, EyeOff } from 'lucide-react';
 
 interface AdminFormData {
   name: string;
@@ -30,6 +30,8 @@ export default function AdminRegisterPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const updateFormData = (field: keyof AdminFormData, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -137,12 +139,12 @@ export default function AdminRegisterPage() {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-8">
           <div className="flex justify-center mb-4">
-            <div className="p-3 bg-blue-100 rounded-full">
-              <UserPlus className="w-8 h-8 text-blue-600" />
+            <div className="p-3 bg-oyoGreen/10 rounded-full">
+              <UserPlus className="w-8 h-8 text-oyoGreen" />
             </div>
           </div>
-          <h1 className="text-3xl font-bold text-gray-900">Admin Registration</h1>
-          <p className="mt-2 text-gray-600">Create a new admin account for the pension verification system</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Admin Registration</h1>
+          <p className="mt-2 text-sm text-gray-600">Create a new admin account for the pension verification system</p>
         </div>
 
         {/* Security Notice */}
@@ -163,7 +165,7 @@ export default function AdminRegisterPage() {
           <div className={`mb-6 rounded-lg p-4 ${
             message.type === 'success' ? 'bg-green-50 border border-green-200 text-green-800' :
             message.type === 'error' ? 'bg-red-50 border border-red-200 text-red-800' :
-            'bg-blue-50 border border-blue-200 text-blue-800'
+            'bg-oyoGreen/10 border border-oyoGreen/20 text-oyoGreen'
           }`}>
             <div className="flex items-center">
               {message.type === 'success' && <Shield className="w-5 h-5 mr-2" />}
@@ -173,7 +175,7 @@ export default function AdminRegisterPage() {
           </div>
         )}
 
-        <div className="bg-white rounded-lg shadow-lg p-6 md:p-8">
+        <div className="bg-white rounded-xl shadow-xl p-6 md:p-8 border border-gray-100">
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* First Row - Name and Email */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -187,7 +189,7 @@ export default function AdminRegisterPage() {
                   type="text"
                   value={formData.name}
                   onChange={(e) => updateFormData('name', e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-oyoGreen focus:border-oyoGreen bg-white text-gray-900 ${
                     errors.name ? 'border-red-500' : 'border-gray-300'
                   }`}
                   placeholder="Enter your full name"
@@ -205,7 +207,7 @@ export default function AdminRegisterPage() {
                   type="email"
                   value={formData.email}
                   onChange={(e) => updateFormData('email', e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-oyoGreen focus:border-oyoGreen bg-white text-gray-900 ${
                     errors.email ? 'border-red-500' : 'border-gray-300'
                   }`}
                   placeholder="Enter your email address"
@@ -226,7 +228,7 @@ export default function AdminRegisterPage() {
                   type="tel"
                   value={formData.phone}
                   onChange={(e) => updateFormData('phone', e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-oyoGreen focus:border-oyoGreen bg-white text-gray-900 ${
                     errors.phone ? 'border-red-500' : 'border-gray-300'
                   }`}
                   placeholder="Enter your phone number"
@@ -243,7 +245,7 @@ export default function AdminRegisterPage() {
                 <select
                   value={formData.department}
                   onChange={(e) => updateFormData('department', e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-oyoGreen focus:border-oyoGreen bg-white text-gray-900 ${
                     errors.department ? 'border-red-500' : 'border-gray-300'
                   }`}
                 >
@@ -264,7 +266,7 @@ export default function AdminRegisterPage() {
               <select
                 value={formData.role}
                 onChange={(e) => updateFormData('role', e.target.value)}
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-oyoGreen focus:border-oyoGreen bg-white text-gray-900 ${
                   errors.role ? 'border-red-500' : 'border-gray-300'
                 }`}
               >
@@ -285,15 +287,25 @@ export default function AdminRegisterPage() {
                   <Lock className="w-4 h-4 inline mr-2" />
                   Password *
                 </label>
-                <input
-                  type="password"
-                  value={formData.password}
-                  onChange={(e) => updateFormData('password', e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    errors.password ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                  placeholder="Create a password (minimum 6 characters)"
-                />
+                <div className="relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    value={formData.password}
+                    onChange={(e) => updateFormData('password', e.target.value)}
+                    className={`w-full px-3 py-2 pr-10 border rounded-lg focus:outline-none focus:ring-2 focus:ring-oyoGreen focus:border-oyoGreen bg-white text-gray-900 ${
+                      errors.password ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    placeholder="Create a password (minimum 6 characters)"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-gray-700 focus:outline-none"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
+                </div>
                 {errors.password && <p className="text-red-500 text-sm mt-1">{errors.password}</p>}
               </div>
 
@@ -303,15 +315,25 @@ export default function AdminRegisterPage() {
                   <Lock className="w-4 h-4 inline mr-2" />
                   Confirm Password *
                 </label>
-                <input
-                  type="password"
-                  value={formData.confirmPassword}
-                  onChange={(e) => updateFormData('confirmPassword', e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    errors.confirmPassword ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                  placeholder="Confirm your password"
-                />
+                <div className="relative">
+                  <input
+                    type={showConfirmPassword ? "text" : "password"}
+                    value={formData.confirmPassword}
+                    onChange={(e) => updateFormData('confirmPassword', e.target.value)}
+                    className={`w-full px-3 py-2 pr-10 border rounded-lg focus:outline-none focus:ring-2 focus:ring-oyoGreen focus:border-oyoGreen bg-white text-gray-900 ${
+                      errors.confirmPassword ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    placeholder="Confirm your password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-gray-700 focus:outline-none"
+                    aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                  >
+                    {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
+                </div>
                 {errors.confirmPassword && <p className="text-red-500 text-sm mt-1">{errors.confirmPassword}</p>}
               </div>
             </div>
@@ -320,16 +342,16 @@ export default function AdminRegisterPage() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+              className="w-full px-4 py-2.5 bg-oyoGreen text-white rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-oyoGreen focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center font-medium shadow-sm transition"
             >
               {isSubmitting ? (
                 <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
                   Creating Account...
                 </>
               ) : (
                 <>
-                  <UserPlus className="w-4 h-4 mr-2" />
+                  <UserPlus className="w-5 h-5 mr-2" />
                   Create Admin Account
                 </>
               )}
@@ -340,12 +362,12 @@ export default function AdminRegisterPage() {
           <div className="mt-6 text-center space-y-2">
             <p className="text-sm text-gray-600">
               Already have an admin account?{' '}
-              <Link href="/admin/login" className="text-blue-600 hover:text-blue-700 font-medium">
+              <Link href="/admin/login" className="text-oyoGreen hover:text-green-700 font-medium">
                 Sign in here
               </Link>
             </p>
             <p className="text-sm text-gray-600">
-              <Link href="/" className="text-gray-600 hover:text-gray-700">
+              <Link href="/" className="text-gray-600 hover:text-gray-900 transition">
                 ← Back to Home
               </Link>
             </p>
