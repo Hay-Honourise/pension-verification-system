@@ -1,5 +1,43 @@
 import { NextRequest, NextResponse } from "next/server";
 
+/**
+ * Extracts the cluster ID from a Backblaze B2 URL
+ */
+function extractClusterFromUrl(url: string): string | null {
+  try {
+    const urlObj = new URL(url);
+    const hostname = urlObj.hostname;
+    const clusterMatch = hostname.match(/^([a-z0-9]+)\.backblazeb2\.com$/i);
+    return clusterMatch ? clusterMatch[1].toLowerCase() : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Parses a Backblaze B2 URL to extract cluster, bucket, and key
+ */
+function parseBackblazeUrl(url: string): { cluster: string; bucket: string; key: string } | null {
+  try {
+    const backblazePattern = /https?:\/\/([^\/]+)\/file\/([^\/]+)\/(.+)/;
+    const match = url.match(backblazePattern);
+    
+    if (!match) {
+      return null;
+    }
+    
+    const hostname = match[1];
+    const clusterMatch = hostname.match(/^([a-z0-9]+)\.backblazeb2\.com$/i);
+    const cluster = clusterMatch ? clusterMatch[1].toLowerCase() : hostname;
+    const bucket = match[2];
+    const key = match[3];
+    
+    return { cluster, bucket, key };
+  } catch {
+    return null;
+  }
+}
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
@@ -13,16 +51,15 @@ export async function GET(req: NextRequest) {
       }, { status: 400 });
     }
 
-    // Extract bucket from URL
-    const backblazePattern = /https?:\/\/[^\/]+\/file\/([^\/]+)\/(.+)/;
-    const match = fileUrl.match(backblazePattern);
-
+    const parsed = parseBackblazeUrl(fileUrl);
     const envBucket = process.env.S3_BUCKET;
     const publicBaseUrl = process.env.S3_PUBLIC_BASE_URL;
     
-    // Extract bucket from S3_PUBLIC_BASE_URL if available
-    let bucketFromPublicUrl = null;
+    // Extract cluster and bucket from S3_PUBLIC_BASE_URL if available
+    let configuredCluster: string | null = null;
+    let bucketFromPublicUrl: string | null = null;
     if (publicBaseUrl) {
+      configuredCluster = extractClusterFromUrl(publicBaseUrl);
       const publicMatch = publicBaseUrl.match(/\/file\/([^\/]+)/);
       if (publicMatch) {
         bucketFromPublicUrl = publicMatch[1];
@@ -33,11 +70,11 @@ export async function GET(req: NextRequest) {
       input: {
         fileUrl,
       },
-      extraction: match ? {
+      extraction: parsed ? {
         success: true,
-        bucketFromUrl: match[1],
-        keyFromUrl: match[2],
-        fullMatch: match[0]
+        cluster: parsed.cluster,
+        bucket: parsed.bucket,
+        key: parsed.key,
       } : {
         success: false,
         message: "URL does not match Backblaze B2 pattern",
@@ -46,26 +83,44 @@ export async function GET(req: NextRequest) {
       environment: {
         S3_BUCKET: envBucket || "MISSING",
         S3_PUBLIC_BASE_URL: publicBaseUrl || "MISSING",
+        configuredCluster,
         bucketFromPublicUrl
       },
-      analysis: match ? {
-        bucketMatch: match[1] === envBucket ? "MATCH" : "MISMATCH",
-        bucketFromUrlMatchesEnv: match[1] === envBucket,
-        bucketFromUrlMatchesPublicUrl: match[1] === bucketFromPublicUrl,
-        recommendation: match[1] !== envBucket 
-          ? `Use bucket "${match[1]}" from URL (not "${envBucket}" from env)`
-          : "Bucket names match - configuration is correct"
+      analysis: parsed ? {
+        bucketMatch: parsed.bucket === envBucket ? "MATCH" : "MISMATCH",
+        clusterMatch: configuredCluster && parsed.cluster === configuredCluster ? "MATCH" : configuredCluster ? "MISMATCH" : "UNKNOWN",
+        bucketFromUrlMatchesEnv: parsed.bucket === envBucket,
+        bucketFromUrlMatchesPublicUrl: parsed.bucket === bucketFromPublicUrl,
+        clusterFromUrlMatchesConfigured: configuredCluster ? parsed.cluster === configuredCluster : null,
+        recommendations: [
+          parsed.bucket !== envBucket 
+            ? `⚠️ Bucket mismatch: URL has "${parsed.bucket}" but env has "${envBucket}". System will use bucket from URL.`
+            : "✅ Bucket names match",
+          configuredCluster && parsed.cluster !== configuredCluster
+            ? `⚠️ Cluster mismatch: URL has "${parsed.cluster}" but config has "${configuredCluster}". System will automatically correct this.`
+            : configuredCluster
+            ? "✅ Cluster matches configuration"
+            : "ℹ️ No cluster configured to compare"
+        ].filter(Boolean)
       } : {
         message: "Cannot analyze - URL pattern not recognized"
       }
     };
 
+    // Generate corrected URL if cluster mismatch
+    let correctedUrl: string | null = null;
+    if (parsed && configuredCluster && parsed.cluster !== configuredCluster) {
+      const protocol = fileUrl.startsWith('https') ? 'https' : 'http';
+      correctedUrl = `${protocol}://${configuredCluster}.backblazeb2.com/file/${parsed.bucket}/${parsed.key}`;
+    }
+
     return NextResponse.json({
       success: true,
       ...result,
-      message: match 
-        ? `Bucket "${match[1]}" extracted from URL. ${match[1] !== envBucket ? '⚠️ Mismatch with env bucket!' : '✅ Matches env bucket.'}`
-        : "Could not extract bucket from URL - check URL format"
+      correctedUrl: correctedUrl || undefined,
+      message: parsed 
+        ? `✅ Extracted cluster "${parsed.cluster}" and bucket "${parsed.bucket}" from URL. ${parsed.bucket !== envBucket ? '⚠️ Bucket mismatch!' : ''} ${configuredCluster && parsed.cluster !== configuredCluster ? '⚠️ Cluster mismatch - will be auto-corrected!' : ''}`
+        : "❌ Could not extract bucket/cluster from URL - check URL format"
     });
   } catch (error) {
     console.error("Bucket debug error:", error);

@@ -115,6 +115,66 @@ export async function getSignedUrl(fileName: string, validitySeconds = 3600, buc
   }
 }
 
+/**
+ * Extracts the cluster ID from a Backblaze B2 URL
+ * Example: https://f003.backblazeb2.com/file/bucket/key -> "f003"
+ */
+function extractClusterFromUrl(url: string): string | null {
+  try {
+    const urlObj = new URL(url);
+    const hostname = urlObj.hostname;
+    // Match pattern like f003.backblazeb2.com
+    const clusterMatch = hostname.match(/^([a-z0-9]+)\.backblazeb2\.com$/i);
+    return clusterMatch ? clusterMatch[1].toLowerCase() : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Extracts cluster, bucket, and key from a Backblaze B2 URL
+ * Returns null if URL doesn't match Backblaze B2 pattern
+ */
+function parseBackblazeUrl(url: string): { cluster: string; bucket: string; key: string } | null {
+  try {
+    // Pattern: https://f003.backblazeb2.com/file/{bucket}/{key}
+    const backblazePattern = /https?:\/\/([^\/]+)\/file\/([^\/]+)\/(.+)/;
+    const match = url.match(backblazePattern);
+    
+    if (!match) {
+      return null;
+    }
+    
+    const hostname = match[1];
+    const clusterMatch = hostname.match(/^([a-z0-9]+)\.backblazeb2\.com$/i);
+    const cluster = clusterMatch ? clusterMatch[1].toLowerCase() : hostname;
+    const bucket = match[2];
+    const key = match[3];
+    
+    return { cluster, bucket, key };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Rewrites a Backblaze B2 URL to use a different cluster
+ */
+function rewriteBackblazeUrl(url: string, newCluster: string): string {
+  try {
+    const parsed = parseBackblazeUrl(url);
+    if (!parsed) {
+      return url;
+    }
+    
+    // Reconstruct URL with new cluster
+    const protocol = url.startsWith('https') ? 'https' : 'http';
+    return `${protocol}://${newCluster}.backblazeb2.com/file/${parsed.bucket}/${parsed.key}`;
+  } catch {
+    return url;
+  }
+}
+
 export async function generateDownloadUrl(fileUrl: string, filename?: string) {
   try {
     console.log('Generating S3 download URL for:', fileUrl);
@@ -128,36 +188,70 @@ export async function generateDownloadUrl(fileUrl: string, filename?: string) {
     
     // If it's already a URL, try to extract bucket and key from Backblaze URL
     if (fileUrl.startsWith('http')) {
-      // Check if it's a Backblaze B2 URL
-      // Format: https://f003.backblazeb2.com/file/{bucket}/{key}
-      // Also handle: https://f003.backblazeb2.com/file/{bucket}/{key/path}
-      const backblazePattern = /https?:\/\/[^\/]+\/file\/([^\/]+)\/(.+)/;
-      const match = fileUrl.match(backblazePattern);
+      const parsed = parseBackblazeUrl(fileUrl);
       
-      if (match) {
-        const bucketFromUrl = match[1];
-        const keyFromUrl = match[2];
+      if (parsed) {
+        const { cluster: urlCluster, bucket: bucketFromUrl, key: keyFromUrl } = parsed;
+        
         console.log('Extracted from Backblaze URL:', { 
-          bucketFromUrl, 
-          keyFromUrl,
+          cluster: urlCluster,
+          bucket: bucketFromUrl, 
+          key: keyFromUrl,
           fullUrl: fileUrl 
         });
         console.log('Environment S3_BUCKET:', S3_BUCKET);
-        console.log('Bucket comparison:', {
-          urlBucket: bucketFromUrl,
-          envBucket: S3_BUCKET,
-          match: bucketFromUrl === S3_BUCKET,
-          caseSensitive: bucketFromUrl.toLowerCase() === S3_BUCKET.toLowerCase()
-        });
         
+        // Extract cluster from S3_PUBLIC_BASE_URL if configured
+        let configuredCluster: string | null = null;
+        if (S3_PUBLIC_BASE_URL) {
+          configuredCluster = extractClusterFromUrl(S3_PUBLIC_BASE_URL);
+          console.log('Cluster from S3_PUBLIC_BASE_URL:', configuredCluster);
+        }
+        
+        // Check for cluster mismatch
+        if (configuredCluster && urlCluster !== configuredCluster) {
+          console.warn(`⚠️ CLUSTER MISMATCH DETECTED!`);
+          console.warn(`   File URL cluster: "${urlCluster}"`);
+          console.warn(`   Configured cluster: "${configuredCluster}"`);
+          console.warn(`   Attempting to rewrite URL with correct cluster...`);
+          
+          // Rewrite URL with correct cluster
+          const correctedUrl = rewriteBackblazeUrl(fileUrl, configuredCluster);
+          console.log('Corrected URL:', correctedUrl);
+          
+          // Try to generate signed URL with corrected cluster
+          try {
+            console.log(`Attempting download with corrected cluster "${configuredCluster}" for bucket "${bucketFromUrl}"`);
+            const signedUrl = await getSignedUrl(keyFromUrl, 3600, bucketFromUrl);
+            console.log('✅ Successfully generated signed URL with corrected cluster');
+            return signedUrl;
+          } catch (correctedError) {
+            console.error('❌ Failed to generate signed URL with corrected cluster:', correctedError);
+            console.warn('⚠️ Falling back to original URL cluster...');
+            
+            // Fallback: Try with original cluster
+            try {
+              console.log(`Retrying with original cluster "${urlCluster}" for bucket "${bucketFromUrl}"`);
+              const signedUrl = await getSignedUrl(keyFromUrl, 3600, bucketFromUrl);
+              console.log('✅ Successfully generated signed URL with original cluster');
+              return signedUrl;
+            } catch (originalError) {
+              console.error('❌ Failed with original cluster as well:', originalError);
+              console.error('⚠️ Returning corrected URL as fallback (may not work if cluster is wrong)');
+              // Return the corrected URL as a last resort
+              return correctedUrl;
+            }
+          }
+        }
+        
+        // No cluster mismatch - proceed normally
         // Always use the bucket from the URL since that's where the file actually is
-        // This handles cases where the URL bucket differs from env bucket
-        console.log(`Using bucket from URL: "${bucketFromUrl}" for key: "${keyFromUrl}"`);
+        console.log(`Using bucket "${bucketFromUrl}" with cluster "${urlCluster}" for key: "${keyFromUrl}"`);
         return await getSignedUrl(keyFromUrl, 3600, bucketFromUrl);
       }
       
       // If it's not a Backblaze URL or doesn't match pattern, return as-is
-      console.log('URL does not match Backblaze pattern, returning as-is');
+      console.log('URL does not match Backblaze B2 pattern, returning as-is');
       console.log('URL pattern check failed for:', fileUrl);
       return fileUrl;
     }
@@ -176,20 +270,36 @@ export async function generateDownloadUrl(fileUrl: string, filename?: string) {
       publicBaseUrl: S3_PUBLIC_BASE_URL
     });
     
-    // Try to extract bucket info for better error message
+    // Try to extract info for better error message and cluster correction
     if (fileUrl.startsWith('http')) {
-      const backblazePattern = /https?:\/\/[^\/]+\/file\/([^\/]+)\/(.+)/;
-      const match = fileUrl.match(backblazePattern);
-      if (match) {
+      const parsed = parseBackblazeUrl(fileUrl);
+      if (parsed) {
+        const configuredCluster = S3_PUBLIC_BASE_URL ? extractClusterFromUrl(S3_PUBLIC_BASE_URL) : null;
+        
         console.error('Failed to generate presigned URL for:', {
-          bucketFromUrl: match[1],
-          keyFromUrl: match[2],
-          envBucket: S3_BUCKET
+          cluster: parsed.cluster,
+          bucket: parsed.bucket,
+          key: parsed.key,
+          envBucket: S3_BUCKET,
+          configuredCluster,
+          clusterMismatch: configuredCluster && parsed.cluster !== configuredCluster
         });
+        
+        // If there's a cluster mismatch, try one more time with corrected URL
+        if (configuredCluster && parsed.cluster !== configuredCluster) {
+          console.warn('⚠️ Attempting final fallback with cluster correction...');
+          try {
+            const correctedUrl = rewriteBackblazeUrl(fileUrl, configuredCluster);
+            console.log('Returning corrected URL as final fallback:', correctedUrl);
+            return correctedUrl;
+          } catch (rewriteError) {
+            console.error('Failed to rewrite URL:', rewriteError);
+          }
+        }
       }
     }
     
-    // Return the original URL as fallback
+    // Return the original URL as last resort fallback
     console.log('Returning original URL as fallback');
     return fileUrl;
   }
