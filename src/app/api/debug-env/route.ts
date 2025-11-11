@@ -6,25 +6,16 @@ export async function GET(req: NextRequest) {
     const showValues = searchParams.get('showValues') === 'true';
     
     const envVars = {
-      // B2 Legacy
-      B2_KEY_ID: process.env.B2_KEY_ID ? 'SET' : 'MISSING',
-      B2_APPLICATION_KEY: process.env.B2_APPLICATION_KEY ? 'SET' : 'MISSING',
-      B2_BUCKET_ID: process.env.B2_BUCKET_ID || 'MISSING',
-      B2_BUCKET_NAME: process.env.B2_BUCKET_NAME || 'MISSING',
-      // S3-Compatible (Current)
+      // S3-Compatible (Current - Required except public base)
       S3_ACCESS_KEY_ID: process.env.S3_ACCESS_KEY_ID ? 'SET' : 'MISSING',
       S3_SECRET_ACCESS_KEY: process.env.S3_SECRET_ACCESS_KEY ? 'SET' : 'MISSING',
       S3_BUCKET: process.env.S3_BUCKET || 'MISSING',
-      S3_PUBLIC_BASE_URL: process.env.S3_PUBLIC_BASE_URL || 'MISSING',
+      S3_PUBLIC_BASE_URL: process.env.S3_PUBLIC_BASE_URL || 'OPTIONAL',
       S3_ENDPOINT: process.env.S3_ENDPOINT || 'MISSING',
       S3_REGION: process.env.S3_REGION || 'MISSING'
     };
 
     const actualValues = showValues ? {
-      B2_KEY_ID: process.env.B2_KEY_ID,
-      B2_APPLICATION_KEY: process.env.B2_APPLICATION_KEY ? '***HIDDEN***' : 'MISSING',
-      B2_BUCKET_ID: process.env.B2_BUCKET_ID,
-      B2_BUCKET_NAME: process.env.B2_BUCKET_NAME,
       S3_ACCESS_KEY_ID: process.env.S3_ACCESS_KEY_ID,
       S3_SECRET_ACCESS_KEY: process.env.S3_SECRET_ACCESS_KEY ? '***HIDDEN***' : 'MISSING',
       S3_BUCKET: process.env.S3_BUCKET,

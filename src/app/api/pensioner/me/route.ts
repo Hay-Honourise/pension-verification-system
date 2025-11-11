@@ -31,16 +31,17 @@ export async function GET(request: NextRequest) {
       type: typeof token.id
     });
 
-    // Validate token ID
-    if (!token.id) {
-      console.log('❌ Token missing ID field');
-      return NextResponse.json({ message: 'Invalid token: missing ID' }, { status: 401 });
+    // Require pensioner role for this endpoint; allow UUIDs for other roles to authenticate elsewhere
+    if (token.role !== 'pensioner') {
+      console.warn('⚠️ Non-pensioner token accessing /pensioner/me. Role:', token.role, 'ID type:', typeof token.id);
+      return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
     }
 
+    // For pensioners, ID must be numeric because DB primary key is numeric
     const pensionerId = Number(token.id);
     if (Number.isNaN(pensionerId)) {
-      console.log('❌ Token ID is not a valid number:', token.id);
-      return NextResponse.json({ message: 'Invalid token: ID is not a number' }, { status: 401 });
+      console.warn('⚠️ Pensioner token has non-numeric ID. ID:', token.id);
+      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
     console.log('🔍 Querying pensioner with ID:', pensionerId);

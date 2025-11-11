@@ -126,59 +126,119 @@ export default function PensionerDashboard() {
   };
 
   const handleDownload = async (fileUrl: string, filename: string, fileId: string) => {
+    // Prevent duplicate downloads
+    if (downloadingFileId === fileId) {
+      console.log('Download already in progress for this file');
+      return;
+    }
+
     try {
       setDownloadingFileId(fileId);
-      const qp = new URLSearchParams({ url: fileUrl });
+      // Add cache-busting timestamp to ensure fresh URL every time
+      const qp = new URLSearchParams({ 
+        url: fileUrl,
+        _t: Date.now().toString() // Cache buster
+      });
       if (filename) qp.set("filename", filename);
 
-      const res = await fetch(`/api/download?${qp.toString()}`);
+      const res = await fetch(`/api/download?${qp.toString()}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
       if (!res.ok) throw new Error("Failed to get download link");
       const { url } = await res.json();
 
       // Method 1: Try to download using fetch and blob (most reliable)
       try {
-        const response = await fetch(url);
-        if (!response.ok) throw new Error('Failed to fetch file');
+        // Fetch immediately to minimize delay between URL generation and use
+        const response = await fetch(url, {
+          cache: 'no-store'
+        });
+        if (!response.ok) {
+          // If expired, try to get a fresh URL once
+          if (response.status === 401 || response.status === 403) {
+            console.warn('URL expired, fetching fresh URL...');
+            const retryQp = new URLSearchParams({ 
+              url: fileUrl,
+              _t: Date.now().toString()
+            });
+            if (filename) retryQp.set("filename", filename);
+            const retryRes = await fetch(`/api/download?${retryQp.toString()}`, {
+              cache: 'no-store',
+              headers: {
+                'Cache-Control': 'no-cache',
+                'Pragma': 'no-cache'
+              }
+            });
+            if (!retryRes.ok) throw new Error('Failed to get fresh download link');
+            const { url: retryUrl } = await retryRes.json();
+            const retryResponse = await fetch(retryUrl, { cache: 'no-store' });
+            if (!retryResponse.ok) throw new Error('Failed to fetch file with fresh URL');
+            const blob = await retryResponse.blob();
+            const downloadUrl = window.URL.createObjectURL(blob);
+            
+            // Create temporary anchor element and trigger download once
+            const link = document.createElement('a');
+            link.href = downloadUrl;
+            link.download = filename || 'document';
+            link.style.display = 'none';
+            
+            // Add to DOM
+            document.body.appendChild(link);
+            
+            // Trigger download once
+            link.click();
+            
+            // Remove immediately to prevent double-trigger
+            requestAnimationFrame(() => {
+              if (document.body.contains(link)) {
+                document.body.removeChild(link);
+              }
+              window.URL.revokeObjectURL(downloadUrl);
+            });
+            
+            setDocsMsgType("success");
+            setDocsMsg(`Download started: ${filename || 'document'}`);
+            setTimeout(() => setDocsMsg(""), 3000);
+            return;
+          }
+          throw new Error('Failed to fetch file');
+        }
         
         const blob = await response.blob();
         const downloadUrl = window.URL.createObjectURL(blob);
         
-        // Create temporary anchor element
+        // Create temporary anchor element and trigger download once
         const link = document.createElement('a');
         link.href = downloadUrl;
         link.download = filename || 'document';
         link.style.display = 'none';
         
-        // Add to DOM, click, and clean up
+        // Add to DOM
         document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
         
-        // Clean up the blob URL
-        setTimeout(() => window.URL.revokeObjectURL(downloadUrl), 100);
+        // Trigger download once
+        link.click();
+        
+        // Remove immediately to prevent double-trigger
+        requestAnimationFrame(() => {
+          if (document.body.contains(link)) {
+            document.body.removeChild(link);
+          }
+          window.URL.revokeObjectURL(downloadUrl);
+        });
         
         // Show success message
         setDocsMsgType("success");
         setDocsMsg(`Download started: ${filename || 'document'}`);
         setTimeout(() => setDocsMsg(""), 3000);
       } catch (fetchError) {
-        console.log('Fetch method failed, trying direct link method:', fetchError);
-        
-        // Method 2: Fallback to direct link (less reliable but works for some files)
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = filename || 'document';
-        link.target = '_blank';
-        link.style.display = 'none';
-        
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        
-        // Show success message
-        setDocsMsgType("success");
-        setDocsMsg(`Download started: ${filename || 'document'}`);
-        setTimeout(() => setDocsMsg(""), 3000);
+        console.error('Download failed:', fetchError);
+        setDocsMsgType("error");
+        setDocsMsg("Failed to download document. The link may have expired. Please try again.");
       }
     } catch (error) {
       console.error('Download error:', error);

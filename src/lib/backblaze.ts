@@ -97,13 +97,42 @@ export async function copyFile(sourceFileId: string, newFileName: string) {
   }
 }
 
-export async function getSignedUrl(fileName: string, validitySeconds = 3600, bucketName?: string) {
+export async function getSignedUrl(fileName: string, validitySeconds = 120, bucketName?: string, downloadFilename?: string) {
   try {
     const bucket = bucketName || S3_BUCKET;
     console.log('getSignedUrl called with:', { fileName, bucket, usingEnvBucket: !bucketName });
     const s3 = createS3Client();
-    const command = new GetObjectCommand({ Bucket: bucket, Key: fileName });
-    return await awsGetSignedUrl(s3, command, { expiresIn: validitySeconds });
+    const command = new GetObjectCommand({ 
+      Bucket: bucket, 
+      Key: fileName,
+      ResponseContentDisposition: downloadFilename 
+        ? `attachment; filename="${downloadFilename}"`
+        : 'attachment'
+    });
+    const signedUrl = await awsGetSignedUrl(s3, command, { expiresIn: validitySeconds });
+    // Clock skew warning (±30s)
+    try {
+      const u = new URL(signedUrl);
+      const amzDate = u.searchParams.get('X-Amz-Date');
+      if (amzDate) {
+        // X-Amz-Date format: YYYYMMDDTHHMMSSZ
+        const ts = amzDate.replace('Z','');
+        const year = Number(ts.slice(0, 4));
+        const month = Number(ts.slice(4, 6)) - 1;
+        const day = Number(ts.slice(6, 8));
+        const hour = Number(ts.slice(9, 11));
+        const min = Number(ts.slice(11, 13));
+        const sec = Number(ts.slice(13, 15));
+        const urlTime = Date.UTC(year, month, day, hour, min, sec);
+        const driftSeconds = Math.round((Date.now() - urlTime) / 1000);
+        if (Math.abs(driftSeconds) > 30) {
+          console.warn(`⚠️ Server clock skew detected: ${driftSeconds}s difference from X-Amz-Date`);
+        }
+      }
+    } catch {
+      // ignore parsing issues
+    }
+    return signedUrl;
   } catch (error) {
     console.error('Failed to get signed URL:', error);
     console.error('Error details:', {
@@ -222,7 +251,7 @@ export async function generateDownloadUrl(fileUrl: string, filename?: string) {
           // Try to generate signed URL with corrected cluster
           try {
             console.log(`Attempting download with corrected cluster "${configuredCluster}" for bucket "${bucketFromUrl}"`);
-            const signedUrl = await getSignedUrl(keyFromUrl, 3600, bucketFromUrl);
+            const signedUrl = await getSignedUrl(keyFromUrl, 120, bucketFromUrl, filename || keyFromUrl.split('/').pop());
             console.log('✅ Successfully generated signed URL with corrected cluster');
             return signedUrl;
           } catch (correctedError) {
@@ -232,7 +261,7 @@ export async function generateDownloadUrl(fileUrl: string, filename?: string) {
             // Fallback: Try with original cluster
             try {
               console.log(`Retrying with original cluster "${urlCluster}" for bucket "${bucketFromUrl}"`);
-              const signedUrl = await getSignedUrl(keyFromUrl, 3600, bucketFromUrl);
+              const signedUrl = await getSignedUrl(keyFromUrl, 120, bucketFromUrl, filename || keyFromUrl.split('/').pop());
               console.log('✅ Successfully generated signed URL with original cluster');
               return signedUrl;
             } catch (originalError) {
@@ -247,7 +276,7 @@ export async function generateDownloadUrl(fileUrl: string, filename?: string) {
         // No cluster mismatch - proceed normally
         // Always use the bucket from the URL since that's where the file actually is
         console.log(`Using bucket "${bucketFromUrl}" with cluster "${urlCluster}" for key: "${keyFromUrl}"`);
-        return await getSignedUrl(keyFromUrl, 3600, bucketFromUrl);
+        return await getSignedUrl(keyFromUrl, 120, bucketFromUrl, filename || keyFromUrl.split('/').pop());
       }
       
       // If it's not a Backblaze URL or doesn't match pattern, return as-is
@@ -258,7 +287,7 @@ export async function generateDownloadUrl(fileUrl: string, filename?: string) {
     
     // Otherwise, return a presigned URL using env bucket
     console.log('Using fileUrl as key with env bucket:', S3_BUCKET);
-    return await getSignedUrl(fileUrl, 3600);
+    return await getSignedUrl(fileUrl, 120, undefined, filename || fileUrl.split('/').pop());
   } catch (error) {
     console.error('Error generating download URL:', error);
     console.error('Error details:', {

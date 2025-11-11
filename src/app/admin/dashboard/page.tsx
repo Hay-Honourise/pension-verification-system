@@ -72,6 +72,7 @@ export default function AdminDashboard() {
   const [selectedPensioner, setSelectedPensioner] = useState<any>(null)
   const [flagReason, setFlagReason] = useState('')
   const [actionLoading, setActionLoading] = useState(false)
+  const [downloadingFileId, setDownloadingFileId] = useState<string | null>(null)
 
   useEffect(() => {
     const u = localStorage.getItem('user')
@@ -643,14 +644,61 @@ export default function AdminDashboard() {
                           <div className="text-xs text-gray-500">{file.originalName}</div>
                           <div className="text-xs text-gray-500">{new Date(file.createdAt).toLocaleDateString()}</div>
                         </div>
-                        <a
-                          href={file.fileUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:text-blue-800"
+                        <button
+                          type="button"
+                          aria-label="Download"
+                          disabled={downloadingFileId === file.id}
+                          onClick={async () => {
+                            // Prevent duplicate downloads
+                            if (downloadingFileId === file.id) {
+                              console.log('Download already in progress for this file');
+                              return;
+                            }
+
+                            try {
+                              setDownloadingFileId(file.id);
+                              const getSigned = async () => {
+                                // Add cache-busting timestamp to ensure fresh URL every time
+                                const params = new URLSearchParams({
+                                  url: file.fileUrl,
+                                  filename: file.originalName || '',
+                                  _t: Date.now().toString() // Cache buster
+                                });
+                                const res = await fetch(`/api/download?${params.toString()}`, { 
+                                  method: 'GET', 
+                                  cache: 'no-store',
+                                  headers: {
+                                    'Cache-Control': 'no-cache',
+                                    'Pragma': 'no-cache'
+                                  }
+                                });
+                                const data = await res.json();
+                                if (!res.ok || !data?.url) {
+                                  throw new Error(data?.error || 'Failed to get download URL');
+                                }
+                                return data.url as string;
+                              };
+                              // Get fresh signed URL and open immediately
+                              const signedUrl = await getSigned();
+                              // Open immediately to minimize delay between generation and use
+                              const win = window.open(signedUrl, '_blank', 'noopener,noreferrer');
+                              // Only retry if popup was actually blocked (not just closed)
+                              if (!win) {
+                                console.warn('Popup blocked, retrying with fresh URL...');
+                                const retryUrl = await getSigned();
+                                window.open(retryUrl, '_blank', 'noopener,noreferrer');
+                              }
+                            } catch (e) {
+                              console.error('Download failed', e);
+                              alert('Failed to generate download link. Please try again.');
+                            } finally {
+                              setDownloadingFileId(null);
+                            }
+                          }}
+                          className="text-blue-600 hover:text-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <Download className="w-4 h-4" />
-                        </a>
+                        </button>
                       </div>
                     </div>
                   ))}

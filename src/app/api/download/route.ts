@@ -6,14 +6,6 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const fileUrl = searchParams.get("url");
     const filename = searchParams.get("filename") || undefined;
-
-    console.log("ENV CHECK:", {
-      keyId: process.env.B2_KEY_ID,
-      appKey: process.env.B2_APPLICATION_KEY ? "✅" : "❌",
-      bucketName: process.env.B2_BUCKET_NAME,
-      bucketId: process.env.B2_BUCKET_ID,
-      endpoint: process.env.B2_ENDPOINT
-    });
     
 
     if (!fileUrl) {
@@ -32,7 +24,12 @@ export async function GET(req: NextRequest) {
 
     try {
       const signedUrl = await generateDownloadUrl(fileUrl, filename);
-      return NextResponse.json({ url: signedUrl });
+      const res = NextResponse.json({ url: signedUrl });
+      // Prevent caching of signed URLs on client/proxies to avoid "expired" reuse
+      res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      res.headers.set('Pragma', 'no-cache');
+      res.headers.set('Expires', '0');
+      return res;
     } catch (generateError) {
       console.error('Failed to generate presigned URL:', generateError);
       

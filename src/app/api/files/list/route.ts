@@ -26,7 +26,12 @@ export async function GET(request: NextRequest) {
 
     let pensionerId: number
     if (token.role === 'pensioner') {
-      pensionerId = Number(token.id)
+      const parsed = Number(token.id)
+      if (Number.isNaN(parsed)) {
+        console.warn('⚠️ Pensioner token has non-numeric ID; cannot resolve own files. ID:', token.id)
+        return NextResponse.json({ message: 'Unauthorized' }, { status: 401 })
+      }
+      pensionerId = parsed
       console.log('👤 Pensioner accessing own files, ID:', pensionerId);
     } else if (token.role === 'admin' || token.role === 'VERIFICATION_OFFICER') {
       if (!pensionerIdParam) {

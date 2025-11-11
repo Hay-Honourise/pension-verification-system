@@ -17,15 +17,47 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     }
 
     const resolvedParams = await params;
-    const pensionerId = resolvedParams.id;
+    const idParam = resolvedParams.id;
     const { action, reason } = await request.json();
 
-    if (!pensionerId) {
+    if (!idParam) {
       return NextResponse.json({ message: 'Pensioner ID is required' }, { status: 400 });
     }
 
     if (!action) {
       return NextResponse.json({ message: 'Action is required' }, { status: 400 });
+    }
+
+    // Resolve pensioner ID (supports both database ID and pensionId)
+    const numericId = parseInt(idParam, 10);
+    const isNumericId = !isNaN(numericId) && numericId.toString() === idParam;
+
+    let pensionerId: number | null = null;
+
+    // Try to find by database ID first
+    if (isNumericId) {
+      const pensioner = await prisma.pensioner.findUnique({
+        where: { id: numericId },
+        select: { id: true }
+      });
+      if (pensioner) {
+        pensionerId = pensioner.id;
+      }
+    }
+
+    // If not found by ID, try to find by pensionId
+    if (!pensionerId) {
+      const pensioner = await prisma.pensioner.findUnique({
+        where: { pensionId: idParam },
+        select: { id: true }
+      });
+      if (pensioner) {
+        pensionerId = pensioner.id;
+      }
+    }
+
+    if (!pensionerId) {
+      return NextResponse.json({ message: 'Pensioner not found' }, { status: 404 });
     }
 
     let updateData: any = {};
@@ -53,7 +85,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
     // Update pensioner status
     const updatedPensioner = await prisma.pensioner.update({
-      where: { id: parseInt(pensionerId) },
+      where: { id: pensionerId },
       data: {
         ...updateData,
         updatedAt: new Date()
@@ -63,7 +95,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     // Create verification log entry
     await prisma.verificationlog.create({
       data: {
-        pensionerId: parseInt(pensionerId),
+        pensionerId: pensionerId,
         method: 'ADMIN_REVIEW',
         status: action.toUpperCase(),
         verifiedAt: new Date(),

@@ -17,42 +17,69 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     }
 
     const resolvedParams = await params;
-    const pensionerId = resolvedParams.id;
+    const idParam = resolvedParams.id;
 
-    if (!pensionerId) {
+    if (!idParam) {
       return NextResponse.json({ message: 'Pensioner ID is required' }, { status: 400 });
     }
 
-    // Check if pensioner exists
-    const pensioner = await prisma.pensioner.findUnique({
-      where: { id: parseInt(pensionerId) },
-      include: {
-        pensionerfile: true,
-        verificationlog: true,
-        verificationreview: true
-      }
-    });
+    // Resolve pensioner ID (supports both database ID and pensionId)
+    const numericId = parseInt(idParam, 10);
+    const isNumericId = !isNaN(numericId) && numericId.toString() === idParam;
 
+    let pensionerId: number | null = null;
+    let pensioner = null;
+
+    // Try to find by database ID first
+    if (isNumericId) {
+      pensioner = await prisma.pensioner.findUnique({
+        where: { id: numericId },
+        include: {
+          pensionerfile: true,
+          verificationlog: true,
+          verificationreview: true
+        }
+      });
+      if (pensioner) {
+        pensionerId = pensioner.id;
+      }
+    }
+
+    // If not found by ID, try to find by pensionId
     if (!pensioner) {
+      pensioner = await prisma.pensioner.findUnique({
+        where: { pensionId: idParam },
+        include: {
+          pensionerfile: true,
+          verificationlog: true,
+          verificationreview: true
+        }
+      });
+      if (pensioner) {
+        pensionerId = pensioner.id;
+      }
+    }
+
+    if (!pensioner || !pensionerId) {
       return NextResponse.json({ message: 'Pensioner not found' }, { status: 404 });
     }
 
     // Delete related records first (due to foreign key constraints)
     await prisma.verificationlog.deleteMany({
-      where: { pensionerId: parseInt(pensionerId) }
+      where: { pensionerId: pensionerId }
     });
 
     await prisma.verificationreview.deleteMany({
-      where: { pensionerId: parseInt(pensionerId) }
+      where: { pensionerId: pensionerId }
     });
 
     await prisma.pensionerfile.deleteMany({
-      where: { pensionerId: parseInt(pensionerId) }
+      where: { pensionerId: pensionerId }
     });
 
     // Finally delete the pensioner
     await prisma.pensioner.delete({
-      where: { id: parseInt(pensionerId) }
+      where: { id: pensionerId }
     });
 
     console.log(`🗑️ Pensioner ${pensionerId} deleted by admin ${token.id}`);
