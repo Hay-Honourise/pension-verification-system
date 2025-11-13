@@ -126,128 +126,62 @@ export default function PensionerDashboard() {
   };
 
   const handleDownload = async (fileUrl: string, filename: string, fileId: string) => {
-    // Prevent duplicate downloads
     if (downloadingFileId === fileId) {
       console.log('Download already in progress for this file');
       return;
     }
-
+  
     try {
       setDownloadingFileId(fileId);
-      // Add cache-busting timestamp to ensure fresh URL every time
-      const qp = new URLSearchParams({ 
-        url: fileUrl,
-        _t: Date.now().toString() // Cache buster
-      });
-      if (filename) qp.set("filename", filename);
-
-      const res = await fetch(`/api/download?${qp.toString()}`, {
-        cache: 'no-store',
-        headers: {
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache'
-        }
-      });
-      if (!res.ok) throw new Error("Failed to get download link");
-      const { url } = await res.json();
-
-      // Method 1: Try to download using fetch and blob (most reliable)
-      try {
-        // Fetch immediately to minimize delay between URL generation and use
-        const response = await fetch(url, {
-          cache: 'no-store'
+  
+      const getSigned = async () => {
+        const params = new URLSearchParams({
+          url: fileUrl,
+          filename: filename || '',
+          _t: Date.now().toString(), // cache buster
         });
-        if (!response.ok) {
-          // If expired, try to get a fresh URL once
-          if (response.status === 401 || response.status === 403) {
-            console.warn('URL expired, fetching fresh URL...');
-            const retryQp = new URLSearchParams({ 
-              url: fileUrl,
-              _t: Date.now().toString()
-            });
-            if (filename) retryQp.set("filename", filename);
-            const retryRes = await fetch(`/api/download?${retryQp.toString()}`, {
-              cache: 'no-store',
-              headers: {
-                'Cache-Control': 'no-cache',
-                'Pragma': 'no-cache'
-              }
-            });
-            if (!retryRes.ok) throw new Error('Failed to get fresh download link');
-            const { url: retryUrl } = await retryRes.json();
-            const retryResponse = await fetch(retryUrl, { cache: 'no-store' });
-            if (!retryResponse.ok) throw new Error('Failed to fetch file with fresh URL');
-            const blob = await retryResponse.blob();
-            const downloadUrl = window.URL.createObjectURL(blob);
-            
-            // Create temporary anchor element and trigger download once
-            const link = document.createElement('a');
-            link.href = downloadUrl;
-            link.download = filename || 'document';
-            link.style.display = 'none';
-            
-            // Add to DOM
-            document.body.appendChild(link);
-            
-            // Trigger download once
-            link.click();
-            
-            // Remove immediately to prevent double-trigger
-            requestAnimationFrame(() => {
-              if (document.body.contains(link)) {
-                document.body.removeChild(link);
-              }
-              window.URL.revokeObjectURL(downloadUrl);
-            });
-            
-            setDocsMsgType("success");
-            setDocsMsg(`Download started: ${filename || 'document'}`);
-            setTimeout(() => setDocsMsg(""), 3000);
-            return;
-          }
-          throw new Error('Failed to fetch file');
-        }
-        
-        const blob = await response.blob();
-        const downloadUrl = window.URL.createObjectURL(blob);
-        
-        // Create temporary anchor element and trigger download once
-        const link = document.createElement('a');
-        link.href = downloadUrl;
-        link.download = filename || 'document';
-        link.style.display = 'none';
-        
-        // Add to DOM
-        document.body.appendChild(link);
-        
-        // Trigger download once
-        link.click();
-        
-        // Remove immediately to prevent double-trigger
-        requestAnimationFrame(() => {
-          if (document.body.contains(link)) {
-            document.body.removeChild(link);
-          }
-          window.URL.revokeObjectURL(downloadUrl);
+  
+        const res = await fetch(`/api/download?${params.toString()}`, {
+          method: 'GET',
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache',
+          },
         });
-        
-        // Show success message
-        setDocsMsgType("success");
-        setDocsMsg(`Download started: ${filename || 'document'}`);
-        setTimeout(() => setDocsMsg(""), 3000);
-      } catch (fetchError) {
-        console.error('Download failed:', fetchError);
-        setDocsMsgType("error");
-        setDocsMsg("Failed to download document. The link may have expired. Please try again.");
+  
+        const data = await res.json();
+        if (!res.ok || !data?.url) {
+          throw new Error(data?.error || 'Failed to get download URL');
+        }
+        return data.url as string;
+      };
+  
+      // Get signed URL and open immediately
+      const signedUrl = await getSigned();
+      const win = window.open(signedUrl, '_blank', 'noopener,noreferrer');
+  
+      // Retry once if popup was blocked
+      if (!win) {
+        console.warn('Popup blocked, retrying with fresh URL...');
+        const retryUrl = await getSigned();
+        window.open(retryUrl, '_blank', 'noopener,noreferrer');
       }
+  
+      // Show toast/message
+      setDocsMsgType('success');
+      setDocsMsg(`Download started: ${filename || 'document'}`);
+      setTimeout(() => setDocsMsg(''), 3000);
+  
     } catch (error) {
-      console.error('Download error:', error);
-      setDocsMsgType("error");
-      setDocsMsg("Failed to download document. Please try again.");
+      console.error('Download failed', error);
+      setDocsMsgType('error');
+      setDocsMsg('Failed to download document. Please try again.');
     } finally {
       setDownloadingFileId(null);
     }
   };
+  
 
   useEffect(() => {
     // Check if user is authenticated
