@@ -224,7 +224,7 @@ const HistoryPage = () => {
             viewport={{ once: true }}
             className="text-center mb-12"
           >
-            <h2 className="text-3xl md:text-4xl font-bold text-oyoGreen mb-6">
+            <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">
               Why Virtual Verification Was Introduced
             </h2>
             <p className="text-lg text-gray-700 max-w-4xl mx-auto">
