@@ -1,33 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { verifyToken } from '@/lib/auth';
-import { randomBytes } from 'crypto';
-
-// In-memory challenge storage (keyed by userId_type)
-const verificationChallenges = new Map<string, { challenge: Buffer; expiresAt: number }>();
-
-// Clean up expired challenges every 5 minutes
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, value] of verificationChallenges.entries()) {
-    if (value.expiresAt < now) {
-      verificationChallenges.delete(key);
-    }
-  }
-}, 5 * 60 * 1000);
-
-// Helper to convert base64url string to Uint8Array (for client-side use)
-// Note: This is not used on the server, but kept for reference
-// The server sends credentialId as base64url string, client decodes it
+import { generateAuthOptions, verifyAuthenticationResponse, base64UrlToBuffer } from '@/lib/webauthn';
 
 export async function GET(request: NextRequest) {
   try {
     const authHeader = request.headers.get('authorization');
     const bearer = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
-    if (!bearer) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+    if (!bearer) {
+      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+    }
 
     const token = verifyToken(bearer);
-    if (!token?.id) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+    if (!token?.id) {
+      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+    }
 
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type')?.toUpperCase();
@@ -54,39 +41,42 @@ export async function GET(request: NextRequest) {
       }, { status: 404 });
     }
 
-    // Generate challenge and store it per type
-    const challenge = randomBytes(32);
-    const challengeKey = `${token.id}_${type}`;
-    verificationChallenges.set(challengeKey, {
-      challenge,
-      expiresAt: Date.now() + 5 * 60 * 1000
-    });
-
-    // Prepare allowCredentials - convert credentialId from base64url string to Array for client
-    // The credentialId is stored as base64url string, but WebAuthn needs it as ArrayBuffer/Uint8Array
-    // We'll send it as base64url string and let the client decode it
+    // Prepare allowCredentials for @simplewebauthn/server
     const allowCredentials = credentials.map(cred => {
-      // credentialId is stored as base64url string, send it as-is
-      // Client will decode it to Uint8Array
+      let transports: string[] | undefined;
+      if (cred.transports) {
+        try {
+          transports = JSON.parse(cred.transports);
+        } catch {
+          transports = ['internal'];
+        }
+      } else {
+        transports = ['internal'];
+      }
+
       return {
         id: cred.credentialId, // base64url string
         type: 'public-key',
-        transports: ['internal'] as const
+        transports
       };
     });
 
-    console.log(`[biometric/verify] Generated challenge for pensioner ${token.id}, type ${type}, ${credentials.length} credential(s)`);
+    // Generate authentication options
+    const challengeKey = `${token.id}_${type}_auth`;
+    const authOptions = await generateAuthOptions(allowCredentials, challengeKey);
 
-    return NextResponse.json({
-      challenge: Array.from(challenge),
-      allowCredentials
-    });
+    console.log(`[biometric/verify] Generated authentication options for pensioner ${token.id}, type ${type}, ${credentials.length} credential(s)`);
 
-  } catch (err) {
+    const response = NextResponse.json(authOptions);
+    response.headers.set('Cache-Control', 'no-store');
+    return response;
+
+  } catch (err: any) {
     console.error('[biometric/verify] GET error', err);
     return NextResponse.json({ 
       message: 'Server error',
-      error: 'SERVER_ERROR'
+      error: 'SERVER_ERROR',
+      details: process.env.NODE_ENV === 'development' ? err.message : undefined
     }, { status: 500 });
   }
 }
@@ -95,10 +85,14 @@ export async function POST(request: NextRequest) {
   try {
     const authHeader = request.headers.get('authorization');
     const bearer = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
-    if (!bearer) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+    if (!bearer) {
+      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+    }
 
     const token = verifyToken(bearer);
-    if (!token?.id) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+    if (!token?.id) {
+      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+    }
 
     const body = await request.json();
     const { type, credential } = body;
@@ -130,23 +124,6 @@ export async function POST(request: NextRequest) {
       }, { status: 404 });
     }
 
-    // Verify challenge was issued
-    const challengeKey = `${token.id}_${normalizedType}`;
-    const storedChallenge = verificationChallenges.get(challengeKey);
-    if (!storedChallenge) {
-      return NextResponse.json({ 
-        message: 'Verification challenge not found or expired. Please try again.',
-        error: 'CHALLENGE_NOT_FOUND'
-      }, { status: 400 });
-    }
-    if (storedChallenge.expiresAt < Date.now()) {
-      verificationChallenges.delete(challengeKey);
-      return NextResponse.json({ 
-        message: 'Verification challenge expired. Please try again.',
-        error: 'CHALLENGE_EXPIRED'
-      }, { status: 400 });
-    }
-
     // Find the credential - MUST match both type and credentialId
     const credentialId = credential.id; // This is a base64url string from the client
     const storedCredential = await prisma.biometriccredential.findFirst({
@@ -165,38 +142,27 @@ export async function POST(request: NextRequest) {
       }, { status: 404 });
     }
 
-    // Verify the challenge matches
-    // Note: In a production system, you should also verify the signature here
-    // For now, we'll do basic validation
-    const isVerified = true; // TODO: Implement proper signature verification using stored publicKey
+    // Verify authentication response
+    const challengeKey = `${pensioner.id}_${normalizedType}_auth`;
+    const origin = request.headers.get('origin') || process.env.NEXT_PUBLIC_ORIGIN || 'http://localhost:3000';
+    
+    // Convert stored publicKey from base64url back to Buffer
+    const publicKeyBuffer = base64UrlToBuffer(storedCredential.publicKey);
 
-    // Clean up challenge
-    verificationChallenges.delete(challengeKey);
+    const verification = await verifyAuthenticationResponse(
+      credential,
+      {
+        credentialId: storedCredential.credentialId,
+        publicKey: publicKeyBuffer,
+        signCount: storedCredential.signCount
+      },
+      challengeKey,
+      origin
+    );
 
-    if (isVerified) {
-      // Create verification log
-      const nextDue = new Date();
-      nextDue.setFullYear(nextDue.getFullYear() + 3);
+    if (!verification.verified) {
+      console.error(`[biometric/verify] Verification failed: ${verification.error}`);
 
-      await prisma.verificationlog.create({
-        data: {
-          pensionerId: pensioner.id,
-          method: `WINDOWS_HELLO_${normalizedType}`,
-          status: 'SUCCESS',
-          verifiedAt: new Date(),
-          nextDueAt: nextDue
-        }
-      });
-
-      console.log(`[biometric/verify] Successfully verified ${normalizedType} for pensioner ${pensioner.id}`);
-
-      return NextResponse.json({ 
-        success: true, 
-        status: 'SUCCESS',
-        nextDueAt: nextDue,
-        message: `${normalizedType} verification successful`
-      });
-    } else {
       // Create review entry for failed verification
       await prisma.verificationreview.create({
         data: {
@@ -214,12 +180,60 @@ export async function POST(request: NextRequest) {
         }
       });
 
+      if (verification.error === 'PIN_NOT_ALLOWED') {
+        return NextResponse.json({ 
+          success: false,
+          status: 'PENDING_REVIEW',
+          message: 'PIN not allowed — please use fingerprint/face. Verification sent for officer review.',
+          error: 'PIN_NOT_ALLOWED'
+        }, { status: 400 });
+      }
+
+      if (verification.error === 'CHALLENGE_EXPIRED') {
+        return NextResponse.json({ 
+          message: 'Verification challenge expired. Please try again.',
+          error: 'CHALLENGE_EXPIRED'
+        }, { status: 400 });
+      }
+
       return NextResponse.json({ 
-        success: false, 
+        success: false,
         status: 'PENDING_REVIEW',
-        message: 'Verification failed. Sent for officer review.'
-      });
+        message: 'Verification failed. Sent for officer review.',
+        error: verification.error || 'VERIFICATION_FAILED'
+      }, { status: 400 });
     }
+
+    // Update signCount to prevent replay attacks
+    await prisma.biometriccredential.update({
+      where: { id: storedCredential.id },
+      data: { signCount: verification.signCount }
+    });
+
+    // Create verification log
+    const nextDue = new Date();
+    nextDue.setFullYear(nextDue.getFullYear() + 3);
+
+    await prisma.verificationlog.create({
+      data: {
+        pensionerId: pensioner.id,
+        method: `WINDOWS_HELLO_${normalizedType}`,
+        status: 'SUCCESS',
+        verifiedAt: new Date(),
+        nextDueAt: nextDue
+      }
+    });
+
+    console.log(`[biometric/verify] Successfully verified ${normalizedType} for pensioner ${pensioner.id} (userVerified: ${verification.userVerified})`);
+
+    const response = NextResponse.json({ 
+      success: true, 
+      status: 'SUCCESS',
+      nextDueAt: nextDue,
+      message: `${normalizedType} verification successful`
+    });
+    response.headers.set('Cache-Control', 'no-store');
+    return response;
 
   } catch (err: any) {
     console.error('[biometric/verify] POST error', err);

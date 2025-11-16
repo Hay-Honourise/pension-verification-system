@@ -405,22 +405,22 @@ export default function RegisterPage() {
       {/* Auto-save status indicator - compact */}
       {(isAutoSaving || lastSaved) && (
         <div className="flex items-center justify-center mt-2 sm:mt-3">
-          {isAutoSaving && (
+        {isAutoSaving && (
             <div className="flex items-center text-blue-600 text-xs">
               <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600 mr-1"></div>
-              <span>Saving...</span>
-            </div>
-          )}
-          
-          {lastSaved && !isAutoSaving && (
+            <span>Saving...</span>
+          </div>
+        )}
+        
+        {lastSaved && !isAutoSaving && (
             <div className="flex items-center text-green-600 text-xs">
               <svg className="h-3 w-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-              </svg>
+              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+            </svg>
               <span>Saved</span>
-            </div>
-          )}
-        </div>
+          </div>
+        )}
+      </div>
       )}
     </div>
   );
@@ -681,15 +681,15 @@ export default function RegisterPage() {
       <div>
         <label className="block text-xs sm:text-sm font-medium text-gray-800 mb-1">Password *</label>
         <div className="relative">
-          <input
+        <input
             type={showPassword ? "text" : "password"}
-            value={formData.password}
-            onChange={(e) => updateFormData('password', e.target.value)}
+          value={formData.password}
+          onChange={(e) => updateFormData('password', e.target.value)}
             className={`w-full px-2.5 sm:px-3 py-1.5 sm:py-2 pr-8 sm:pr-10 bg-white text-gray-900 text-sm border rounded-md focus:outline-none focus:ring-1 focus:ring-oyoOrange focus:border-oyoOrange ${
-              errors.password ? 'border-red-500' : 'border-gray-300'
-            }`}
-            placeholder="Create a password (minimum 6 characters)"
-          />
+            errors.password ? 'border-red-500' : 'border-gray-300'
+          }`}
+          placeholder="Create a password (minimum 6 characters)"
+        />
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
@@ -705,15 +705,15 @@ export default function RegisterPage() {
       <div>
         <label className="block text-xs sm:text-sm font-medium text-gray-800 mb-1">Confirm Password *</label>
         <div className="relative">
-          <input
+        <input
             type={showConfirmPassword ? "text" : "password"}
-            value={formData.confirmPassword}
-            onChange={(e) => updateFormData('confirmPassword', e.target.value)}
+          value={formData.confirmPassword}
+          onChange={(e) => updateFormData('confirmPassword', e.target.value)}
             className={`w-full px-2.5 sm:px-3 py-1.5 sm:py-2 pr-8 sm:pr-10 bg-white text-gray-900 text-sm border rounded-md focus:outline-none focus:ring-1 focus:ring-oyoOrange focus:border-oyoOrange ${
-              errors.confirmPassword ? 'border-red-500' : 'border-gray-300'
-            }`}
-            placeholder="Confirm your password"
-          />
+            errors.confirmPassword ? 'border-red-500' : 'border-gray-300'
+          }`}
+          placeholder="Confirm your password"
+        />
           <button
             type="button"
             onClick={() => setShowConfirmPassword(!showConfirmPassword)}

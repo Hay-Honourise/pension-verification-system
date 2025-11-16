@@ -221,7 +221,7 @@ export async function generateDownloadUrl(fileUrl: string, filename?: string) {
       
       if (parsed) {
         const { cluster: urlCluster, bucket: bucketFromUrl, key: keyFromUrl } = parsed;
-        
+      
         console.log('Extracted from Backblaze URL:', { 
           cluster: urlCluster,
           bucket: bucketFromUrl, 
@@ -235,8 +235,8 @@ export async function generateDownloadUrl(fileUrl: string, filename?: string) {
         if (S3_PUBLIC_BASE_URL) {
           configuredCluster = extractClusterFromUrl(S3_PUBLIC_BASE_URL);
           console.log('Cluster from S3_PUBLIC_BASE_URL:', configuredCluster);
-        }
-        
+      }
+      
         // Check for cluster mismatch
         if (configuredCluster && urlCluster !== configuredCluster) {
           console.warn(`⚠️ CLUSTER MISMATCH DETECTED!`);

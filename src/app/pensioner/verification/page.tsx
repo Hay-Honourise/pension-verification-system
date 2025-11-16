@@ -16,6 +16,12 @@ import {
   X,
   BookOpen
 } from 'lucide-react';
+import { 
+  isPlatformAuthenticatorAvailable, 
+  detectModalitySupport, 
+  getModalitySupportMessage,
+  type ModalitySupport 
+} from '@/lib/biometric-client';
 
 interface BiometricCredential {
   id: string;
@@ -40,7 +46,8 @@ export default function BiometricVerificationPage() {
   const [registeredCredentials, setRegisteredCredentials] = useState<BiometricCredential[]>([]);
   const [verificationHistory, setVerificationHistory] = useState<VerificationLog[]>([]);
   const [isWebAuthnSupported, setIsWebAuthnSupported] = useState(false);
-  const [isWindowsHelloSupported, setIsWindowsHelloSupported] = useState(false);
+  const [isPlatformAuthAvailable, setIsPlatformAuthAvailable] = useState(false);
+  const [modalitySupport, setModalitySupport] = useState<ModalitySupport | null>(null);
   const [showHelpModal, setShowHelpModal] = useState(false);
   const [showDebugPanel, setShowDebugPanel] = useState(false);
   const [debugCredentials, setDebugCredentials] = useState<Array<{id: string; type: string; credentialId: string; registeredAt: string}>>([]);
@@ -60,10 +67,23 @@ export default function BiometricVerificationPage() {
     setIsWebAuthnSupported(webAuthnSupported);
 
     if (webAuthnSupported) {
-      // Check if Windows Hello is available
-      window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
-        .then(available => setIsWindowsHelloSupported(available))
-        .catch(() => setIsWindowsHelloSupported(false));
+      // Check platform authenticator availability and detect modality support
+      isPlatformAuthenticatorAvailable()
+        .then(available => {
+          setIsPlatformAuthAvailable(available);
+          if (available) {
+            return detectModalitySupport();
+          }
+          return null;
+        })
+        .then(support => {
+          if (support) {
+            setModalitySupport(support);
+          }
+        })
+        .catch(() => {
+          setIsPlatformAuthAvailable(false);
+        });
     }
 
     loadData();
@@ -129,43 +149,27 @@ export default function BiometricVerificationPage() {
       const challengeData = await challengeRes.json();
       
       // Create credential using WebAuthn
+      // The server returns attestation options in the format expected by @simplewebauthn/server
       const credential = await navigator.credentials.create({
-        publicKey: {
-          challenge: new Uint8Array(challengeData.challenge),
-          rp: {
-            name: "Oyo Pension Verification System",
-            id: window.location.hostname
-          },
-          user: {
-            id: new Uint8Array(challengeData.userId),
-            name: challengeData.userName,
-            displayName: challengeData.userDisplayName
-          },
-          pubKeyCredParams: [
-            { type: "public-key", alg: -7 }, // ES256
-            { type: "public-key", alg: -257 } // RS256
-          ],
-          authenticatorSelection: {
-            authenticatorAttachment: "platform",
-            userVerification: "required"
-          },
-          timeout: 60000,
-          attestation: "direct"
-        }
+        publicKey: challengeData
       }) as PublicKeyCredential;
 
       if (!credential) {
         throw new Error('Failed to create credential');
       }
 
-      // Send credential to server
+      // Send credential to server in the format expected by @simplewebauthn/server
       const response = credential.response as AuthenticatorAttestationResponse;
       const credentialData = {
         id: credential.id,
-        rawId: Array.from(new Uint8Array(credential.rawId)),
+        rawId: btoa(String.fromCharCode(...new Uint8Array(credential.rawId)))
+          .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, ''),
         response: {
-          attestationObject: Array.from(new Uint8Array(response.attestationObject)),
-          clientDataJSON: Array.from(new Uint8Array(response.clientDataJSON))
+          attestationObject: btoa(String.fromCharCode(...new Uint8Array(response.attestationObject)))
+            .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, ''),
+          clientDataJSON: btoa(String.fromCharCode(...new Uint8Array(response.clientDataJSON)))
+            .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, ''),
+          transports: response.getTransports ? response.getTransports() : undefined
         },
         type: credential.type
       };
@@ -188,6 +192,16 @@ export default function BiometricVerificationPage() {
         showMessage(`${type} registration successful!`, 'success');
         loadData(); // Reload credentials
       } else {
+        // Handle specific error codes
+        if (result.error === 'PIN_NOT_ALLOWED') {
+          throw new Error('PIN-based registration is not allowed. Please use a biometric-enabled device or select another method.');
+        }
+        if (result.error === 'ALREADY_REGISTERED') {
+          throw new Error(`${type} is already registered. Please delete it first if you want to re-register.`);
+        }
+        if (result.error === 'CHALLENGE_EXPIRED') {
+          throw new Error('Registration challenge expired. Please try again.');
+        }
         throw new Error(result.message || 'Registration failed');
       }
 
@@ -242,33 +256,41 @@ export default function BiometricVerificationPage() {
       };
 
       // Get credential for verification
-      // The server sends credentialId as base64url string, we need to decode it
+      // The server returns authentication options in the format expected by @simplewebauthn/server
+      // We need to convert the challenge and allowCredentials to the format expected by navigator.credentials.get
+      const publicKeyOptions = {
+        ...challengeData,
+        challenge: base64UrlToUint8Array(challengeData.challenge),
+        allowCredentials: challengeData.allowCredentials?.map((cred: any) => ({
+          id: base64UrlToUint8Array(cred.id),
+          type: 'public-key',
+          transports: cred.transports || ['internal']
+        })) || []
+      };
+
       const credential = await navigator.credentials.get({
-        publicKey: {
-          challenge: new Uint8Array(challengeData.challenge),
-          allowCredentials: challengeData.allowCredentials.map((cred: any) => ({
-            id: base64UrlToUint8Array(cred.id), // Decode base64url string to Uint8Array
-            type: 'public-key',
-            transports: ['internal']
-          })),
-          userVerification: "required",
-          timeout: 60000
-        }
+        publicKey: publicKeyOptions
       }) as PublicKeyCredential;
 
       if (!credential) {
         throw new Error('Verification failed');
       }
 
-      // Send verification result to server
+      // Send verification result to server in the format expected by @simplewebauthn/server
       const response = credential.response as AuthenticatorAssertionResponse;
       const verificationData = {
         id: credential.id,
-        rawId: Array.from(new Uint8Array(credential.rawId)),
+        rawId: btoa(String.fromCharCode(...new Uint8Array(credential.rawId)))
+          .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, ''),
         response: {
-          authenticatorData: Array.from(new Uint8Array(response.authenticatorData)),
-          clientDataJSON: Array.from(new Uint8Array(response.clientDataJSON)),
-          signature: Array.from(new Uint8Array(response.signature))
+          authenticatorData: btoa(String.fromCharCode(...new Uint8Array(response.authenticatorData)))
+            .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, ''),
+          clientDataJSON: btoa(String.fromCharCode(...new Uint8Array(response.clientDataJSON)))
+            .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, ''),
+          signature: btoa(String.fromCharCode(...new Uint8Array(response.signature)))
+            .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, ''),
+          userHandle: response.userHandle ? btoa(String.fromCharCode(...new Uint8Array(response.userHandle)))
+            .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '') : null
         },
         type: credential.type
       };
@@ -294,6 +316,13 @@ export default function BiometricVerificationPage() {
         showMessage('Verification failed. Sent for officer review.', 'info');
         loadData();
       } else {
+        // Handle specific error codes
+        if (result.error === 'PIN_NOT_ALLOWED') {
+          throw new Error('PIN not allowed — please use fingerprint/face.');
+        }
+        if (result.error === 'CHALLENGE_EXPIRED') {
+          throw new Error('Verification challenge expired. Please try again.');
+        }
         throw new Error(result.message || 'Verification failed');
       }
 
@@ -338,21 +367,22 @@ export default function BiometricVerificationPage() {
           </div>
         </div>
 
-        {/* Windows Hello Modality Info */}
-        {isWebAuthnSupported && isWindowsHelloSupported && (
+        {/* Device Capability Detection */}
+        {modalitySupport && (
           <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
             <div className="flex items-start">
               <AlertTriangle className="w-5 h-5 text-blue-600 mr-2 mt-0.5" />
               <div>
-                <h3 className="text-sm font-medium text-blue-800">About Windows Hello Modality Selection</h3>
+                <h3 className="text-sm font-medium text-blue-800">Device Capability Detection</h3>
                 <p className="text-sm text-blue-700 mt-1">
-                  Windows Hello chooses the biometric modality (face or fingerprint) based on your device settings and what's available. 
-                  If you register "Face" but see a fingerprint prompt (or vice versa), this is normal Windows Hello behavior. 
-                  The system stores separate credentials for each type, so make sure to register both if you want to use both modalities.
+                  {getModalitySupportMessage(modalitySupport)}
                 </p>
-                <p className="text-sm text-blue-700 mt-2">
-                  <strong>Tip:</strong> To ensure Face registration works, make sure Face is set up in Windows Settings → Accounts → Sign-in options → Windows Hello Face.
-                </p>
+                {modalitySupport.deviceType === 'windows' && (
+                  <p className="text-sm text-blue-700 mt-2">
+                    <strong>Note:</strong> Windows Hello chooses the biometric modality (face or fingerprint) based on your device settings. 
+                    The system stores separate credentials for each type, so make sure to register both if you want to use both modalities.
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -375,8 +405,21 @@ export default function BiometricVerificationPage() {
                 <strong>WebAuthn Supported:</strong> {isWebAuthnSupported ? 'Yes' : 'No'}
               </div>
               <div>
-                <strong>Windows Hello Available:</strong> {isWindowsHelloSupported ? 'Yes' : 'No'}
+                <strong>Platform Authenticator Available:</strong> {isPlatformAuthAvailable ? 'Yes' : 'No'}
               </div>
+              {modalitySupport && (
+                <>
+                  <div>
+                    <strong>Device Type:</strong> {modalitySupport.deviceType}
+                  </div>
+                  <div>
+                    <strong>Face Support:</strong> {modalitySupport.face}
+                  </div>
+                  <div>
+                    <strong>Fingerprint Support:</strong> {modalitySupport.fingerprint}
+                  </div>
+                </>
+              )}
               <div className="mt-4">
                 <strong>Registered Credentials:</strong>
                 {debugCredentials.length === 0 ? (
@@ -410,13 +453,19 @@ export default function BiometricVerificationPage() {
           </div>
         )}
 
-        {isWebAuthnSupported && !isWindowsHelloSupported && (
+        {isWebAuthnSupported && !isPlatformAuthAvailable && (
           <div className="mb-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
             <div className="flex items-center">
               <AlertTriangle className="w-5 h-5 text-yellow-600 mr-2" />
               <div>
-                <h3 className="text-sm font-medium text-yellow-800">Windows Hello Not Available</h3>
-                <p className="text-sm text-yellow-700 mt-1">Windows Hello is not set up on this device. Please configure it in Windows Settings.</p>
+                <h3 className="text-sm font-medium text-yellow-800">Platform Authenticator Not Available</h3>
+                <p className="text-sm text-yellow-700 mt-1">
+                  Platform biometric authentication is not set up on this device. Please configure it in your device settings.
+                  {modalitySupport?.deviceType === 'windows' && ' (Windows Settings → Accounts → Sign-in options → Windows Hello)'}
+                </p>
+                <p className="text-sm text-yellow-700 mt-2">
+                  <strong>Alternative:</strong> If your device doesn't support biometrics, please visit the nearest Pension Desk to register biometrics.
+                </p>
               </div>
             </div>
           </div>
@@ -464,12 +513,15 @@ export default function BiometricVerificationPage() {
                 ) : (
                   <button
                     onClick={() => registerBiometric('FACE')}
-                    disabled={!isWebAuthnSupported || isLoading}
+                    disabled={!isPlatformAuthAvailable || isLoading || (modalitySupport?.face === 'unavailable')}
                     className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                   >
                     {isLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <User className="w-4 h-4 mr-2" />}
                     Register Face
                   </button>
+                  {modalitySupport?.face === 'unavailable' && (
+                    <p className="text-xs text-gray-500 mt-2">Face authentication not available on this device</p>
+                  )}
                 )}
               </div>
 
@@ -478,7 +530,7 @@ export default function BiometricVerificationPage() {
                 <h3 className="font-medium text-gray-900 mb-3">Verification</h3>
                 <button
                   onClick={() => verifyBiometric('FACE')}
-                  disabled={!isRegistered('FACE') || !isWebAuthnSupported || isLoading}
+                  disabled={!isRegistered('FACE') || !isPlatformAuthAvailable || isLoading}
                   className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                 >
                   {isLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Shield className="w-4 h-4 mr-2" />}
@@ -512,12 +564,15 @@ export default function BiometricVerificationPage() {
                 ) : (
                   <button
                     onClick={() => registerBiometric('FINGERPRINT')}
-                    disabled={!isWebAuthnSupported || isLoading}
+                    disabled={!isPlatformAuthAvailable || isLoading || (modalitySupport?.fingerprint === 'unavailable')}
                     className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                   >
                     {isLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Fingerprint className="w-4 h-4 mr-2" />}
                     Register Fingerprint
                   </button>
+                  {modalitySupport?.fingerprint === 'unavailable' && (
+                    <p className="text-xs text-gray-500 mt-2">Fingerprint authentication not available on this device</p>
+                  )}
                 )}
               </div>
 
@@ -526,7 +581,7 @@ export default function BiometricVerificationPage() {
                 <h3 className="font-medium text-gray-900 mb-3">Verification</h3>
                 <button
                   onClick={() => verifyBiometric('FINGERPRINT')}
-                  disabled={!isRegistered('FINGERPRINT') || !isWebAuthnSupported || isLoading}
+                  disabled={!isRegistered('FINGERPRINT') || !isPlatformAuthAvailable || isLoading}
                   className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                 >
                   {isLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Shield className="w-4 h-4 mr-2" />}

@@ -134,12 +134,15 @@ model biometriccredential {
   id           String    @id @default(cuid())
   pensionerId  Int
   type         String    // "FACE" | "FINGERPRINT"
-  credentialId String
-  publicKey    String    // JSON string of the credential data
+  credentialId String   @unique
+  publicKey    String    // Base64url encoded public key
+  signCount    Int       @default(0)
+  transports   String?   // JSON array of transport methods
   registeredAt DateTime  @default(now())
   pensioner    pensioner @relation(fields: [pensionerId], references: [id], map: "BiometricCredential_pensionerId_fkey")
 
   @@index([pensionerId], map: "BiometricCredential_pensionerId_idx")
+  @@index([credentialId], map: "BiometricCredential_credentialId_idx")
 }
 
 enum user_role {

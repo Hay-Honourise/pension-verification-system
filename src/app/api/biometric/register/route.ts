@@ -1,36 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { verifyToken } from '@/lib/auth';
-import { randomBytes } from 'crypto';
-
-// In-memory challenge storage (keyed by userId_type)
-// In production, use Redis or similar for distributed systems
-const registrationChallenges = new Map<string, { challenge: Buffer; expiresAt: number }>();
-
-// Clean up expired challenges every 5 minutes
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, value] of registrationChallenges.entries()) {
-    if (value.expiresAt < now) {
-      registrationChallenges.delete(key);
-    }
-  }
-}, 5 * 60 * 1000);
+import { generateRegistrationOptions, verifyRegistrationResponse, bufferToBase64Url } from '@/lib/webauthn';
 
 export async function GET(request: NextRequest) {
   try {
     const authHeader = request.headers.get('authorization');
     const bearer = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
-    if (!bearer) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+    if (!bearer) {
+      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+    }
 
     const token = verifyToken(bearer);
-    if (!token?.id) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+    if (!token?.id) {
+      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+    }
 
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type')?.toUpperCase();
     
     if (!type || !['FACE', 'FINGERPRINT'].includes(type)) {
-      return NextResponse.json({ message: 'Invalid biometric type. Must be FACE or FINGERPRINT' }, { status: 400 });
+      return NextResponse.json({ 
+        message: 'Invalid biometric type. Must be FACE or FINGERPRINT',
+        error: 'INVALID_TYPE'
+      }, { status: 400 });
     }
 
     // Get pensioner info
@@ -58,34 +51,32 @@ export async function GET(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Generate challenge and store it per type
-    const challenge = randomBytes(32);
-    // Use different user IDs for FACE vs FINGERPRINT to force separate credentials
-    // This helps Windows Hello distinguish between the two modalities
-    const userIdBytes = new TextEncoder().encode(`${pensioner.id}_${type}`);
+    // Generate attestation options using @simplewebauthn/server
+    const userId = `${pensioner.id}_${type}`;
     const userName = `${pensioner.email}_${type}`;
     const userDisplayName = `${pensioner.fullName} (${type})`;
+    const challengeKey = `${pensioner.id}_${type}_reg`;
 
-    // Store challenge with expiration (5 minutes)
-    const challengeKey = `${pensioner.id}_${type}`;
-    registrationChallenges.set(challengeKey, {
-      challenge,
-      expiresAt: Date.now() + 5 * 60 * 1000
-    });
-
-    console.log(`[biometric/register] Generated challenge for pensioner ${pensioner.id}, type ${type}`);
-
-    return NextResponse.json({
-      challenge: Array.from(challenge),
-      userId: Array.from(userIdBytes),
+    const attestationOptions = await generateRegistrationOptions(
+      userId,
       userName,
       userDisplayName,
-      rpId: process.env.RP_ID || 'localhost'
-    });
+      challengeKey
+    );
 
-  } catch (err) {
+    console.log(`[biometric/register] Generated attestation options for pensioner ${pensioner.id}, type ${type}`);
+
+    const response = NextResponse.json(attestationOptions);
+    response.headers.set('Cache-Control', 'no-store');
+    return response;
+
+  } catch (err: any) {
     console.error('[biometric/register] GET error', err);
-    return NextResponse.json({ message: 'Server error', error: 'SERVER_ERROR' }, { status: 500 });
+    return NextResponse.json({ 
+      message: 'Server error',
+      error: 'SERVER_ERROR',
+      details: process.env.NODE_ENV === 'development' ? err.message : undefined
+    }, { status: 500 });
   }
 }
 
@@ -93,10 +84,14 @@ export async function POST(request: NextRequest) {
   try {
     const authHeader = request.headers.get('authorization');
     const bearer = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
-    if (!bearer) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+    if (!bearer) {
+      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+    }
 
     const token = verifyToken(bearer);
-    if (!token?.id) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+    if (!token?.id) {
+      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+    }
 
     const body = await request.json();
     const { type, credential } = body;
@@ -143,42 +138,63 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Verify challenge was issued (optional but recommended)
-    const challengeKey = `${pensioner.id}_${normalizedType}`;
-    const storedChallenge = registrationChallenges.get(challengeKey);
-    if (storedChallenge && storedChallenge.expiresAt < Date.now()) {
-      registrationChallenges.delete(challengeKey);
+    // Verify attestation response
+    const challengeKey = `${pensioner.id}_${normalizedType}_reg`;
+    const origin = request.headers.get('origin') || process.env.NEXT_PUBLIC_ORIGIN || 'http://localhost:3000';
+    
+    const verification = await verifyRegistrationResponse(
+      credential,
+      challengeKey,
+      origin
+    );
+
+    if (!verification.verified) {
+      console.error(`[biometric/register] Verification failed: ${verification.error}`);
+      
+      if (verification.error === 'CHALLENGE_EXPIRED') {
+        return NextResponse.json({ 
+          message: 'Registration challenge expired. Please try again.',
+          error: 'CHALLENGE_EXPIRED'
+        }, { status: 400 });
+      }
+
+      if (verification.error === 'PIN_NOT_ALLOWED' || verification.error?.includes('PIN')) {
+        return NextResponse.json({ 
+          message: 'PIN-based registration is not allowed. Please use a biometric-enabled device or select another method.',
+          error: 'PIN_NOT_ALLOWED'
+        }, { status: 400 });
+      }
+
       return NextResponse.json({ 
-        message: 'Registration challenge expired. Please try again.',
-        error: 'CHALLENGE_EXPIRED'
+        message: 'Registration verification failed. Please try again.',
+        error: verification.error || 'VERIFICATION_FAILED'
       }, { status: 400 });
     }
 
-    // Store credentialId as base64url string (WebAuthn standard format)
-    // credential.id is already a base64url string from the browser
-    const credentialId = credential.id;
-
-    // Store the credential with proper type separation
+    // Store the credential
+    const transportsJson = verification.transports ? JSON.stringify(verification.transports) : null;
+    
     await prisma.biometriccredential.create({
       data: {
         pensionerId: pensioner.id,
         type: normalizedType as 'FACE' | 'FINGERPRINT',
-        credentialId: credentialId,
-        publicKey: JSON.stringify(credential.response),
+        credentialId: verification.credentialId,
+        publicKey: bufferToBase64Url(verification.publicKey), // Store as base64url
+        signCount: verification.signCount,
+        transports: transportsJson,
         registeredAt: new Date()
       }
     });
 
-    // Clean up challenge
-    registrationChallenges.delete(challengeKey);
+    console.log(`[biometric/register] Successfully registered ${normalizedType} for pensioner ${pensioner.id}, credentialId: ${verification.credentialId.substring(0, 20)}...`);
 
-    console.log(`[biometric/register] Successfully registered ${normalizedType} for pensioner ${pensioner.id}, credentialId: ${credentialId.substring(0, 20)}...`);
-
-    return NextResponse.json({ 
+    const response = NextResponse.json({ 
       success: true, 
       message: `${normalizedType} registered successfully`,
-      credentialId: credentialId
+      credentialId: verification.credentialId
     });
+    response.headers.set('Cache-Control', 'no-store');
+    return response;
 
   } catch (err: any) {
     console.error('[biometric/register] POST error', err);
