@@ -511,17 +511,19 @@ export default function BiometricVerificationPage() {
                     <span className="text-sm">Face registered successfully</span>
                   </div>
                 ) : (
-                  <button
-                    onClick={() => registerBiometric('FACE')}
-                    disabled={!isPlatformAuthAvailable || isLoading || (modalitySupport?.face === 'unavailable')}
-                    className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-                  >
-                    {isLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <User className="w-4 h-4 mr-2" />}
-                    Register Face
-                  </button>
-                  {modalitySupport?.face === 'unavailable' && (
-                    <p className="text-xs text-gray-500 mt-2">Face authentication not available on this device</p>
-                  )}
+                  <>
+                    <button
+                      onClick={() => registerBiometric('FACE')}
+                      disabled={!isPlatformAuthAvailable || isLoading || (modalitySupport?.face === 'unavailable')}
+                      className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                    >
+                      {isLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <User className="w-4 h-4 mr-2" />}
+                      Register Face
+                    </button>
+                    {modalitySupport?.face === 'unavailable' && (
+                      <p className="text-xs text-gray-500 mt-2">Face authentication not available on this device</p>
+                    )}
+                  </>
                 )}
               </div>
 
@@ -562,17 +564,19 @@ export default function BiometricVerificationPage() {
                     <span className="text-sm">Fingerprint registered successfully</span>
                   </div>
                 ) : (
-                  <button
-                    onClick={() => registerBiometric('FINGERPRINT')}
-                    disabled={!isPlatformAuthAvailable || isLoading || (modalitySupport?.fingerprint === 'unavailable')}
-                    className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-                  >
-                    {isLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Fingerprint className="w-4 h-4 mr-2" />}
-                    Register Fingerprint
-                  </button>
-                  {modalitySupport?.fingerprint === 'unavailable' && (
-                    <p className="text-xs text-gray-500 mt-2">Fingerprint authentication not available on this device</p>
-                  )}
+                  <>
+                    <button
+                      onClick={() => registerBiometric('FINGERPRINT')}
+                      disabled={!isPlatformAuthAvailable || isLoading || (modalitySupport?.fingerprint === 'unavailable')}
+                      className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                    >
+                      {isLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Fingerprint className="w-4 h-4 mr-2" />}
+                      Register Fingerprint
+                    </button>
+                    {modalitySupport?.fingerprint === 'unavailable' && (
+                      <p className="text-xs text-gray-500 mt-2">Fingerprint authentication not available on this device</p>
+                    )}
+                  </>
                 )}
               </div>
 
