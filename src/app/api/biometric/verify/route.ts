@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { verifyToken } from '@/lib/auth';
-import { generateAuthOptions, verifyAuthenticationResponse, base64UrlToBuffer } from '@/lib/webauthn';
+import { generateAuthOptionsForUser, verifyAuthenticationResponseForUser, base64UrlToBuffer } from '@/lib/webauthn';
 
 export async function GET(request: NextRequest) {
   try {
@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
 
     // Generate authentication options
     const challengeKey = `${token.id}_${type}_auth`;
-    const authOptions = await generateAuthOptions(allowCredentials, challengeKey);
+    const authOptions = await generateAuthOptionsForUser(allowCredentials, challengeKey);
 
     console.log(`[biometric/verify] Generated authentication options for pensioner ${token.id}, type ${type}, ${credentials.length} credential(s)`);
 
@@ -146,14 +146,14 @@ export async function POST(request: NextRequest) {
     const challengeKey = `${pensioner.id}_${normalizedType}_auth`;
     const origin = request.headers.get('origin') || process.env.NEXT_PUBLIC_ORIGIN || 'http://localhost:3000';
     
-    // Convert stored publicKey from base64url back to Buffer
-    const publicKeyBuffer = base64UrlToBuffer(storedCredential.publicKey);
+    // Convert stored publicKey from base64url back to Uint8Array
+    const publicKeyUint8Array = new Uint8Array(base64UrlToBuffer(storedCredential.publicKey));
 
-    const verification = await verifyAuthenticationResponse(
+    const verification = await verifyAuthenticationResponseForUser(
       credential,
       {
         credentialId: storedCredential.credentialId,
-        publicKey: publicKeyBuffer,
+        publicKey: publicKeyUint8Array,
         signCount: storedCredential.signCount
       },
       challengeKey,

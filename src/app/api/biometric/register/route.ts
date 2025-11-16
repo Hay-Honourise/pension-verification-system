@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { verifyToken } from '@/lib/auth';
-import { generateRegistrationOptions, verifyRegistrationResponse, bufferToBase64Url } from '@/lib/webauthn';
+import { generateRegistrationOptionsForUser, verifyRegistrationResponseForUser, bufferToBase64Url } from '@/lib/webauthn';
 
 export async function GET(request: NextRequest) {
   try {
@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
     const userDisplayName = `${pensioner.fullName} (${type})`;
     const challengeKey = `${pensioner.id}_${type}_reg`;
 
-    const attestationOptions = await generateRegistrationOptions(
+    const attestationOptions = await generateRegistrationOptionsForUser(
       userId,
       userName,
       userDisplayName,
@@ -142,7 +142,7 @@ export async function POST(request: NextRequest) {
     const challengeKey = `${pensioner.id}_${normalizedType}_reg`;
     const origin = request.headers.get('origin') || process.env.NEXT_PUBLIC_ORIGIN || 'http://localhost:3000';
     
-    const verification = await verifyRegistrationResponse(
+    const verification = await verifyRegistrationResponseForUser(
       credential,
       challengeKey,
       origin

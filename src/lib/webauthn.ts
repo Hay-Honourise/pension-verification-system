@@ -1,10 +1,10 @@
 import {
-  generateAttestationOptions,
-  verifyAttestationResponse,
+  generateRegistrationOptions,
+  verifyRegistrationResponse,
   generateAuthenticationOptions,
   verifyAuthenticationResponse,
-  type GenerateAttestationOptionsOpts,
-  type VerifyAttestationResponseOpts,
+  type GenerateRegistrationOptionsOpts,
+  type VerifyRegistrationResponseOpts,
   type GenerateAuthenticationOptionsOpts,
   type VerifyAuthenticationResponseOpts,
 } from '@simplewebauthn/server';
@@ -12,7 +12,7 @@ import {
 // Using any for now to avoid type issues, will be properly typed by the library
 type AttestationCredentialJSON = any;
 type AuthenticationCredentialJSON = any;
-import { getChallenge, deleteChallenge } from './challenges';
+import { getChallenge, deleteChallenge, setChallenge } from './challenges';
 
 const rpId = process.env.RP_ID || (typeof window !== 'undefined' ? window.location.hostname : 'localhost');
 const rpName = process.env.RP_NAME || 'Oyo Pension Verification System';
@@ -42,16 +42,16 @@ export function bufferToBase64Url(buffer: Buffer | Uint8Array): string {
 /**
  * Generate attestation options for registration
  */
-export async function generateRegistrationOptions(
+export async function generateRegistrationOptionsForUser(
   userId: string,
   userName: string,
   userDisplayName: string,
   challengeKey: string
 ): Promise<any> {
-  const opts: GenerateAttestationOptionsOpts = {
+  const opts: GenerateRegistrationOptionsOpts = {
     rpName,
     rpID: rpId,
-    userID: Buffer.from(userId),
+    userID: new TextEncoder().encode(userId), // Convert string to Uint8Array
     userName,
     userDisplayName,
     timeout: 60000,
@@ -73,10 +73,10 @@ export async function generateRegistrationOptions(
     supportedAlgorithmIDs: [-7, -257], // ES256, RS256
   };
 
-  const options = await generateAttestationOptions(opts);
+  const options = await generateRegistrationOptions(opts);
 
-  // Store challenge
-  const challengeBuffer = base64UrlToBuffer(options.challenge);
+  // Store challenge (options.challenge is a base64url string, convert to Buffer for storage)
+  const challengeBuffer = Buffer.from(options.challenge, 'base64url');
   await setChallenge(challengeKey, challengeBuffer, 300); // 5 minutes TTL
 
   return options;
@@ -85,8 +85,8 @@ export async function generateRegistrationOptions(
 /**
  * Verify attestation response (registration)
  */
-export async function verifyRegistrationResponse(
-  credential: AttestationCredentialJSON,
+export async function verifyRegistrationResponseForUser(
+  credentialData: AttestationCredentialJSON,
   challengeKey: string,
   expectedOrigin: string = origin
 ): Promise<{ verified: boolean; credentialId: string; publicKey: Buffer; signCount: number; transports?: string[]; error?: string }> {
@@ -103,18 +103,18 @@ export async function verifyRegistrationResponse(
   }
 
   // Convert credential ID from base64url to Buffer
-  const credentialIdBuffer = base64UrlToBuffer(credential.id);
+  const credentialIdBuffer = base64UrlToBuffer(credentialData.id);
 
-  const opts: VerifyAttestationResponseOpts = {
-    response: credential,
-    expectedChallenge: bufferToBase64Url(expectedChallenge),
+  const opts: VerifyRegistrationResponseOpts = {
+    response: credentialData,
+    expectedChallenge: bufferToBase64Url(expectedChallenge), // Convert Buffer to base64url string
     expectedOrigin,
     expectedRPID: rpId,
     requireUserVerification: true, // Require user verification (biometric or PIN)
   };
 
   try {
-    const verification = await verifyAttestationResponse(opts);
+    const verification = await verifyRegistrationResponse(opts);
 
     if (!verification.verified) {
       return {
@@ -140,7 +140,10 @@ export async function verifyRegistrationResponse(
     }
 
     // Extract credential info
-    const { credentialID, credentialPublicKey, counter, fmt } = verification.registrationInfo;
+    const { credential } = verification.registrationInfo;
+    const credentialID = credential.id;
+    const credentialPublicKey = credential.publicKey;
+    const counter = credential.counter;
 
     // Delete challenge after successful verification
     await deleteChallenge(challengeKey);
@@ -150,7 +153,7 @@ export async function verifyRegistrationResponse(
       credentialId: bufferToBase64Url(Buffer.from(credentialID)),
       publicKey: Buffer.from(credentialPublicKey),
       signCount: counter,
-      transports: credential.response.transports,
+      transports: credentialData.response?.transports || undefined,
     };
   } catch (error: any) {
     console.error('[webauthn] Registration verification error:', error);
@@ -167,7 +170,7 @@ export async function verifyRegistrationResponse(
 /**
  * Generate authentication options for verification
  */
-export async function generateAuthOptions(
+export async function generateAuthOptionsForUser(
   allowCredentials: Array<{ id: string; type: string; transports?: string[] }>,
   challengeKey: string
 ): Promise<any> {
@@ -175,8 +178,7 @@ export async function generateAuthOptions(
     rpID: rpId,
     timeout: 60000,
     allowCredentials: allowCredentials.map(cred => ({
-      id: base64UrlToBuffer(cred.id),
-      type: 'public-key',
+      id: cred.id, // Keep as base64url string (Base64URLString)
       transports: cred.transports as any,
     })),
     userVerification: 'required', // Require user verification (biometric or PIN)
@@ -184,8 +186,8 @@ export async function generateAuthOptions(
 
   const options = await generateAuthenticationOptions(opts);
 
-  // Store challenge
-  const challengeBuffer = base64UrlToBuffer(options.challenge);
+  // Store challenge (options.challenge is a base64url string, convert to Buffer for storage)
+  const challengeBuffer = Buffer.from(options.challenge, 'base64url');
   await setChallenge(challengeKey, challengeBuffer, 300); // 5 minutes TTL
 
   return options;
@@ -195,9 +197,9 @@ export async function generateAuthOptions(
  * Verify authentication response (verification)
  * This function enforces biometric-only by rejecting PIN-only authentications
  */
-export async function verifyAuthenticationResponse(
+export async function verifyAuthenticationResponseForUser(
   credential: AuthenticationCredentialJSON,
-  storedCredential: { credentialId: string; publicKey: Buffer; signCount: number },
+  storedCredential: { credentialId: string; publicKey: string | Uint8Array; signCount: number },
   challengeKey: string,
   expectedOrigin: string = origin
 ): Promise<{ verified: boolean; signCount: number; error?: string; userVerified?: boolean }> {
@@ -211,17 +213,35 @@ export async function verifyAuthenticationResponse(
     };
   }
 
-  // Convert credential ID from base64url to Buffer
-  const credentialIdBuffer = base64UrlToBuffer(credential.id);
+  // Convert publicKey from base64url string to Uint8Array (WebAuthnCredential expects Uint8Array<ArrayBuffer>)
+  // If publicKey is already a Uint8Array, use it directly; otherwise convert from base64url string
+  let publicKeyUint8Array: Uint8Array<ArrayBuffer>;
+  if (storedCredential.publicKey instanceof Uint8Array) {
+    // If already Uint8Array, ensure it has ArrayBuffer backing (not ArrayBufferLike)
+    const existingArray = storedCredential.publicKey;
+    const arrayBuffer = new ArrayBuffer(existingArray.length);
+    const view = new Uint8Array(arrayBuffer);
+    view.set(existingArray);
+    publicKeyUint8Array = view;
+  } else {
+    // Convert from base64url string to Buffer, then to Uint8Array with proper ArrayBuffer
+    const buffer = base64UrlToBuffer(storedCredential.publicKey as string);
+    // Create a new ArrayBuffer and copy the data to ensure it's ArrayBuffer, not ArrayBufferLike
+    const arrayBuffer = new ArrayBuffer(buffer.length);
+    const view = new Uint8Array(arrayBuffer);
+    view.set(buffer);
+    publicKeyUint8Array = view;
+  }
 
+  // WebAuthnCredential.id expects a Base64URLString (string), not Uint8Array
   const opts: VerifyAuthenticationResponseOpts = {
     response: credential,
     expectedChallenge: bufferToBase64Url(expectedChallenge),
     expectedOrigin,
     expectedRPID: rpId,
     credential: {
-      id: credentialIdBuffer,
-      publicKey: storedCredential.publicKey,
+      id: storedCredential.credentialId, // Base64URLString (already stored as base64url string)
+      publicKey: publicKeyUint8Array, // Convert Buffer to Uint8Array
       counter: storedCredential.signCount,
     },
     requireUserVerification: true, // Require user verification
