@@ -64,6 +64,7 @@ model pensioner {
   status                 String               @default("PENDING_VERIFICATION")
   createdAt              DateTime             @default(now())
   updatedAt              DateTime
+  lastLogin              DateTime?
   gratuityRate           Float?
   monthlyPension         Float?
   pensionRate            Float?

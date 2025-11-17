@@ -625,6 +625,17 @@ export default function AdminDashboard() {
                       {selectedPensioner.status}
                     </span>
                   </div>
+                  <div className="text-gray-900"><span className="font-medium text-gray-900">Last Login:</span> <span className="text-gray-900">
+                    {selectedPensioner.lastLogin 
+                      ? new Date(selectedPensioner.lastLogin).toLocaleString('en-US', { 
+                          year: 'numeric', 
+                          month: 'short', 
+                          day: 'numeric', 
+                          hour: '2-digit', 
+                          minute: '2-digit' 
+                        })
+                      : 'Never'}
+                  </span></div>
                   <div className="text-gray-900"><span className="font-medium text-gray-900">Created:</span> <span className="text-gray-900">{new Date(selectedPensioner.createdAt).toLocaleDateString()}</span></div>
                   <div className="text-gray-900"><span className="font-medium text-gray-900">Updated:</span> <span className="text-gray-900">{new Date(selectedPensioner.updatedAt).toLocaleDateString()}</span></div>
                 </div>
@@ -1107,7 +1118,14 @@ function PensionerManagement({
                         )}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{pensioner.lastLogin}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                      <div className="flex items-center gap-2">
+                        <Clock className="w-4 h-4 text-gray-400" />
+                        <span className={pensioner.lastLogin === 'Never' ? 'text-gray-400 italic' : ''}>
+                          {pensioner.lastLogin}
+                        </span>
+                      </div>
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{pensioner.dateRegistered}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex space-x-2">

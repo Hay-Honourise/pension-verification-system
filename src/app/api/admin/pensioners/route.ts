@@ -54,6 +54,7 @@ export async function GET(request: NextRequest) {
           status: true,
           pensionSchemeType: true,
           createdAt: true,
+          lastLogin: true,
           pensionerfile: {
             select: {
               fileType: true,
@@ -66,17 +67,39 @@ export async function GET(request: NextRequest) {
     ]);
 
     // Format pensioners data
-    const formattedPensioners = pensioners.map(pensioner => ({
-      id: pensioner.id, // Use database ID, not pensionId
-      pensionId: pensioner.pensionId,
-      fullName: pensioner.fullName,
-      name: pensioner.fullName, // Keep both for compatibility
-      category: pensioner.pensionSchemeType || 'Unknown',
-      status: pensioner.status,
-      documents: pensioner.pensionerfile.map(file => file.originalName),
-      lastLogin: 'N/A', // This field doesn't exist in the schema
-      dateRegistered: new Date(pensioner.createdAt).toLocaleDateString()
-    }));
+    const formattedPensioners = pensioners.map(pensioner => {
+      let lastLoginFormatted = 'Never';
+      if (pensioner.lastLogin) {
+        try {
+          const date = new Date(pensioner.lastLogin);
+          // Format date safely for server-side rendering
+          const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+          const month = months[date.getMonth()];
+          const day = date.getDate();
+          const year = date.getFullYear();
+          let hours = date.getHours();
+          const minutes = date.getMinutes().toString().padStart(2, '0');
+          const ampm = hours >= 12 ? 'PM' : 'AM';
+          hours = hours % 12 || 12;
+          lastLoginFormatted = `${month} ${day}, ${year}, ${hours}:${minutes} ${ampm}`;
+        } catch (error) {
+          console.error('[admin/pensioners] Error formatting lastLogin:', error);
+          lastLoginFormatted = 'Invalid date';
+        }
+      }
+      
+      return {
+        id: pensioner.id, // Use database ID, not pensionId
+        pensionId: pensioner.pensionId,
+        fullName: pensioner.fullName,
+        name: pensioner.fullName, // Keep both for compatibility
+        category: pensioner.pensionSchemeType || 'Unknown',
+        status: pensioner.status,
+        documents: pensioner.pensionerfile.map(file => file.originalName),
+        lastLogin: lastLoginFormatted,
+        dateRegistered: new Date(pensioner.createdAt).toLocaleDateString()
+      };
+    });
 
     return NextResponse.json({
       pensioners: formattedPensioners,
@@ -88,6 +111,16 @@ export async function GET(request: NextRequest) {
 
   } catch (err) {
     console.error('[admin/pensioners] error', err);
-    return NextResponse.json({ message: 'Server error' }, { status: 500 });
+    // Log the full error details in development
+    if (process.env.NODE_ENV === 'development') {
+      console.error('[admin/pensioners] error details:', {
+        message: err instanceof Error ? err.message : 'Unknown error',
+        stack: err instanceof Error ? err.stack : undefined
+      });
+    }
+    return NextResponse.json({ 
+      message: 'Server error',
+      error: process.env.NODE_ENV === 'development' && err instanceof Error ? err.message : undefined
+    }, { status: 500 });
   }
 }

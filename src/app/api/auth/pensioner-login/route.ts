@@ -34,6 +34,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Update last login timestamp
+    await prisma.pensioner.update({
+      where: { id: pensioner.id },
+      data: { lastLogin: new Date() }
+    });
+
     // Generate JWT token
     const token = generateToken({
       id: pensioner.id,
