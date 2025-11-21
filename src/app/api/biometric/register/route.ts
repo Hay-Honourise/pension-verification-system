@@ -57,11 +57,15 @@ export async function GET(request: NextRequest) {
     const userDisplayName = `${pensioner.fullName} (${type})`;
     const challengeKey = `${pensioner.id}_${type}_reg`;
 
+    // Extract hostname from request URL for rpId
+    const requestUrl = request.url;
+
     const attestationOptions = await generateRegistrationOptionsForUser(
       userId,
       userName,
       userDisplayName,
-      challengeKey
+      challengeKey,
+      requestUrl
     );
 
     console.log(`[biometric/register] Generated attestation options for pensioner ${pensioner.id}, type ${type}`);
@@ -141,11 +145,13 @@ export async function POST(request: NextRequest) {
     // Verify attestation response
     const challengeKey = `${pensioner.id}_${normalizedType}_reg`;
     const origin = request.headers.get('origin') || process.env.NEXT_PUBLIC_ORIGIN || 'http://localhost:3000';
+    const requestUrl = request.url;
     
     const verification = await verifyRegistrationResponseForUser(
       credential,
       challengeKey,
-      origin
+      origin,
+      requestUrl
     );
 
     if (!verification.verified) {

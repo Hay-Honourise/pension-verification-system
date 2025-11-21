@@ -70,11 +70,13 @@ export async function retryQuery<T>(
     } catch (error: any) {
       lastError = error;
       
-      // Only retry on connection errors (P5010) or fetch failures
+      // Only retry on connection errors (P5010, P1001) or fetch failures
       const isConnectionError = 
         error?.code === 'P5010' || 
+        error?.code === 'P1001' ||
         error?.message?.includes('fetch failed') ||
-        error?.message?.includes('Cannot fetch data from service');
+        error?.message?.includes('Cannot fetch data from service') ||
+        error?.message?.includes("Can't reach database server");
       
       if (isConnectionError && attempt < maxRetries) {
         const retryDelay = delayMs * (attempt + 1);

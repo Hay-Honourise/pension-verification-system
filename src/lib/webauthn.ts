@@ -14,9 +14,40 @@ type AttestationCredentialJSON = any;
 type AuthenticationCredentialJSON = any;
 import { getChallenge, deleteChallenge, setChallenge } from './challenges';
 
-const rpId = process.env.RP_ID || (typeof window !== 'undefined' ? window.location.hostname : 'localhost');
+// Helper function to extract rpId from URL or use environment variable
+function getRpId(urlOrHostname?: string): string {
+  if (process.env.RP_ID) {
+    return process.env.RP_ID;
+  }
+  if (urlOrHostname) {
+    try {
+      // If it's a full URL, extract hostname; otherwise use as-is
+      const url = new URL(urlOrHostname.startsWith('http') ? urlOrHostname : `https://${urlOrHostname}`);
+      return url.hostname;
+    } catch {
+      // If URL parsing fails, use as hostname directly
+      return urlOrHostname.split(':')[0]; // Remove port if present
+    }
+  }
+  return 'localhost';
+}
+
+// Helper function to get origin from request or environment
+function getOrigin(urlOrOrigin?: string): string {
+  if (process.env.NEXT_PUBLIC_ORIGIN) {
+    return process.env.NEXT_PUBLIC_ORIGIN;
+  }
+  if (urlOrOrigin) {
+    if (urlOrOrigin.startsWith('http')) {
+      return urlOrOrigin;
+    }
+    // If no protocol, assume https for production
+    return `https://${urlOrOrigin}`;
+  }
+  return 'http://localhost:3000';
+}
+
 const rpName = process.env.RP_NAME || 'Oyo Pension Verification System';
-const origin = process.env.NEXT_PUBLIC_ORIGIN || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000');
 
 /**
  * Convert base64url string to Buffer
@@ -46,8 +77,10 @@ export async function generateRegistrationOptionsForUser(
   userId: string,
   userName: string,
   userDisplayName: string,
-  challengeKey: string
+  challengeKey: string,
+  requestUrl?: string
 ): Promise<any> {
+  const rpId = getRpId(requestUrl);
   const opts: GenerateRegistrationOptionsOpts = {
     rpName,
     rpID: rpId,
@@ -88,7 +121,8 @@ export async function generateRegistrationOptionsForUser(
 export async function verifyRegistrationResponseForUser(
   credentialData: AttestationCredentialJSON,
   challengeKey: string,
-  expectedOrigin: string = origin
+  expectedOrigin?: string,
+  requestUrl?: string
 ): Promise<{ verified: boolean; credentialId: string; publicKey: Buffer; signCount: number; transports?: string[]; error?: string }> {
   // Get stored challenge
   const expectedChallenge = await getChallenge(challengeKey);
@@ -105,10 +139,13 @@ export async function verifyRegistrationResponseForUser(
   // Convert credential ID from base64url to Buffer
   const credentialIdBuffer = base64UrlToBuffer(credentialData.id);
 
+  const origin = expectedOrigin || getOrigin(requestUrl);
+  const rpId = getRpId(requestUrl || expectedOrigin);
+
   const opts: VerifyRegistrationResponseOpts = {
     response: credentialData,
     expectedChallenge: bufferToBase64Url(expectedChallenge), // Convert Buffer to base64url string
-    expectedOrigin,
+    expectedOrigin: origin,
     expectedRPID: rpId,
     requireUserVerification: true, // Require user verification (biometric or PIN)
   };
@@ -172,8 +209,10 @@ export async function verifyRegistrationResponseForUser(
  */
 export async function generateAuthOptionsForUser(
   allowCredentials: Array<{ id: string; type: string; transports?: string[] }>,
-  challengeKey: string
+  challengeKey: string,
+  requestUrl?: string
 ): Promise<any> {
+  const rpId = getRpId(requestUrl);
   const opts: GenerateAuthenticationOptionsOpts = {
     rpID: rpId,
     timeout: 60000,
@@ -201,7 +240,8 @@ export async function verifyAuthenticationResponseForUser(
   credential: AuthenticationCredentialJSON,
   storedCredential: { credentialId: string; publicKey: string | Uint8Array; signCount: number },
   challengeKey: string,
-  expectedOrigin: string = origin
+  expectedOrigin?: string,
+  requestUrl?: string
 ): Promise<{ verified: boolean; signCount: number; error?: string; userVerified?: boolean }> {
   // Get stored challenge
   const expectedChallenge = await getChallenge(challengeKey);
@@ -233,11 +273,14 @@ export async function verifyAuthenticationResponseForUser(
     publicKeyUint8Array = view;
   }
 
+  const origin = expectedOrigin || getOrigin(requestUrl);
+  const rpId = getRpId(requestUrl || expectedOrigin);
+
   // WebAuthnCredential.id expects a Base64URLString (string), not Uint8Array
   const opts: VerifyAuthenticationResponseOpts = {
     response: credential,
     expectedChallenge: bufferToBase64Url(expectedChallenge),
-    expectedOrigin,
+    expectedOrigin: origin,
     expectedRPID: rpId,
     credential: {
       id: storedCredential.credentialId, // Base64URLString (already stored as base64url string)

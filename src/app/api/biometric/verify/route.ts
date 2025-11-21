@@ -63,7 +63,8 @@ export async function GET(request: NextRequest) {
 
     // Generate authentication options
     const challengeKey = `${token.id}_${type}_auth`;
-    const authOptions = await generateAuthOptionsForUser(allowCredentials, challengeKey);
+    const requestUrl = request.url;
+    const authOptions = await generateAuthOptionsForUser(allowCredentials, challengeKey, requestUrl);
 
     console.log(`[biometric/verify] Generated authentication options for pensioner ${token.id}, type ${type}, ${credentials.length} credential(s)`);
 
@@ -145,6 +146,7 @@ export async function POST(request: NextRequest) {
     // Verify authentication response
     const challengeKey = `${pensioner.id}_${normalizedType}_auth`;
     const origin = request.headers.get('origin') || process.env.NEXT_PUBLIC_ORIGIN || 'http://localhost:3000';
+    const requestUrl = request.url;
     
     // Convert stored publicKey from base64url back to Uint8Array
     const publicKeyUint8Array = new Uint8Array(base64UrlToBuffer(storedCredential.publicKey));
@@ -157,7 +159,8 @@ export async function POST(request: NextRequest) {
         signCount: storedCredential.signCount
       },
       challengeKey,
-      origin
+      origin,
+      requestUrl
     );
 
     if (!verification.verified) {

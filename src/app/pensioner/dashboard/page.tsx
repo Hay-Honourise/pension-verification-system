@@ -102,6 +102,19 @@ export default function PensionerDashboard() {
     nextDueAt: null,
   });
 
+  // Recent Activity state
+  interface ActivityItem {
+    id: string;
+    type: 'verification' | 'document' | 'registration' | 'login' | 'profile_update';
+    title: string;
+    description?: string;
+    timestamp: string;
+    status?: string;
+    color: string;
+  }
+  const [recentActivities, setRecentActivities] = useState<ActivityItem[]>([]);
+  const [activitiesLoading, setActivitiesLoading] = useState(false);
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-NG", {
       style: "currency",
@@ -279,7 +292,58 @@ export default function PensionerDashboard() {
 
   useEffect(() => {
     loadManagedFiles();
+    loadRecentActivities();
   }, []);
+
+  const loadRecentActivities = async () => {
+    try {
+      setActivitiesLoading(true);
+      const token = localStorage.getItem("token") || "";
+      const res = await fetch("/api/pensioner/activity", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Failed to load activities");
+      const data = await res.json();
+      setRecentActivities(data.activities || []);
+    } catch (e) {
+      console.error("Error loading activities:", e);
+      // Set empty array on error
+      setRecentActivities([]);
+    } finally {
+      setActivitiesLoading(false);
+    }
+  };
+
+  const formatActivityTime = (timestamp: string) => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return "Just now";
+    if (diffMins < 60) return `${diffMins} minute${diffMins !== 1 ? 's' : ''} ago`;
+    if (diffHours < 24) return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
+    if (diffDays < 7) return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
+    
+    // For older dates, show formatted date and time
+    const isToday = date.toDateString() === now.toDateString();
+    if (isToday) {
+      return `Today at ${date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+    }
+    
+    const isYesterday = new Date(now.getTime() - 86400000).toDateString() === date.toDateString();
+    if (isYesterday) {
+      return `Yesterday at ${date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+    }
+
+    return date.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric',
+      year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
+    }) + ` at ${date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+  };
 
   const getFileName = (path: string) => {
     try {
@@ -350,6 +414,8 @@ export default function PensionerDashboard() {
       localStorage.setItem("user", JSON.stringify(updatedUser));
       setIsEditingProfile(false);
       setProfileEdited(false);
+      // Reload activities after profile update
+      loadRecentActivities();
     } catch (err: any) {
       setProfileMsgType("error");
       setProfileMsg(err?.message || "Failed to update profile");
@@ -401,10 +467,12 @@ export default function PensionerDashboard() {
         throw new Error(data?.message || "Failed to update documents");
       setDocsMsgType("success");
       setDocsMsg("Documents re-submitted successfully");
-      // Update shown document links if returned
+              // Update shown document links if returned
       if (data?.documents) setDocuments(data.documents);
       // Clear selected files
       setSelectedFiles({});
+      // Reload activities after document update
+      loadRecentActivities();
     } catch (err: any) {
       setDocsMsgType("error");
       setDocsMsg(err?.message || "Failed to re-submit documents");
@@ -1105,56 +1173,54 @@ export default function PensionerDashboard() {
                   </div>
                 )}
               </div>
-                    </div>
-                  </div>
-        {/* Recent Activity */}
+            </div>
+          </div>
+          {/* Recent Activity */}
           <div className="bg-white rounded-lg shadow col-span-1">
-          <div className="px-6 py-4 border-b border-gray-200">
+            <div className="px-6 py-4 border-b border-gray-200">
               <h3 className="text-lg font-medium text-gray-900">
                 Recent Activity
               </h3>
-          </div>
-          <div className="p-6">
-            <div className="space-y-4">
-                
-                {/* Verification completed */}
-              <div className="flex items-center space-x-4">
-                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                <div className="flex-1">
-                    <p className="text-sm text-gray-900">Verification completed</p>
-                  <p className="text-xs text-gray-500">Today at 10:30 AM</p>
+            </div>
+            <div className="p-6">
+              {activitiesLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                  <span className="ml-2 text-sm text-gray-500">Loading activities...</span>
                 </div>
-              </div>
-
-                {/* Registration completed */}
-                <div className="flex items-center space-x-4">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                  <div className="flex-1">
-                    <p className="text-sm text-gray-900">
-                      Registration completed
-                    </p>
-                    <p className="text-xs text-gray-500">Today at 10:30 AM</p>
-                  </div>
+              ) : recentActivities.length === 0 ? (
+                <div className="text-center py-8">
+                  <svg className="w-12 h-12 text-gray-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <p className="text-sm text-gray-500 mb-1">No recent activity</p>
+                  <p className="text-xs text-gray-400">Activities will appear here</p>
                 </div>
-
-                {/* Documents uploaded */}
-              <div className="flex items-center space-x-4">
-                <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-                <div className="flex-1">
-                  <p className="text-sm text-gray-900">Documents uploaded</p>
-                  <p className="text-xs text-gray-500">Today at 10:25 AM</p>
+              ) : (
+                <div className="space-y-4">
+                  {recentActivities.map((activity) => {
+                    const colorClasses: { [key: string]: string } = {
+                      blue: 'bg-blue-500',
+                      yellow: 'bg-yellow-500',
+                      green: 'bg-green-500',
+                      purple: 'bg-purple-500',
+                      gray: 'bg-gray-500',
+                    };
+                    return (
+                      <div key={activity.id} className="flex items-start space-x-4">
+                        <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${colorClasses[activity.color] || 'bg-gray-500'}`}></div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-gray-900 font-medium">{activity.title}</p>
+                          {activity.description && (
+                            <p className="text-xs text-gray-600 mt-0.5">{activity.description}</p>
+                          )}
+                          <p className="text-xs text-gray-500 mt-1">{formatActivityTime(activity.timestamp)}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-              </div>
-
-                {/* Account created */}
-              <div className="flex items-center space-x-4">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <div className="flex-1">
-                  <p className="text-sm text-gray-900">Account created</p>
-                  <p className="text-xs text-gray-500">Today at 10:20 AM</p>
-                  </div>
-                </div>
-              </div>
+              )}
             </div>
           </div>
         </div>

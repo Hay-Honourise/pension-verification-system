@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
+import { prisma, retryQuery } from '@/lib/db';
 import { verifyToken } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
@@ -41,30 +41,79 @@ export async function GET(request: NextRequest) {
       where.pensionSchemeType = pensionTypeFilter.toUpperCase();
     }
 
-    const [pensioners, total] = await Promise.all([
-      prisma.pensioner.findMany({
-        where,
-        orderBy: { createdAt: 'desc' },
-        skip: (page - 1) * pageSize,
-        take: pageSize,
-        select: {
-          id: true,
-          pensionId: true,
-          fullName: true,
-          status: true,
-          pensionSchemeType: true,
-          createdAt: true,
-          lastLogin: true,
-          pensionerfile: {
-            select: {
-              fileType: true,
-              originalName: true
+    // Fetch pensioners and total count with retry logic for connection issues
+    let pensioners, total;
+    try {
+      [pensioners, total] = await Promise.all([
+        retryQuery(() => prisma.pensioner.findMany({
+          where,
+          orderBy: { createdAt: 'desc' },
+          skip: (page - 1) * pageSize,
+          take: pageSize,
+          select: {
+            id: true,
+            pensionId: true,
+            fullName: true,
+            status: true,
+            pensionSchemeType: true,
+            createdAt: true,
+            lastLogin: true,
+            pensionerfile: {
+              select: {
+                fileType: true,
+                originalName: true
+              }
             }
           }
-        }
-      }),
-      prisma.pensioner.count({ where })
-    ]);
+        })),
+        retryQuery(() => prisma.pensioner.count({ where }))
+      ]);
+    } catch (dbError: any) {
+      console.error('[admin/pensioners] Database error:', dbError);
+      
+      // Check for P1001 error (invalid database host)
+      if (dbError?.code === 'P1001') {
+        const errorMessage = dbError.message || '';
+        const invalidHostMatch = errorMessage.match(/`([^`]+):(\d+)`/);
+        const invalidHost = invalidHostMatch ? invalidHostMatch[1] : 'unknown';
+        
+        return NextResponse.json({
+          error: 'Database configuration error',
+          message: `Invalid database host: ${invalidHost}. Please check your DATABASE_URL in .env.local`,
+          code: dbError.code,
+          details: process.env.NODE_ENV === 'development' ? {
+            invalidHost,
+            errorMessage: dbError.message,
+            recommendation: invalidHost === 'db.prisma.io'
+              ? 'The host "db.prisma.io" is not a valid database server. Please update your DATABASE_URL in .env.local with a valid PostgreSQL connection string.'
+              : `The host "${invalidHost}" is not accessible. Please verify your DATABASE_URL points to a valid database server.`
+          } : undefined
+        }, { status: 503 });
+      }
+      
+      // Check for other connection errors
+      const isConnectionError = 
+        dbError?.code === 'P5010' || 
+        dbError?.message?.includes('fetch failed') ||
+        dbError?.message?.includes('Cannot fetch data from service') ||
+        dbError?.message?.includes("Can't reach database server") ||
+        dbError?.message?.includes('Response from the Engine was empty');
+      
+      if (isConnectionError) {
+        return NextResponse.json({
+          error: 'Database unavailable',
+          message: 'Unable to connect to the database.',
+          code: dbError.code,
+          details: process.env.NODE_ENV === 'development' ? {
+            errorMessage: dbError.message,
+            recommendation: 'Check your DATABASE_URL configuration in .env.local and ensure the database server is accessible.'
+          } : undefined
+        }, { status: 503 });
+      }
+      
+      // Re-throw other errors to be handled by outer catch
+      throw dbError;
+    }
 
     // Format pensioners data
     const formattedPensioners = pensioners.map(pensioner => {
@@ -109,18 +158,32 @@ export async function GET(request: NextRequest) {
       totalPages: Math.ceil(total / pageSize)
     });
 
-  } catch (err) {
+  } catch (err: any) {
     console.error('[admin/pensioners] error', err);
+    
     // Log the full error details in development
     if (process.env.NODE_ENV === 'development') {
       console.error('[admin/pensioners] error details:', {
         message: err instanceof Error ? err.message : 'Unknown error',
-        stack: err instanceof Error ? err.stack : undefined
+        stack: err instanceof Error ? err.stack : undefined,
+        code: err?.code,
+        name: err instanceof Error ? err.name : undefined
       });
     }
+    
+    // Handle Prisma errors specifically
+    if (err?.code?.startsWith('P')) {
+      return NextResponse.json({ 
+        error: 'Database error',
+        message: err.message || 'A database error occurred',
+        code: err.code,
+        details: process.env.NODE_ENV === 'development' ? err.stack : undefined
+      }, { status: 500 });
+    }
+    
     return NextResponse.json({ 
-      message: 'Server error',
-      error: process.env.NODE_ENV === 'development' && err instanceof Error ? err.message : undefined
+      error: 'Server error',
+      message: process.env.NODE_ENV === 'development' && err instanceof Error ? err.message : 'An unexpected error occurred'
     }, { status: 500 });
   }
 }
