@@ -4,7 +4,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url       = env("DATABASE_URL")
+  url      = env("DATABASE_URL")
 }
 
 model admin {
@@ -43,39 +43,41 @@ model enquiry {
 }
 
 model pensioner {
-  id                     Int                  @id @default(autoincrement())
-  pensionId              String               @unique(map: "Pensioner_pensionId_key")
+  id                     Int                   @id @default(autoincrement())
+  pensionId              String                @unique(map: "Pensioner_pensionId_key")
   fullName               String
-  nin                    String               @unique(map: "Pensioner_nin_key")
+  nin                    String                @unique(map: "Pensioner_nin_key")
   dateOfBirth            DateTime
   gender                 String
-  email                  String               @unique(map: "Pensioner_email_key")
+  email                  String                @unique(map: "Pensioner_email_key")
   phone                  String
   residentialAddress     String
   pensionSchemeType      String
   dateOfFirstAppointment DateTime
   dateOfRetirement       DateTime
-  pfNumber               String               @unique(map: "Pensioner_pfNumber_key")
+  pfNumber               String                @unique(map: "Pensioner_pfNumber_key")
   lastPromotionDate      DateTime
   currentLevel           String
   salary                 Float
   maidenName             String?
   password               String
-  status                 String               @default("PENDING_VERIFICATION")
-  createdAt              DateTime             @default(now())
+  status                 String                @default("PENDING_VERIFICATION")
+  createdAt              DateTime              @default(now())
   updatedAt              DateTime
-  lastLogin              DateTime?
   gratuityRate           Float?
   monthlyPension         Float?
   pensionRate            Float?
   totalGratuity          Float?
   yearsOfService         Int?
   photo                  String?
+  lastLogin              DateTime?
+  hasSeenDueNotification Boolean               @default(false)
+  nextDueAt              DateTime?
+  biometriccredential    biometriccredential[]
   document               document[]
   pensionerfile          pensionerfile[]
   verificationlog        verificationlog[]
   verificationreview     verificationreview[]
-  biometriccredential    biometriccredential[]
 }
 
 model pensionerfile {
@@ -134,11 +136,11 @@ model verificationreview {
 model biometriccredential {
   id           String    @id @default(cuid())
   pensionerId  Int
-  type         String    // "FACE" | "FINGERPRINT"
-  credentialId String   @unique
-  publicKey    String    // Base64url encoded public key
+  type         String
+  credentialId String    @unique
+  publicKey    String
   signCount    Int       @default(0)
-  transports   String?   // JSON array of transport methods
+  transports   String?
   registeredAt DateTime  @default(now())
   pensioner    pensioner @relation(fields: [pensionerId], references: [id], map: "BiometricCredential_pensionerId_fkey")
 

@@ -214,25 +214,36 @@ export async function POST(request: NextRequest) {
     });
 
     // Create verification log
+    // Next verification due in 3 months
     const nextDue = new Date();
-    nextDue.setFullYear(nextDue.getFullYear() + 3);
+    nextDue.setMonth(nextDue.getMonth() + 3);
 
-    await prisma.verificationlog.create({
-      data: {
-        pensionerId: pensioner.id,
-        method: `WINDOWS_HELLO_${normalizedType}`,
-        status: 'SUCCESS',
-        verifiedAt: new Date(),
-        nextDueAt: nextDue
-      }
-    });
+    // Create verification log and update pensioner record
+    await prisma.$transaction([
+      prisma.verificationlog.create({
+        data: {
+          pensionerId: pensioner.id,
+          method: `WINDOWS_HELLO_${normalizedType}`,
+          status: 'SUCCESS',
+          verifiedAt: new Date(),
+          nextDueAt: nextDue
+        }
+      }),
+      prisma.pensioner.update({
+        where: { id: pensioner.id },
+        data: {
+          nextDueAt: nextDue,
+          hasSeenDueNotification: false // Reset notification flag so they see popup next time
+        }
+      })
+    ]);
 
-    console.log(`[biometric/verify] Successfully verified ${normalizedType} for pensioner ${pensioner.id} (userVerified: ${verification.userVerified})`);
+    console.log(`[biometric/verify] Successfully verified ${normalizedType} for pensioner ${pensioner.id} (userVerified: ${verification.userVerified}), next due: ${nextDue.toISOString()}`);
 
     const response = NextResponse.json({ 
       success: true, 
       status: 'SUCCESS',
-      nextDueAt: nextDue,
+      nextDueAt: nextDue.toISOString(),
       message: `${normalizedType} verification successful`
     });
     response.headers.set('Cache-Control', 'no-store');

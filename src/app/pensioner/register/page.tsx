@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Eye, EyeOff } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 interface FormData {
   // Step 1: Basic Identity
@@ -293,8 +294,11 @@ export default function RegisterPage() {
         break;
       
       case 5:
-        // Files are optional since we're handling them separately
-        // The user can proceed to verification page even without files
+        // complain if no uploaded file
+        if (!formData.appointmentLetter) newErrors.appointmentLetter = 'Appointment Letter is required';
+        if (!formData.idCard) newErrors.idCard = 'ID Card is required';
+        if (!formData.retirementLetter) newErrors.retirementLetter = 'Retirement Letter is required';
+        if (!formData.birthCertificate) newErrors.birthCertificate = 'Birth Certificate is required';
         break;
     }
 
@@ -371,7 +375,7 @@ export default function RegisterPage() {
       // Don't set isSubmitting to false here as we're navigating away
     } catch (error) {
       console.error('Error in handleSubmit:', error);
-      alert('An error occurred while preparing verification. Please try again.');
+      toast.error('An error occurred while preparing verification. Please try again.');
       setIsSubmitting(false);
     }
   };

@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import toast from 'react-hot-toast';
 
 interface FormData {
   // Step 1: Basic Identity
@@ -245,8 +246,8 @@ export default function VerificationPage() {
         localStorage.removeItem('pensionerRegistrationLastSaved');
         // Set flag to show success message on dashboard
         sessionStorage.setItem('registrationCompleted', 'true');
-        alert('Registration successful! Please check your email for verification.');
-        router.push('/pensioner/dashboard');
+        toast.success('Registration successful! Please check your email for verification.');
+        router.push('/pensioner/login');
       } else {
         const error = await response.json();
         setError(`Registration failed: ${error.message}`);

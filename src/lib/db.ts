@@ -70,13 +70,18 @@ export async function retryQuery<T>(
     } catch (error: any) {
       lastError = error;
       
-      // Only retry on connection errors (P5010, P1001) or fetch failures
+      // Only retry on connection errors (P5010, P1001, connection reset) or fetch failures
       const isConnectionError = 
         error?.code === 'P5010' || 
         error?.code === 'P1001' ||
+        error?.code === 10054 || // Windows: Connection forcibly closed
+        error?.cause?.code === 10054 ||
         error?.message?.includes('fetch failed') ||
         error?.message?.includes('Cannot fetch data from service') ||
-        error?.message?.includes("Can't reach database server");
+        error?.message?.includes("Can't reach database server") ||
+        error?.message?.includes('forcibly closed') ||
+        error?.message?.includes('ConnectionReset') ||
+        (error?.kind === 'Io' && error?.cause?.kind === 'ConnectionReset');
       
       if (isConnectionError && attempt < maxRetries) {
         const retryDelay = delayMs * (attempt + 1);

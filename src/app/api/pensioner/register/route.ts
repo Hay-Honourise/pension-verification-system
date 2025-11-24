@@ -3,6 +3,7 @@ import { hash } from 'bcryptjs';
 import { prisma } from '@/lib/db';
 import { copyFile, deleteFile, getPublicUrl } from '@/lib/backblaze';
 import { calculatePension } from '@/lib/pension-calculator';
+import { mailer } from '@/lib/email';
 
 export async function POST(request: NextRequest) {
   try {
@@ -162,6 +163,117 @@ export async function POST(request: NextRequest) {
       processFileUpload(idCardData, 'idcard', 'idcard'),
       processFileUpload(birthCertificateData, 'birthcert', 'birthCertificate')
     ]);
+
+    // Send registration confirmation email using Brevo
+    console.log('📧 Attempting to send registration email...');
+    console.log('📧 Email config check:', {
+      hasHost: !!process.env.EMAIL_HOST,
+      hasPort: !!process.env.EMAIL_PORT,
+      hasUser: !!process.env.EMAIL_USER,
+      hasPass: !!process.env.EMAIL_PASS ? '***' : false,
+      fromEmail: process.env.EMAIL_FROM || `"Pension Verification System" <${process.env.EMAIL_USER}>`,
+      toEmail: pensioner.email,
+      host: process.env.EMAIL_HOST,
+      port: process.env.EMAIL_PORT,
+    });
+
+    try {
+      const emailResult = await mailer.sendMail({
+        from: process.env.EMAIL_FROM || `"Pension Verification System" <${process.env.EMAIL_USER}>`,
+        to: pensioner.email,
+        subject: 'Registration Complete - Pension Verification System',
+        html: `
+          <div style="font-family: Arial, sans-serif; font-size: 14px; color: #333; max-width: 600px; margin: 0 auto;">
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center;">
+              <h1 style="color: #ffffff; margin: 0; font-size: 24px;">Registration Successful</h1>
+            </div>
+            <div style="background: #ffffff; padding: 30px; border: 1px solid #e0e0e0; border-top: none;">
+              <h2 style="margin: 0 0 15px 0; color: #333;">Hello ${pensioner.fullName},</h2>
+              
+              <p style="margin: 0 0 15px 0; line-height: 1.6;">
+                Your pension verification registration was completed successfully.
+              </p>
+              
+              <div style="background: #f5f5f5; padding: 20px; border-radius: 5px; margin: 20px 0;">
+                <p style="margin: 0 0 10px 0;"><strong>Your Registration Details:</strong></p>
+                <p style="margin: 5px 0;"><strong>Pension ID:</strong> ${pensioner.pensionId}</p>
+                <p style="margin: 5px 0;"><strong>Email:</strong> ${pensioner.email}</p>
+                <p style="margin: 5px 0;"><strong>Status:</strong> ${pensioner.status}</p>
+              </div>
+              
+              <p style="margin: 20px 0 15px 0; line-height: 1.6;">
+                You can now log in to your account and continue your verification process.
+              </p>
+              
+              <div style="margin: 30px 0; text-align: center;">
+                <a href="${process.env.NEXT_PUBLIC_ORIGIN || 'http://localhost:3000'}/pensioner/login" 
+                   style="display: inline-block; background: #667eea; color: #ffffff; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+                  Login to Your Account
+                </a>
+              </div>
+              
+              <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0;">
+                <p style="margin: 0 0 10px 0; font-size: 12px; color: #666;">
+                  <strong>Important:</strong> If you did not initiate this registration, please contact support immediately.
+                </p>
+                <p style="margin: 0; font-size: 12px; color: #999;">
+                  This is an automated email. Please do not reply to this message.
+                </p>
+              </div>
+            </div>
+            <div style="background: #f9f9f9; padding: 20px; text-align: center; border: 1px solid #e0e0e0; border-top: none;">
+              <p style="margin: 0; font-size: 12px; color: #666;">
+                <strong>Pension Verification System</strong><br/>
+                Oyo State Government
+              </p>
+              <p style="margin: 10px 0 0 0; font-size: 12px; color: #999;">
+                Regards,<br>Pension Verification Team
+              </p>
+            </div>
+          </div>
+        `,
+      });
+      
+      console.log('✅ Email sent successfully!');
+      console.log('📧 Email details:', {
+        messageId: emailResult.messageId,
+        accepted: emailResult.accepted,
+        rejected: emailResult.rejected,
+        response: emailResult.response,
+        to: pensioner.email,
+      });
+    } catch (emailError: any) {
+      console.error('❌ Email sending failed!');
+      console.error('📧 Email error details:', {
+        message: emailError?.message,
+        code: emailError?.code,
+        command: emailError?.command,
+        response: emailError?.response,
+        responseCode: emailError?.responseCode,
+        stack: emailError?.stack,
+        to: pensioner.email,
+      });
+      
+      // Log specific Brevo error codes
+      if (emailError?.code === 'EAUTH' || emailError?.responseCode === 535) {
+        console.error('❌ AUTHENTICATION FAILED (535) - This means your EMAIL_PASS is incorrect!');
+        console.error('📧 SOLUTION:');
+        console.error('   1. Go to Brevo Dashboard → Settings → SMTP & API → SMTP');
+        console.error('   2. Copy your SMTP Key (NOT your login password!)');
+        console.error('   3. Update EMAIL_PASS in .env.local with the SMTP key');
+        console.error('   4. Make sure EMAIL_USER matches your verified Brevo email');
+        console.error('   5. Restart your dev server');
+        console.error('📧 Current EMAIL_USER:', process.env.EMAIL_USER);
+        console.error('📧 Make sure EMAIL_PASS is the SMTP key from Brevo (starts with "xsmtp-" or long random string)');
+      } else if (emailError?.code === 'ECONNECTION') {
+        console.error('❌ Connection failed! Check your EMAIL_HOST and EMAIL_PORT in .env.local');
+      } else if (emailError?.responseCode === 550) {
+        console.error('❌ Email rejected by server! Check if the sender email is verified in Brevo');
+      }
+      
+      console.warn(`⚠️ Registration completed for ${pensioner.email}, but email notification failed to send.`);
+      // Registration still succeeds even if email fails
+    }
 
     // Return success response
     return NextResponse.json({

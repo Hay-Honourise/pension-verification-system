@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import toast from 'react-hot-toast'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { 
   Home, 
@@ -27,7 +28,11 @@ import {
   Phone,
   MapPin,
   X,
-  User
+  User,
+  UserPlus,
+  Shield,
+  AlertCircle,
+  CheckCircle2
 } from 'lucide-react'
 
 export default function AdminDashboard() {
@@ -223,11 +228,11 @@ export default function AdminDashboard() {
         setSelectedPensioner(data.pensioner)
         setShowViewModal(true)
       } else {
-        alert('Failed to load pensioner details')
+        toast.error('Failed to load pensioner details')
       }
     } catch (error) {
       console.error('Error loading pensioner details:', error)
-      alert('Error loading pensioner details')
+      toast.error('Error loading pensioner details')
     } finally {
       setActionLoading(false)
     }
@@ -253,16 +258,16 @@ export default function AdminDashboard() {
       })
 
       if (response.ok) {
-        alert('Pensioner approved successfully!')
+        toast.success('Pensioner approved successfully!')
         setShowApproveModal(false)
         loadPensioners() // Refresh the list
       } else {
         const error = await response.json()
-        alert(error.message || 'Failed to approve pensioner')
+        toast.error(error.message || 'Failed to approve pensioner')
       }
     } catch (error) {
       console.error('Error approving pensioner:', error)
-      alert('Error approving pensioner')
+      toast.error('Error approving pensioner')
     } finally {
       setActionLoading(false)
     }
@@ -276,7 +281,7 @@ export default function AdminDashboard() {
 
   const confirmFlagPensioner = async () => {
     if (!flagReason.trim()) {
-      alert('Please provide a reason for flagging this pensioner')
+      toast.error('Please provide a reason for flagging this pensioner')
       return
     }
 
@@ -297,16 +302,16 @@ export default function AdminDashboard() {
       })
 
       if (response.ok) {
-        alert('Pensioner flagged successfully!')
+        toast.success('Pensioner flagged successfully!')
         setShowFlagModal(false)
         loadPensioners() // Refresh the list
       } else {
         const error = await response.json()
-        alert(error.message || 'Failed to flag pensioner')
+        toast.error(error.message || 'Failed to flag pensioner')
       }
     } catch (error) {
       console.error('Error flagging pensioner:', error)
-      alert('Error flagging pensioner')
+      toast.error('Error flagging pensioner')
     } finally {
       setActionLoading(false)
     }
@@ -331,16 +336,16 @@ export default function AdminDashboard() {
       })
 
       if (response.ok) {
-        alert('Pensioner deleted successfully!')
+        toast.success('Pensioner deleted successfully!')
         setShowDeleteModal(false)
         loadPensioners() // Refresh the list
       } else {
         const error = await response.json()
-        alert(error.message || 'Failed to delete pensioner')
+        toast.error(error.message || 'Failed to delete pensioner')
       }
     } catch (error) {
       console.error('Error deleting pensioner:', error)
-      alert('Error deleting pensioner')
+      toast.error('Error deleting pensioner')
     } finally {
       setActionLoading(false)
     }
@@ -701,7 +706,7 @@ export default function AdminDashboard() {
                               }
                             } catch (e) {
                               console.error('Download failed', e);
-                              alert('Failed to generate download link. Please try again.');
+                              toast.error('Failed to generate download link. Please try again.');
                             } finally {
                               setDownloadingFileId(null);
                             }

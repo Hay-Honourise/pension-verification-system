@@ -89,20 +89,172 @@ export async function GET(request: NextRequest) {
       console.error('Error fetching recent pensioners:', err);
     }
 
+    // Fetch all types of notifications
+    const allNotifications: any[] = [];
+    
     try {
-      recentNotifications = await prisma.enquiry.findMany({
-        take: 5,
+      // 1. Enquiry notifications
+      const enquiries = await prisma.enquiry.findMany({
+        take: 10,
         orderBy: { createdAt: 'desc' },
         select: {
           id: true,
           subject: true,
           message: true,
+          fullName: true,
+          email: true,
           createdAt: true
         }
       });
-      console.log('Recent notifications:', recentNotifications.length);
+      
+      enquiries.forEach(enquiry => {
+        allNotifications.push({
+          id: `enquiry-${enquiry.id}`,
+          type: 'enquiry',
+          title: 'New Enquiry',
+          message: `${enquiry.fullName}: ${enquiry.subject}`,
+          details: enquiry.message.substring(0, 100),
+          timestamp: enquiry.createdAt,
+          referenceId: enquiry.id
+        });
+      });
+      
+      console.log('Enquiry notifications:', enquiries.length);
     } catch (err) {
-      console.error('Error fetching recent notifications:', err);
+      console.error('Error fetching enquiry notifications:', err);
+    }
+
+    try {
+      // 2. New pensioner registration notifications (last 24 hours)
+      const oneDayAgo = new Date();
+      oneDayAgo.setHours(oneDayAgo.getHours() - 24);
+      
+      const newPensioners = await prisma.pensioner.findMany({
+        where: {
+          createdAt: {
+            gte: oneDayAgo
+          }
+        },
+        take: 20,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          pensionId: true,
+          fullName: true,
+          email: true,
+          status: true,
+          pensionSchemeType: true,
+          createdAt: true
+        }
+      });
+      
+      newPensioners.forEach(pensioner => {
+        allNotifications.push({
+          id: `pensioner-${pensioner.id}`,
+          type: 'registration',
+          title: 'New Pensioner Registration',
+          message: `${pensioner.fullName} (${pensioner.pensionId}) completed registration`,
+          details: `Status: ${pensioner.status} | Scheme: ${pensioner.pensionSchemeType || 'N/A'}`,
+          timestamp: pensioner.createdAt,
+          referenceId: pensioner.id,
+          pensionId: pensioner.pensionId
+        });
+      });
+      
+      console.log('New pensioner notifications:', newPensioners.length);
+    } catch (err) {
+      console.error('Error fetching new pensioner notifications:', err);
+    }
+
+    try {
+      // 3. Verification notifications (recent successful verifications)
+      const oneDayAgo = new Date();
+      oneDayAgo.setHours(oneDayAgo.getHours() - 24);
+      
+      const recentVerifications = await prisma.verificationlog.findMany({
+        where: {
+          status: 'SUCCESS',
+          verifiedAt: {
+            gte: oneDayAgo
+          }
+        },
+        take: 10,
+        orderBy: { verifiedAt: 'desc' },
+        select: {
+          id: true,
+          pensionerId: true,
+          method: true,
+          verifiedAt: true,
+          pensioner: {
+            select: {
+              fullName: true,
+              pensionId: true
+            }
+          }
+        }
+      });
+      
+      recentVerifications.forEach(verification => {
+        allNotifications.push({
+          id: `verification-${verification.id}`,
+          type: 'verification',
+          title: 'Successful Verification',
+          message: `${verification.pensioner.fullName} completed ${verification.method.replace(/_/g, ' ')} verification`,
+          details: `Pension ID: ${verification.pensioner.pensionId}`,
+          timestamp: verification.verifiedAt || verification.id,
+          referenceId: verification.pensionerId
+        });
+      });
+      
+      console.log('Verification notifications:', recentVerifications.length);
+    } catch (err) {
+      console.error('Error fetching verification notifications:', err);
+    }
+
+    try {
+      // 4. Pending review notifications
+      const pendingReviews = await prisma.verificationreview.findMany({
+        where: {
+          status: 'PENDING'
+        },
+        take: 10,
+        orderBy: { id: 'desc' },
+        select: {
+          id: true,
+          pensionerId: true,
+          reviewedAt: true,
+          pensioner: {
+            select: {
+              fullName: true,
+              pensionId: true
+            }
+          }
+        }
+      });
+      
+      pendingReviews.forEach((review: {
+        id: number;
+        pensionerId: number;
+        reviewedAt: Date | null;
+        pensioner: {
+          fullName: string;
+          pensionId: string;
+        };
+      }) => {
+        allNotifications.push({
+          id: `review-${review.id}`,
+          type: 'review',
+          title: 'Pending Verification Review',
+          message: `${review.pensioner.fullName} requires manual review`,
+          details: `Pension ID: ${review.pensioner.pensionId}`,
+          timestamp: review.reviewedAt || new Date(), // Use reviewedAt or current date as fallback
+          referenceId: review.pensionerId
+        });
+      });
+      
+      console.log('Pending review notifications:', pendingReviews.length);
+    } catch (err) {
+      console.error('Error fetching pending review notifications:', err);
     }
 
     // Get monthly verification data for chart
@@ -175,13 +327,23 @@ export async function GET(request: NextRequest) {
       dateRegistered: new Date(pensioner.createdAt).toLocaleDateString()
     }));
 
-    // Format notifications
-    const formattedNotifications = recentNotifications.map(notification => ({
+    // Sort all notifications by timestamp (newest first) and take top 50
+    const sortedNotifications = allNotifications
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+      .slice(0, 50);
+
+    // Format notifications with proper timestamps
+    const formattedNotifications = sortedNotifications.map(notification => ({
       id: notification.id,
-      type: 'enquiry',
-      message: `${notification.subject}: ${notification.message.substring(0, 50)}...`,
-      timestamp: getTimeAgo(notification.createdAt),
-      read: false // Enquiry doesn't have status field in schema
+      type: notification.type, // 'enquiry', 'registration', 'verification', 'review'
+      title: notification.title,
+      message: notification.message,
+      details: notification.details,
+      timestamp: getTimeAgo(new Date(notification.timestamp)),
+      fullTimestamp: notification.timestamp,
+      read: false,
+      referenceId: notification.referenceId,
+      pensionId: notification.pensionId || null
     }));
 
     return NextResponse.json({

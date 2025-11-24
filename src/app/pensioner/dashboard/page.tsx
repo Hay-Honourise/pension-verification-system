@@ -115,6 +115,10 @@ export default function PensionerDashboard() {
   const [recentActivities, setRecentActivities] = useState<ActivityItem[]>([]);
   const [activitiesLoading, setActivitiesLoading] = useState(false);
 
+  // Due Notification Popup state
+  const [showDuePopup, setShowDuePopup] = useState(false);
+  const [nextDueDateForPopup, setNextDueDateForPopup] = useState<string | null>(null);
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-NG", {
       style: "currency",
@@ -293,7 +297,31 @@ export default function PensionerDashboard() {
   useEffect(() => {
     loadManagedFiles();
     loadRecentActivities();
+    checkDueNotification();
   }, []);
+
+  const checkDueNotification = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+
+      const res = await fetch("/api/pensioner/due-notification", {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (!res.ok) return;
+
+      const data = await res.json();
+
+      if (data.show) {
+        setShowDuePopup(true);
+        setNextDueDateForPopup(data.nextDueAt);
+      }
+    } catch (error) {
+      console.error("Error checking due notification:", error);
+      // Silently fail - don't break the dashboard if notification check fails
+    }
+  };
 
   const loadRecentActivities = async () => {
     try {
@@ -650,6 +678,22 @@ export default function PensionerDashboard() {
                 ? "Your verification was not approved. Please contact support."
                 : "Your biometeric verification has not been completed.  Please click the start verification button to start your verification process. You will be notified once verified."}
             </p>
+            {verification.nextDueAt && (
+              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm font-medium text-blue-900 mb-1">Next Verification Due:</p>
+                <p className="text-base font-semibold text-blue-700">
+                  {new Date(verification.nextDueAt).toLocaleDateString('en-US', { 
+                    weekday: 'long',
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                  })}
+                </p>
+                <p className="text-xs text-blue-600 mt-1">
+                  Your next verification is due in 3 months from your last successful verification.
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Personal Info Card */}
@@ -1225,6 +1269,81 @@ export default function PensionerDashboard() {
           </div>
         </div>
       </main>
+
+      {/* Due Notification Popup */}
+      {showDuePopup && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50 p-4">
+          <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md text-center border-2 border-red-300">
+            <div className="flex justify-center mb-4">
+              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-8 w-8 text-red-600"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                  />
+                </svg>
+              </div>
+            </div>
+            <h2 className="text-2xl font-bold text-red-600 mb-3">Verification Due</h2>
+            <p className="text-gray-700 mb-4">
+              Your next biometric verification is due. Please complete your verification to continue accessing your pension services.
+            </p>
+            {nextDueDateForPopup && (
+              <div className="mb-4 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                <p className="text-sm font-medium text-gray-700 mb-1">Due since:</p>
+                <p className="text-lg font-semibold text-gray-900">
+                  {new Date(nextDueDateForPopup).toLocaleDateString("en-US", {
+                    weekday: "long",
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                  })}
+                </p>
+              </div>
+            )}
+            <div className="flex gap-3 justify-center">
+              <button
+                onClick={async () => {
+                  const token = localStorage.getItem("token");
+                  if (token) {
+                    try {
+                      await fetch("/api/pensioner/due-notification", {
+                        method: "POST",
+                        headers: { Authorization: `Bearer ${token}` },
+                      });
+                    } catch (error) {
+                      console.error("Error marking notification as seen:", error);
+                    }
+                  }
+                  setShowDuePopup(false);
+                }}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm"
+              >
+                OK, I Understand
+              </button>
+              <button
+                onClick={() => {
+                  router.push("/pensioner/verification");
+                }}
+                className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium shadow-sm"
+              >
+                Go to Verification
+              </button>
+            </div>
+            <p className="text-xs text-gray-500 mt-4">
+              You can access the verification page at any time from the dashboard.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

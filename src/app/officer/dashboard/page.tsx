@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import toast from 'react-hot-toast'
 
 export default function OfficerDashboard() {
   const router = useRouter()
@@ -80,7 +81,7 @@ export default function OfficerDashboard() {
       if (!res.ok) throw new Error('Decision failed')
       await fetchPending()
     } catch (e: any) {
-      alert(e.message || 'Decision failed')
+      toast.error(e.message || 'Decision failed')
     }
   }
 

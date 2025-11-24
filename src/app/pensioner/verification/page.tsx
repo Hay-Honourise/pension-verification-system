@@ -51,6 +51,8 @@ export default function BiometricVerificationPage() {
   const [showHelpModal, setShowHelpModal] = useState(false);
   const [showDebugPanel, setShowDebugPanel] = useState(false);
   const [debugCredentials, setDebugCredentials] = useState<Array<{id: string; type: string; credentialId: string; registeredAt: string}>>([]);
+  const [verifySuccess, setVerifySuccess] = useState<boolean | null>(null);
+  const [nextDueDate, setNextDueDate] = useState<string | null>(null);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -148,10 +150,61 @@ export default function BiometricVerificationPage() {
 
       const challengeData = await challengeRes.json();
       
+      // Helper to decode base64url string to Uint8Array with ArrayBuffer backing
+      const base64UrlToUint8Array = (base64url: string): Uint8Array<ArrayBuffer> => {
+        if (!base64url || typeof base64url !== 'string') {
+          throw new Error(`Invalid base64url string: ${base64url}`);
+        }
+        // Convert base64url to base64
+        let base64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
+        // Add padding if needed
+        while (base64.length % 4) {
+          base64 += '=';
+        }
+        // Convert to binary string then to Uint8Array
+        const binaryString = atob(base64);
+        // Create a new ArrayBuffer and Uint8Array to ensure ArrayBuffer backing
+        const arrayBuffer = new ArrayBuffer(binaryString.length);
+        const bytes = new Uint8Array(arrayBuffer);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        return bytes;
+      };
+      
+      // Validate required fields
+      if (!challengeData.challenge) {
+        throw new Error('Missing challenge in server response');
+      }
+      if (!challengeData.user || !challengeData.user.id) {
+        throw new Error('Missing user.id in server response');
+      }
+      
       // Create credential using WebAuthn
       // The server returns attestation options in the format expected by @simplewebauthn/server
+      // We need to convert the challenge and user.id to the format expected by navigator.credentials.create
+      const challengeArrayBuffer = base64UrlToUint8Array(challengeData.challenge);
+      const userIdArrayBuffer = base64UrlToUint8Array(challengeData.user.id);
+      
+      // Build the publicKey options object explicitly to ensure proper types
+      const publicKeyOptions = {
+        challenge: challengeArrayBuffer,
+        rp: challengeData.rp,
+        user: {
+          id: userIdArrayBuffer,
+          name: challengeData.user.name,
+          displayName: challengeData.user.displayName
+        },
+        pubKeyCredParams: challengeData.pubKeyCredParams,
+        timeout: challengeData.timeout,
+        attestation: challengeData.attestation,
+        excludeCredentials: challengeData.excludeCredentials || [],
+        authenticatorSelection: challengeData.authenticatorSelection,
+        extensions: challengeData.extensions || {}
+      };
+      
       const credential = await navigator.credentials.create({
-        publicKey: challengeData
+        publicKey: publicKeyOptions
       }) as PublicKeyCredential;
 
       if (!credential) {
@@ -310,12 +363,23 @@ export default function BiometricVerificationPage() {
       const result = await verifyRes.json();
       
       if (verifyRes.ok && result.success) {
+        setVerifySuccess(true);
+        setNextDueDate(result.nextDueAt || null);
         showMessage('Verification Successful! ✅', 'success');
         loadData(); // Reload history
+        
+        // Redirect to dashboard after 3 seconds to show updated verification status
+        setTimeout(() => {
+          router.push('/pensioner/dashboard');
+        }, 3000);
       } else if (result.status === 'PENDING_REVIEW') {
+        setVerifySuccess(false);
+        setNextDueDate(null);
         showMessage('Verification failed. Sent for officer review.', 'info');
         loadData();
       } else {
+        setVerifySuccess(false);
+        setNextDueDate(null);
         // Handle specific error codes
         if (result.error === 'PIN_NOT_ALLOWED') {
           throw new Error('PIN not allowed — please use fingerprint/face.');
@@ -328,6 +392,8 @@ export default function BiometricVerificationPage() {
 
     } catch (error: any) {
       console.error('Verification error:', error);
+      setVerifySuccess(false);
+      setNextDueDate(null);
       showMessage(error.message || 'Verification failed', 'error');
     } finally {
       setIsLoading(false);
@@ -595,6 +661,35 @@ export default function BiometricVerificationPage() {
             </div>
           </div>
         </div>
+
+        {/* Success Message Card */}
+        {verifySuccess && (
+          <div className="mb-8 p-6 bg-green-50 border-2 border-green-300 rounded-lg shadow-lg">
+            <div className="flex items-start">
+              <CheckCircle className="w-6 h-6 text-green-600 mr-3 mt-0.5 flex-shrink-0" />
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-green-900 mb-2">Verification Successful!</h3>
+                <p className="text-green-800 mb-3">Your biometric verification has been completed successfully.</p>
+                {nextDueDate && (
+                  <div className="mt-4 p-3 bg-white border border-green-200 rounded-lg">
+                    <p className="text-sm font-medium text-green-900 mb-1">Next Verification Due:</p>
+                    <p className="text-lg font-bold text-green-700">
+                      {new Date(nextDueDate).toLocaleDateString('en-US', { 
+                        weekday: 'long',
+                        year: 'numeric', 
+                        month: 'long', 
+                        day: 'numeric' 
+                      })}
+                    </p>
+                    <p className="text-xs text-green-600 mt-1">
+                      Your next verification is due in 3 months. The page will refresh automatically in a few seconds.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Verification History */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-8">
