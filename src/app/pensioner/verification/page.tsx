@@ -26,7 +26,7 @@ import {
 } from '@/lib/biometric-client';
 
 interface BiometricCredential {
-  id: string;
+  id: number;
   type: 'FACE' | 'FINGERPRINT';
   registeredAt: string;
 }
@@ -52,7 +52,7 @@ export default function BiometricVerificationPage() {
   const [modalitySupport, setModalitySupport] = useState<ModalitySupport | null>(null);
   const [showHelpModal, setShowHelpModal] = useState(false);
   const [showDebugPanel, setShowDebugPanel] = useState(false);
-  const [debugCredentials, setDebugCredentials] = useState<Array<{id: string; type: string; credentialId: string; registeredAt: string}>>([]);
+  const [debugCredentials, setDebugCredentials] = useState<Array<{id: number; type: string; credentialId: string; registeredAt: string}>>([]);
   const [verifySuccess, setVerifySuccess] = useState<boolean | null>(null);
   const [nextDueDate, setNextDueDate] = useState<string | null>(null);
 
@@ -183,17 +183,19 @@ export default function BiometricVerificationPage() {
         throw new Error(errorData.message || 'Failed to get registration challenge');
       }
 
-      const challengeData = await challengeRes.json();
-      const {
+    const challengeData = await challengeRes.json();
+    const {
+      options: {
         challenge,
         user,
         excludeCredentials: serverExcludeCredentials = [],
         extensions,
         ...creationOptions
-      } = challengeData;
+      } = {},
+    } = challengeData;
       
-      // Validate required fields
-      if (!challenge) {
+    // Validate required fields
+    if (!challenge) {
         throw new Error('Missing challenge in server response');
       }
       if (!user || !user.id) {
@@ -238,7 +240,7 @@ export default function BiometricVerificationPage() {
         type: credential.type
       };
 
-      const registerRes = await fetch('/api/biometric/register', {
+    const registerRes = await fetch('/api/biometric/register/verify', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -246,7 +248,7 @@ export default function BiometricVerificationPage() {
         },
         body: JSON.stringify({
           type,
-          credential: credentialData
+        attestation: credentialData
         })
       });
 
@@ -302,10 +304,12 @@ export default function BiometricVerificationPage() {
 
       const challengeData = await challengeRes.json();
       const {
-        challenge,
-        allowCredentials: serverAllowCredentials = [],
-        extensions,
-        ...requestOptions
+        options: {
+          challenge,
+          allowCredentials: serverAllowCredentials = [],
+          extensions,
+          ...requestOptions
+        } = {},
       } = challengeData;
 
       if (!challenge) {
@@ -359,7 +363,7 @@ export default function BiometricVerificationPage() {
         },
         body: JSON.stringify({
           type,
-          credential: verificationData
+          assertion: verificationData
         })
       });
 

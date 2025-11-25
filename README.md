@@ -99,82 +99,65 @@ The system uses the following main entities:
 
 - `POST /api/auth/login` - Admin authentication
 - `GET /api/biometric/register?type={FACE|FINGERPRINT}` - Get registration challenge
-- `POST /api/biometric/register` - Register biometric credential
-- `GET /api/biometric/verify?type={FACE|FINGERPRINT}` - Get verification challenge
-- `POST /api/biometric/verify` - Verify biometric credential
+- `POST /api/biometric/register/verify` - Persist signed attestation (passkey)
+- `GET /api/biometric/verify?type={FACE|FINGERPRINT}` - Issue verification challenge (discoverable credential)
+- `POST /api/biometric/verify` - Verify passkey assertion + update verification logs
 - `GET /api/biometric/credentials` - List registered credentials
 - Additional endpoints for CRUD operations will be implemented
 
-## Biometric Verification Testing
+## Passkey / WebAuthn Setup
 
-### Prerequisites
+### Required environment variables
 
-1. **Windows 10/11** with Windows Hello enabled
-2. **Compatible hardware**:
-   - For Face: Camera with Windows Hello Face support
-   - For Fingerprint: Fingerprint reader with Windows Hello support
-3. **Modern browser**: Chrome, Edge, or Firefox with WebAuthn support
-4. **Windows Hello setup**: Both Face and Fingerprint should be configured in Windows Settings
+Add the following to `.env.local` (or hosting provider secrets):
 
-### Manual Test Steps
+```
+RP_NAME="Oyo Pension Verification"
+RP_ID="pension-verification-system.vercel.app"
+ORIGIN="https://pension-verification-system.vercel.app"
+```
 
-#### 1. Test Face Registration
+For local development use:
 
-1. Log in as a pensioner
-2. Navigate to `/pensioner/verification`
-3. Click "Register Face" button
-4. Windows Hello should prompt for face authentication
-5. Complete the face scan
-6. **Expected Result**: 
-   - Success message: "FACE registration successful!"
-   - Credential saved in database with `type='FACE'`
-   - CredentialId stored as base64url string
-   - Debug panel (if enabled) shows the credential
+```
+RP_ID=localhost
+ORIGIN=http://localhost:3000
+```
 
-#### 2. Test Fingerprint Registration
+`RP_ID` **must** match the hostname used by the browser (no protocol/port). Browsers only allow passkeys on HTTPS (or `http://localhost`).
 
-1. On the same page, click "Register Fingerprint" button
-2. Windows Hello should prompt for fingerprint authentication
-3. Complete the fingerprint scan
-4. **Expected Result**:
-   - Success message: "FINGERPRINT registration successful!"
-   - Separate credential saved with `type='FINGERPRINT'`
-   - Different credentialId from the Face credential
-   - Both credentials visible in debug panel
+### Challenge storage
 
-#### 3. Test Face Verification
+`src/lib/webauthn-challenge-store.ts` writes challenges through `lib/challenges`. If `REDIS_URL` is set the store uses Redis; otherwise it falls back to an in-memory `Map` (not suitable for multi-instance deployments). Configure a managed Redis instance before going to production.
 
-1. Click "Verify using Face" button
-2. **Expected Behavior**:
-   - Server returns challenge with `allowCredentials` containing ONLY Face credentialId(s)
-   - Windows Hello should prompt for face authentication
-   - If fingerprint prompt appears instead, this is normal Windows Hello behavior (OS-controlled)
-3. Complete the authentication
-4. **Expected Result**:
-   - Success message: "FACE verification successful!"
-   - Verification log created with `method='WINDOWS_HELLO_FACE'`
+### Manual test plan
 
-#### 4. Test Fingerprint Verification
+1. **Register (face)**  
+   - Visit `/pensioner/biometric/register` and choose *Face*.  
+   - Confirm a Windows Hello / Face ID prompt appears and the request completes successfully.
+2. **Register (fingerprint)**  
+   - On the same page choose *Fingerprint*.  
+   - Ensure a separate credential is stored in `biometriccredential` with `type='FINGERPRINT'`.
+3. **Verify on same device**  
+   - Go to `/pensioner/biometric/verify` and run both Face and Fingerprint flows.  
+   - Expect success toast and `verificationlog` entry with `method='WINDOWS_HELLO_<TYPE>'`.
+4. **Cross-device check**  
+   - Register on desktop, verify on Android/iOS (Chrome/Safari) with the same Google/iCloud account to confirm passkey sync.  
+   - Repeat in reverse (mobile → desktop).
+5. **Error scenarios**  
+   - Try verifying without a credential → API responds `NO_CREDENTIALS`.  
+   - Wait >5 minutes between challenge + response → API returns `CHALLENGE_EXPIRED`.  
+   - Attempt with deleted credential → API returns `CREDENTIAL_NOT_FOUND`.
 
-1. Click "Verify using Fingerprint" button
-2. **Expected Behavior**:
-   - Server returns challenge with `allowCredentials` containing ONLY Fingerprint credentialId(s)
-   - Windows Hello should prompt for fingerprint authentication
-3. Complete the authentication
-4. **Expected Result**:
-   - Success message: "FINGERPRINT verification successful!"
-   - Verification log created with `method='WINDOWS_HELLO_FINGERPRINT'`
+### Verification checklist
 
-### Verification Checklist
-
-- [ ] Face registration creates separate credential with `type='FACE'`
-- [ ] Fingerprint registration creates separate credential with `type='FINGERPRINT'`
-- [ ] Face verification uses only Face credentialId(s) in `allowCredentials`
-- [ ] Fingerprint verification uses only Fingerprint credentialId(s) in `allowCredentials`
-- [ ] CredentialIds are properly encoded/decoded (base64url format)
-- [ ] Challenges are stored per type (userId_type key)
-- [ ] Error messages are clear and helpful
-- [ ] Debug panel shows correct credential information
+- [ ] Resident key is required (`residentKey='required'`, `requireResidentKey=true`).
+- [ ] `userVerification='required'` is enforced on both registration and verification.
+- [ ] `allowCredentials` is empty during verification to allow discoverable passkeys.
+- [ ] Credential public keys & IDs are stored as base64url strings.
+- [ ] Sign counters increment after each verification.
+- [ ] Redis (or fallback) removes challenges after successful verification.
+- [ ] UI clearly explains “No passkeys on this device” and links to the registration page.
 
 ### Troubleshooting
 
@@ -244,15 +227,11 @@ const allowCredentials = credentials.map(c => c.credentialId);
 
 ### Important Notes
 
-1. **Windows Hello Modality Selection**: Windows Hello may show fingerprint prompt even when registering Face (or vice versa). This is OS-controlled behavior. The system correctly stores separate credentials for each type.
-
-2. **CredentialId Encoding**: CredentialIds are stored as base64url strings and must be properly decoded on the client side before use in WebAuthn API.
-
-3. **Challenge Storage**: Challenges are stored in-memory keyed by `userId_type`. In production, consider using Redis for distributed systems.
-
-4. **Type Separation**: The system uses different user IDs (`userId_type`) during registration to help Windows Hello create separate credentials, though the OS may still choose the modality.
-
-5. **Error Handling**: All errors include error codes for programmatic handling:
+1. **OS chooses the modality** – Windows Hello / Android hardware may still prompt for fingerprint when you intend to use Face (and vice versa). This is normal; the server only requires `userVerification` and then labels the credential based on the selected card.
+2. **Credential encoding** – Credential IDs and public keys are persisted as base64url strings. Convert with `Buffer.from(value, 'base64url')` on the server or helper utilities on the client.
+3. **Challenge storage** – `src/lib/webauthn-challenge-store.ts` delegates to Redis when `REDIS_URL` is configured; otherwise an in-memory fallback is used (single-instance only).
+4. **Discoverable verification** – Authentication options intentionally omit `allowCredentials` so passkeys that sync via Google Password Manager / iCloud Keychain can be used on any device.
+5. **Error Handling** – Biometric endpoints return structured codes for client handling:
    - `ALREADY_REGISTERED`: Credential already exists for this type
    - `NO_CREDENTIALS`: No credentials found for the requested type
    - `CREDENTIAL_NOT_FOUND`: CredentialId doesn't match stored credential

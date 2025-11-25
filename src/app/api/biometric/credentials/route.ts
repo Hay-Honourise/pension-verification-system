@@ -20,10 +20,10 @@ export async function GET(request: NextRequest) {
         id: true,
         type: true,
         credentialId: true,
-        registeredAt: true
+        createdAt: true
       },
       orderBy: {
-        registeredAt: 'desc'
+        createdAt: 'desc'
       }
     });
 
@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
         type: cred.type,
         credentialId: isDev ? cred.credentialId : undefined, // Only expose in dev mode
         credentialIdPreview: cred.credentialId.substring(0, 20) + '...', // Always show preview
-        registeredAt: cred.registeredAt.toISOString()
+        registeredAt: cred.createdAt.toISOString()
       }))
     });
 
