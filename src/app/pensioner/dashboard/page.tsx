@@ -538,22 +538,22 @@ export default function PensionerDashboard() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto px-2 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
-              <h1 className="text-xl font-semibold text-gray-900">
+              <h1 className="text-xs sm:text-lg lg:text-xl font-semibold text-gray-900">
                 Pension Verification Dashboard
               </h1>
             </div>
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center sm:space-x-4">
               <span className="text-sm text-gray-600 flex items-center gap-2">
-                <UserIcon className="w-4 h-4 text-gray-500" />
+                <UserIcon className="w-4 h-4 lg:w-6 lg:h-6 text-gray-500" />
                 Welcome, {user.fullName}
               </span>
               <>
                 <button
                   onClick={() => setShowLogoutModal(true)}
-                  className="px-4 py-2 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors"
+                  className="px-2 lg:px-4 py-1 lg:py-2 text-xs lg:text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors"
                 >
                   Logout
                 </button>
@@ -593,7 +593,7 @@ export default function PensionerDashboard() {
               </>
               <button
                 onClick={goToVerification}
-                className="px-4 py-2 text-sm bg-blue-600 text-white hover:bg-blue-700 rounded-md transition-colors"
+                className="px-2 lg:px-4 py-1 lg:py-2 text-xs lg:text-sm bg-blue-600 text-white hover:bg-blue-700 rounded-md transition-colors"
               >
                 Start Verification
               </button>

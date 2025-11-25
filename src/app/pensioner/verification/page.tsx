@@ -406,18 +406,18 @@ export default function BiometricVerificationPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="mb-8 flex justify-between items-start">
+      <div className="mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="mb-8 flex flex-col gap-3 sm:gap-0 sm:flex-row justify-between items-start">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Biometric Registration & Verification</h1>
-            <p className="text-gray-600">Register and verify using Windows Hello (Face or Fingerprint)</p>
+            <h1 className="text-xs sm:text-lg lg:text-xl font-bold text-gray-900 mb-2">Biometric Registration & Verification</h1>
+            <p className="text-xs sm:text-sm lg:text-base text-gray-600">Register and verify using Windows Hello (Face or Fingerprint)</p>
           </div>
           
           <div className="flex gap-2">
             {/* Debug Panel Button (always visible, but only useful in dev) */}
             <button
               onClick={() => setShowDebugPanel(!showDebugPanel)}
-              className="flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+              className="flex items-center p-2 sm:px-4 sm:py-2 text-xs lg:text-sm bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
             >
               <HelpCircle className="w-4 h-4 mr-2" />
               Debug Info
@@ -425,7 +425,7 @@ export default function BiometricVerificationPage() {
             {/* Help Button */}
             <button
               onClick={() => setShowHelpModal(true)}
-              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="flex items-center p-2 sm:px-4 sm:py-2 text-xs lg:text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
               <BookOpen className="w-4 h-4 mr-2" />
               How to Use

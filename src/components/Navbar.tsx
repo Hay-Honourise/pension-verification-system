@@ -17,7 +17,7 @@ export default function Navbar() {
     { name: 'Home', href: '/' },
     { name: 'History', href: '/history' },
     { name: 'FAQs', href: '/faqs' },
-    { name: 'Contact-Support', href: '/contact' },
+    { name: 'Support', href: '/contact' },
   ];
 
   // Close dropdowns when clicking outside
@@ -48,11 +48,11 @@ export default function Navbar() {
 
   return (
     <nav className="bg-oyoGreen text-oyoWhite shadow-lg sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
+      <div className="p-2 sm:p-4 lg:p-6">
+        <div className="flex items-center justify-between">
           {/* Logo */}
           <div className="flex-shrink-0 leading-none">
-            <Link href="/" className="text-xl font-bold hover:text-oyoOrange transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-oyoOrange focus:ring-offset-2 focus:ring-offset-oyoGreen rounded">
+            <Link href="/" className="text-sm sm:text-lg lg:text-xl font-bold hover:text-oyoOrange transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-oyoOrange focus:ring-offset-2 focus:ring-offset-oyoGreen rounded">
               Oyo Pension Verification
             </Link>
           </div>
