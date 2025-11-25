@@ -20,6 +20,8 @@ import {
   isPlatformAuthenticatorAvailable, 
   detectModalitySupport, 
   getModalitySupportMessage,
+  arrayBufferToBase64Url,
+  base64UrlToArrayBuffer,
   type ModalitySupport 
 } from '@/lib/biometric-client';
 
@@ -53,6 +55,39 @@ export default function BiometricVerificationPage() {
   const [debugCredentials, setDebugCredentials] = useState<Array<{id: string; type: string; credentialId: string; registeredAt: string}>>([]);
   const [verifySuccess, setVerifySuccess] = useState<boolean | null>(null);
   const [nextDueDate, setNextDueDate] = useState<string | null>(null);
+
+  const toBase64Url = (value: ArrayBuffer | ArrayBufferView): string => {
+    if (value instanceof ArrayBuffer) {
+      return arrayBufferToBase64Url(value);
+    }
+    const view = value as ArrayBufferView;
+    const sliced = view.byteOffset === 0 && view.byteLength === view.buffer.byteLength
+      ? view.buffer
+      : view.buffer.slice(view.byteOffset, view.byteOffset + view.byteLength);
+    return arrayBufferToBase64Url(sliced as ArrayBuffer);
+  };
+
+  const toUint8Array = (
+    value: string | ArrayBuffer | ArrayBufferView | number[] | null | undefined,
+    label: string
+  ): Uint8Array => {
+    if (typeof value === 'string') {
+      return new Uint8Array(base64UrlToArrayBuffer(value));
+    }
+    if (value instanceof ArrayBuffer) {
+      return new Uint8Array(value.slice(0));
+    }
+    if (ArrayBuffer.isView(value)) {
+      return new Uint8Array(value.buffer.slice(value.byteOffset, value.byteOffset + value.byteLength));
+    }
+    if (Array.isArray(value)) {
+      return new Uint8Array(value);
+    }
+    if (value == null) {
+      throw new Error(`Missing ${label} from server response`);
+    }
+    throw new Error(`Unsupported ${label} format: ${typeof value}`);
+  };
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -149,58 +184,37 @@ export default function BiometricVerificationPage() {
       }
 
       const challengeData = await challengeRes.json();
-      
-      // Helper to decode base64url string to Uint8Array with ArrayBuffer backing
-      const base64UrlToUint8Array = (base64url: string): Uint8Array<ArrayBuffer> => {
-        if (!base64url || typeof base64url !== 'string') {
-          throw new Error(`Invalid base64url string: ${base64url}`);
-        }
-        // Convert base64url to base64
-        let base64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
-        // Add padding if needed
-        while (base64.length % 4) {
-          base64 += '=';
-        }
-        // Convert to binary string then to Uint8Array
-        const binaryString = atob(base64);
-        // Create a new ArrayBuffer and Uint8Array to ensure ArrayBuffer backing
-        const arrayBuffer = new ArrayBuffer(binaryString.length);
-        const bytes = new Uint8Array(arrayBuffer);
-        for (let i = 0; i < binaryString.length; i++) {
-          bytes[i] = binaryString.charCodeAt(i);
-        }
-        return bytes;
-      };
+      const {
+        challenge,
+        user,
+        excludeCredentials: serverExcludeCredentials = [],
+        extensions,
+        ...creationOptions
+      } = challengeData;
       
       // Validate required fields
-      if (!challengeData.challenge) {
+      if (!challenge) {
         throw new Error('Missing challenge in server response');
       }
-      if (!challengeData.user || !challengeData.user.id) {
+      if (!user || !user.id) {
         throw new Error('Missing user.id in server response');
       }
       
-      // Create credential using WebAuthn
-      // The server returns attestation options in the format expected by @simplewebauthn/server
-      // We need to convert the challenge and user.id to the format expected by navigator.credentials.create
-      const challengeArrayBuffer = base64UrlToUint8Array(challengeData.challenge);
-      const userIdArrayBuffer = base64UrlToUint8Array(challengeData.user.id);
-      
-      // Build the publicKey options object explicitly to ensure proper types
-      const publicKeyOptions = {
-        challenge: challengeArrayBuffer,
-        rp: challengeData.rp,
+      // Create credential using WebAuthn with proper ArrayBuffer conversion
+      const publicKeyOptions: PublicKeyCredentialCreationOptions = {
+        ...creationOptions,
+        challenge: toUint8Array(challenge, 'registration challenge'),
         user: {
-          id: userIdArrayBuffer,
-          name: challengeData.user.name,
-          displayName: challengeData.user.displayName
+          ...user,
+          id: toUint8Array(user.id, 'user.id')
         },
-        pubKeyCredParams: challengeData.pubKeyCredParams,
-        timeout: challengeData.timeout,
-        attestation: challengeData.attestation,
-        excludeCredentials: challengeData.excludeCredentials || [],
-        authenticatorSelection: challengeData.authenticatorSelection,
-        extensions: challengeData.extensions || {}
+        excludeCredentials: serverExcludeCredentials.map((cred: any) => ({
+          ...cred,
+          id: toUint8Array(cred.id, 'credential id'),
+          type: 'public-key' as const,
+          transports: cred.transports || ['internal', 'hybrid']
+        })),
+        extensions: extensions || {}
       };
       
       const credential = await navigator.credentials.create({
@@ -215,13 +229,10 @@ export default function BiometricVerificationPage() {
       const response = credential.response as AuthenticatorAttestationResponse;
       const credentialData = {
         id: credential.id,
-        rawId: btoa(String.fromCharCode(...new Uint8Array(credential.rawId)))
-          .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, ''),
+        rawId: toBase64Url(credential.rawId),
         response: {
-          attestationObject: btoa(String.fromCharCode(...new Uint8Array(response.attestationObject)))
-            .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, ''),
-          clientDataJSON: btoa(String.fromCharCode(...new Uint8Array(response.clientDataJSON)))
-            .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, ''),
+          attestationObject: toBase64Url(response.attestationObject),
+          clientDataJSON: toBase64Url(response.clientDataJSON),
           transports: response.getTransports ? response.getTransports() : undefined
         },
         type: credential.type
@@ -290,35 +301,32 @@ export default function BiometricVerificationPage() {
       }
 
       const challengeData = await challengeRes.json();
-      
-      // Helper to decode base64url string to Uint8Array
-      const base64UrlToUint8Array = (base64url: string): Uint8Array => {
-        // Convert base64url to base64
-        let base64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
-        // Add padding if needed
-        while (base64.length % 4) {
-          base64 += '=';
-        }
-        // Convert to binary string then to Uint8Array
-        const binaryString = atob(base64);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-          bytes[i] = binaryString.charCodeAt(i);
-        }
-        return bytes;
-      };
+      const {
+        challenge,
+        allowCredentials: serverAllowCredentials = [],
+        extensions,
+        ...requestOptions
+      } = challengeData;
 
-      // Get credential for verification
-      // The server returns authentication options in the format expected by @simplewebauthn/server
-      // We need to convert the challenge and allowCredentials to the format expected by navigator.credentials.get
-      const publicKeyOptions = {
-        ...challengeData,
-        challenge: base64UrlToUint8Array(challengeData.challenge),
-        allowCredentials: challengeData.allowCredentials?.map((cred: any) => ({
-          id: base64UrlToUint8Array(cred.id),
-          type: 'public-key',
-          transports: cred.transports || ['internal']
-        })) || []
+      if (!challenge) {
+        throw new Error('Missing challenge from server');
+      }
+
+      const allowCredentials = serverAllowCredentials.length
+        ? serverAllowCredentials.map((cred: any) => ({
+            ...cred,
+            id: toUint8Array(cred.id, 'allowCredential id'),
+            type: 'public-key' as const,
+            transports: cred.transports || ['internal', 'hybrid']
+          }))
+        : undefined;
+      
+      // Prepare options for navigator.credentials.get
+      const publicKeyOptions: PublicKeyCredentialRequestOptions = {
+        ...requestOptions,
+        challenge: toUint8Array(challenge, 'verification challenge'),
+        allowCredentials,
+        extensions: extensions || {}
       };
 
       const credential = await navigator.credentials.get({
@@ -333,17 +341,12 @@ export default function BiometricVerificationPage() {
       const response = credential.response as AuthenticatorAssertionResponse;
       const verificationData = {
         id: credential.id,
-        rawId: btoa(String.fromCharCode(...new Uint8Array(credential.rawId)))
-          .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, ''),
+        rawId: toBase64Url(credential.rawId),
         response: {
-          authenticatorData: btoa(String.fromCharCode(...new Uint8Array(response.authenticatorData)))
-            .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, ''),
-          clientDataJSON: btoa(String.fromCharCode(...new Uint8Array(response.clientDataJSON)))
-            .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, ''),
-          signature: btoa(String.fromCharCode(...new Uint8Array(response.signature)))
-            .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, ''),
-          userHandle: response.userHandle ? btoa(String.fromCharCode(...new Uint8Array(response.userHandle)))
-            .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '') : null
+          authenticatorData: toBase64Url(response.authenticatorData),
+          clientDataJSON: toBase64Url(response.clientDataJSON),
+          signature: toBase64Url(response.signature),
+          userHandle: response.userHandle ? toBase64Url(response.userHandle) : null
         },
         type: credential.type
       };
@@ -410,7 +413,9 @@ export default function BiometricVerificationPage() {
         <div className="mb-8 flex flex-col gap-3 sm:gap-0 sm:flex-row justify-between items-start">
           <div>
             <h1 className="text-xs sm:text-lg lg:text-xl font-bold text-gray-900 mb-2">Biometric Registration & Verification</h1>
-            <p className="text-xs sm:text-sm lg:text-base text-gray-600">Register and verify using Windows Hello (Face or Fingerprint)</p>
+            <p className="text-xs sm:text-sm lg:text-base text-gray-600">
+              Register and verify using Windows Hello or Android device biometrics (Face / Fingerprint)
+            </p>
           </div>
           
           <div className="flex gap-2">
@@ -447,6 +452,11 @@ export default function BiometricVerificationPage() {
                   <p className="text-sm text-blue-700 mt-2">
                     <strong>Note:</strong> Windows Hello chooses the biometric modality (face or fingerprint) based on your device settings. 
                     The system stores separate credentials for each type, so make sure to register both if you want to use both modalities.
+                  </p>
+                )}
+                {modalitySupport.deviceType === 'android' && (
+                  <p className="text-sm text-blue-700 mt-2">
+                    <strong>Note:</strong> On Android, ensure biometrics and screen lock are configured in settings and use Chrome/Edge with the latest updates.
                   </p>
                 )}
               </div>
@@ -528,9 +538,13 @@ export default function BiometricVerificationPage() {
                 <p className="text-sm text-yellow-700 mt-1">
                   Platform biometric authentication is not set up on this device. Please configure it in your device settings.
                   {modalitySupport?.deviceType === 'windows' && ' (Windows Settings → Accounts → Sign-in options → Windows Hello)'}
+                  {modalitySupport?.deviceType === 'android' && ' (Settings → Security → Screen lock & Fingerprint/Face)'}
                 </p>
                 <p className="text-sm text-yellow-700 mt-2">
-                  <strong>Alternative:</strong> If your device doesn't support biometrics, please visit the nearest Pension Desk to register biometrics.
+                  You can still attempt registration or verification once your Android phone or Windows Hello laptop has fingerprint/face unlock enabled—Windows Hello or Chrome on Android will prompt you as soon as the device is ready.
+                </p>
+                <p className="text-sm text-yellow-700 mt-2">
+                  <strong>Alternative:</strong> If your device truly does not support biometrics, please visit the nearest Pension Desk to register biometrics.
                 </p>
               </div>
             </div>
@@ -580,7 +594,7 @@ export default function BiometricVerificationPage() {
                   <>
                     <button
                       onClick={() => registerBiometric('FACE')}
-                      disabled={!isPlatformAuthAvailable || isLoading || (modalitySupport?.face === 'unavailable')}
+                      disabled={!isWebAuthnSupported || isLoading || (modalitySupport?.face === 'unavailable')}
                       className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                     >
                       {isLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <User className="w-4 h-4 mr-2" />}
@@ -598,7 +612,7 @@ export default function BiometricVerificationPage() {
                 <h3 className="font-medium text-gray-900 mb-3">Verification</h3>
                 <button
                   onClick={() => verifyBiometric('FACE')}
-                  disabled={!isRegistered('FACE') || !isPlatformAuthAvailable || isLoading}
+                  disabled={!isRegistered('FACE') || !isWebAuthnSupported || isLoading}
                   className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                 >
                   {isLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Shield className="w-4 h-4 mr-2" />}
@@ -633,7 +647,7 @@ export default function BiometricVerificationPage() {
                   <>
                     <button
                       onClick={() => registerBiometric('FINGERPRINT')}
-                      disabled={!isPlatformAuthAvailable || isLoading || (modalitySupport?.fingerprint === 'unavailable')}
+                      disabled={!isWebAuthnSupported || isLoading || (modalitySupport?.fingerprint === 'unavailable')}
                       className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                     >
                       {isLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Fingerprint className="w-4 h-4 mr-2" />}
@@ -651,7 +665,7 @@ export default function BiometricVerificationPage() {
                 <h3 className="font-medium text-gray-900 mb-3">Verification</h3>
                 <button
                   onClick={() => verifyBiometric('FINGERPRINT')}
-                  disabled={!isRegistered('FINGERPRINT') || !isPlatformAuthAvailable || isLoading}
+                  disabled={!isRegistered('FINGERPRINT') || !isWebAuthnSupported || isLoading}
                   className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                 >
                   {isLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Shield className="w-4 h-4 mr-2" />}

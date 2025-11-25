@@ -114,7 +114,7 @@ export function getModalitySupportMessage(support: ModalitySupport): string {
 /**
  * Convert ArrayBuffer to base64url string
  */
-export function arrayBufferToBase64Url(buffer: ArrayBuffer): string {
+export function arrayBufferToBase64Url(buffer: ArrayBufferLike): string {
   const bytes = new Uint8Array(buffer);
   let binary = '';
   for (let i = 0; i < bytes.length; i++) {
