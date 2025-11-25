@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, AreaChart, Area } from 'recharts'
 import { 
   Home, 
   Users, 
@@ -875,29 +875,68 @@ export default function AdminDashboard() {
 
 // Dashboard Overview Component
 function DashboardOverview({ metrics, monthlyVerifications }: { metrics: any, monthlyVerifications: any[] }) {
-  // Prepare chart data
-  const chartData = monthlyVerifications.length > 0 
+  // Prepare pie chart data
+  const pieChartData = monthlyVerifications.length > 0 
     ? monthlyVerifications.map(item => ({
-        month: item.label,
-        verified: item.count
+        name: item.label,
+        value: item.count
       }))
-    : [
-        { month: 'No Data', verified: 0 }
-      ];
+    : [];
 
-  const CustomTooltip = ({ active, payload, label }: any) => {
+  // Professional color palette for pie chart
+  const COLORS = [
+    '#3b82f6', // Blue
+    '#10b981', // Green
+    '#f59e0b', // Amber
+    '#ef4444', // Red
+    '#8b5cf6', // Purple
+    '#06b6d4', // Cyan
+    '#ec4899', // Pink
+    '#14b8a6', // Teal
+  ];
+
+  const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
+      const data = payload[0];
+      const total = pieChartData.reduce((sum, item) => sum + item.value, 0);
+      const percentage = total > 0 ? ((data.value / total) * 100).toFixed(1) : 0;
+      
       return (
-        <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-3">
-          <p className="text-sm font-semibold text-gray-700">{label}</p>
-          <p className="text-sm text-blue-600">
-            Verified: <span className="font-bold">{payload[0].value}</span>
-          </p>
+        <div className="bg-white border border-gray-200 rounded-lg shadow-xl p-4">
+          <p className="text-sm font-semibold text-gray-900 mb-1">{data.name}</p>
+          <p className="text-lg font-bold text-blue-600">{data.value} pensioners</p>
+          <p className="text-xs text-gray-500 mt-1">{percentage}% of total</p>
         </div>
       );
     }
     return null;
   };
+
+  const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, name }: any) => {
+    const RADIAN = Math.PI / 180;
+    const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+    const x = cx + radius * Math.cos(-midAngle * RADIAN);
+    const y = cy + radius * Math.sin(-midAngle * RADIAN);
+
+    // Only show label if percentage is significant (>5%)
+    if (percent < 0.05) return null;
+
+    return (
+      <text
+        x={x}
+        y={y}
+        fill="white"
+        textAnchor={x > cx ? 'start' : 'end'}
+        dominantBaseline="central"
+        className="text-xs font-semibold"
+        style={{ textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}
+      >
+        {`${(percent * 100).toFixed(0)}%`}
+      </text>
+    );
+  };
+
+  const totalVerified = pieChartData.reduce((sum, item) => sum + item.value, 0);
 
   return (
     <div className="space-y-6">
@@ -933,17 +972,23 @@ function DashboardOverview({ metrics, monthlyVerifications }: { metrics: any, mo
         />
       </div>
 
-      {/* Chart Section */}
+      {/* Pie Chart Section */}
       <div className="bg-white shadow-md rounded-xl p-6">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h3 className="text-lg font-semibold text-gray-900">Pensioners Verified per Month</h3>
-            <p className="text-sm text-gray-500 mt-1">Last 6 months of verification activity</p>
+            <p className="text-sm text-gray-500 mt-1">Distribution of verifications over the last 6 months</p>
           </div>
-          <TrendingUp className="w-6 h-6 text-blue-600" />
+          <div className="flex items-center gap-2">
+            <div className="text-right">
+              <p className="text-2xl font-bold text-gray-900">{totalVerified}</p>
+              <p className="text-xs text-gray-500">Total Verified</p>
+            </div>
+            <TrendingUp className="w-6 h-6 text-blue-600" />
+          </div>
         </div>
         
-        {chartData[0].month === 'No Data' ? (
+        {pieChartData.length === 0 ? (
           <div className="h-64 bg-gray-50 rounded-lg flex items-center justify-center">
             <div className="text-center">
               <BarChart3 className="w-12 h-12 text-gray-400 mx-auto mb-2" />
@@ -952,38 +997,59 @@ function DashboardOverview({ metrics, monthlyVerifications }: { metrics: any, mo
             </div>
           </div>
         ) : (
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart
-              data={chartData}
-              margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-              barSize={60}
-            >
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis 
-                dataKey="month" 
-                tick={{ fill: '#6b7280', fontSize: 12 }}
-                axisLine={{ stroke: '#e5e7eb' }}
-              />
-              <YAxis 
-                tick={{ fill: '#6b7280', fontSize: 12 }}
-                axisLine={{ stroke: '#e5e7eb' }}
-                label={{ value: 'Count', angle: -90, position: 'insideLeft', style: { fill: '#6b7280' } }}
-              />
-              <Tooltip content={<CustomTooltip />} />
-              <Legend 
-                wrapperStyle={{ paddingTop: '20px' }}
-                iconType="circle"
-                iconSize={8}
-                formatter={(value) => <span className="text-gray-700 text-sm">{value}</span>}
-              />
-              <Bar 
-                dataKey="verified" 
-                fill="#3b82f6" 
-                radius={[8, 8, 0, 0]}
-                name="Verified Pensioners"
-              />
-            </BarChart>
-          </ResponsiveContainer>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Pie Chart */}
+            <div>
+              <ResponsiveContainer width="100%" height={350}>
+                <PieChart>
+                  <Pie
+                    data={pieChartData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={renderCustomLabel}
+                    outerRadius={120}
+                    innerRadius={60}
+                    fill="#8884d8"
+                    dataKey="value"
+                    stroke="#fff"
+                    strokeWidth={2}
+                  >
+                    {pieChartData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip content={<CustomTooltip />} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            
+            {/* Legend */}
+            <div className="flex flex-col justify-center">
+              <div className="space-y-3">
+                {pieChartData.map((item, index) => {
+                  const percentage = totalVerified > 0 ? ((item.value / totalVerified) * 100).toFixed(1) : 0;
+                  return (
+                    <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="w-4 h-4 rounded-full"
+                          style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                        />
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">{item.name}</p>
+                          <p className="text-xs text-gray-500">{item.value} pensioners</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-semibold text-gray-900">{percentage}%</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>
@@ -1300,6 +1366,31 @@ function NotificationsPanel({ notifications }: { notifications: any[] }) {
 
 // Reports Section Component
 function ReportsSection() {
+  // Temporary sample data until API hooks up
+  const verificationTrends = [
+    { month: 'Jan', verified: 45, flagged: 3 },
+    { month: 'Feb', verified: 58, flagged: 6 },
+    { month: 'Mar', verified: 62, flagged: 4 },
+    { month: 'Apr', verified: 72, flagged: 8 },
+    { month: 'May', verified: 68, flagged: 5 },
+    { month: 'Jun', verified: 75, flagged: 2 }
+  ]
+
+  const schemeBreakdown = [
+    { name: 'Contributory', value: 48 },
+    { name: 'Defined Benefits', value: 32 },
+    { name: 'Hybrid', value: 20 }
+  ]
+
+  const departmentPerformance = [
+    { department: 'Education', verifications: 45, percentage: 78 },
+    { department: 'Health', verifications: 38, percentage: 67 },
+    { department: 'Finance', verifications: 52, percentage: 88 },
+    { department: 'Transport', verifications: 29, percentage: 53 }
+  ]
+
+  const schemeColors = ['#3b82f6', '#10b981', '#f59e0b']
+
   return (
     <div className="space-y-6">
       {/* Report Filters */}
@@ -1342,14 +1433,118 @@ function ReportsSection() {
         </div>
       </div>
 
-      {/* Report Preview */}
-      <div className="bg-white shadow-md rounded-xl p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Report Preview</h3>
-        <div className="h-64 bg-gray-50 rounded-lg flex items-center justify-center">
-          <div className="text-center">
-            <BarChart3 className="w-12 h-12 text-gray-400 mx-auto mb-2" />
-            <p className="text-gray-500">Report preview will appear here</p>
+      {/* Charts Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Verification Trend */}
+        <div className="bg-white shadow-md rounded-xl p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">Verification Trend</h3>
+              <p className="text-sm text-gray-500">Performance over the last 6 months</p>
+            </div>
+            <TrendingUp className="w-5 h-5 text-blue-600" />
           </div>
+          <ResponsiveContainer width="100%" height={280}>
+            <LineChart data={verificationTrends} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+              <XAxis dataKey="month" stroke="#9ca3af" />
+              <YAxis stroke="#9ca3af" />
+              <Tooltip />
+              <Legend />
+              <Line type="monotone" dataKey="verified" stroke="#3b82f6" strokeWidth={3} dot={{ r: 4 }} name="Verified" />
+              <Line type="monotone" dataKey="flagged" stroke="#ef4444" strokeWidth={2} dot={{ r: 4 }} name="Flagged" />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Scheme Distribution */}
+        <div className="bg-white shadow-md rounded-xl p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">Scheme Distribution</h3>
+              <p className="text-sm text-gray-500">Active pension schemes mix</p>
+            </div>
+            <BarChart3 className="w-5 h-5 text-green-600" />
+          </div>
+          <div className="flex flex-col lg:flex-row gap-6">
+            <div className="h-64 lg:w-1/2">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={schemeBreakdown}
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={90}
+                    innerRadius={50}
+                    label={(entry) => `${entry.value}%`}
+                    dataKey="value"
+                  >
+                    {schemeBreakdown.map((entry, index) => (
+                      <Cell key={`cell-${entry.name}`} fill={schemeColors[index % schemeColors.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="flex-1 space-y-3">
+              {schemeBreakdown.map((item, index) => (
+                <div key={item.name} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: schemeColors[index % schemeColors.length] }} />
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">{item.name}</p>
+                      <p className="text-xs text-gray-500">{item.value}% allocation</p>
+                    </div>
+                  </div>
+                  <span className="text-sm font-semibold text-gray-800">{item.value}%</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Department Performance Table */}
+      <div className="bg-white shadow-md rounded-xl p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">Department Performance</h3>
+            <p className="text-sm text-gray-500">Completion rate by department</p>
+          </div>
+          <TrendingUp className="w-5 h-5 text-purple-600" />
+        </div>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Verifications</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Completion Rate</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trend</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {departmentPerformance.map((dept) => (
+                <tr key={dept.department}>
+                  <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{dept.department}</td>
+                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700">{dept.verifications}</td>
+                  <td className="px-4 py-4 whitespace-nowrap text-sm">
+                    <div className="flex items-center gap-2">
+                      <div className="w-28 bg-gray-100 rounded-full h-2">
+                        <div className="h-2 rounded-full bg-blue-500" style={{ width: `${dept.percentage}%` }} />
+                      </div>
+                      <span className="text-gray-700 font-semibold">{dept.percentage}%</span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-4 whitespace-nowrap text-sm text-green-600 flex items-center gap-1">
+                    <TrendingUp className="w-4 h-4" />
+                    Stable
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
