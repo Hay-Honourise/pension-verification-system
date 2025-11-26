@@ -1,127 +1,51 @@
-import { createClient, RedisClientType } from 'redis';
-
-let redisClient: RedisClientType | null = null;
-let inMemoryStore: Map<string, { challenge: Buffer; expiresAt: number }> = new Map();
-let useRedis = false;
-
-// Initialize Redis client
-export async function initRedis(): Promise<void> {
-  const redisUrl = process.env.REDIS_URL;
-  
-  if (!redisUrl) {
-    console.warn('⚠️ REDIS_URL not set, using in-memory challenge store (not suitable for production)');
-    useRedis = false;
-    return;
-  }
-
-  try {
-    redisClient = createClient({
-      url: redisUrl
-    });
-
-    redisClient.on('error', (err) => {
-      console.error('Redis Client Error:', err);
-      useRedis = false;
-    });
-
-    await redisClient.connect();
-    useRedis = true;
-    console.log('✅ Redis connected for challenge storage');
-  } catch (error) {
-    console.error('Failed to connect to Redis, falling back to in-memory store:', error);
-    useRedis = false;
-  }
-}
-
-// Clean up expired challenges from in-memory store
-if (typeof setInterval !== 'undefined') {
-  setInterval(() => {
-    if (!useRedis) {
-      const now = Date.now();
-      for (const [key, value] of inMemoryStore.entries()) {
-        if (value.expiresAt < now) {
-          inMemoryStore.delete(key);
-        }
-      }
-    }
-  }, 5 * 60 * 1000); // Every 5 minutes
-}
+import { redis } from './redis';
+import { CHALLENGE_TTL_SECONDS } from './webauthn-config';
 
 /**
- * Store a challenge with TTL
+ * Store a challenge with TTL in Redis
  */
 export async function setChallenge(
   key: string,
   challenge: Buffer,
-  ttlSeconds: number = 300
+  ttlSeconds: number = CHALLENGE_TTL_SECONDS
 ): Promise<void> {
-  if (useRedis && redisClient) {
-    try {
-      await redisClient.setEx(key, ttlSeconds, challenge.toString('base64url'));
-    } catch (error) {
-      console.error('Redis setChallenge error:', error);
-      // Fallback to in-memory
-      inMemoryStore.set(key, {
-        challenge,
-        expiresAt: Date.now() + ttlSeconds * 1000
-      });
-    }
-  } else {
-    inMemoryStore.set(key, {
-      challenge,
-      expiresAt: Date.now() + ttlSeconds * 1000
-    });
+  try {
+    const challengeBase64 = challenge.toString('base64url');
+    await redis.set(key, challengeBase64, { ex: ttlSeconds });
+    console.log(`[challenges] Stored challenge key=${key} in Redis (TTL=${ttlSeconds}s)`);
+  } catch (error) {
+    console.error('[challenges] Redis setChallenge error:', error);
+    throw new Error('Failed to store challenge in Redis');
   }
 }
 
 /**
- * Get a challenge by key
+ * Get a challenge by key from Redis
  */
 export async function getChallenge(key: string): Promise<Buffer | null> {
-  if (useRedis && redisClient) {
-    try {
-      const value = await redisClient.get(key);
-      if (!value) return null;
-      return Buffer.from(value, 'base64url');
-    } catch (error) {
-      console.error('Redis getChallenge error:', error);
-      // Fallback to in-memory
-      const stored = inMemoryStore.get(key);
-      if (!stored || stored.expiresAt < Date.now()) {
-        inMemoryStore.delete(key);
-        return null;
-      }
-      return stored.challenge;
-    }
-  } else {
-    const stored = inMemoryStore.get(key);
-    if (!stored || stored.expiresAt < Date.now()) {
-      inMemoryStore.delete(key);
+  try {
+    const value = await redis.get<string>(key);
+    if (!value) {
+      console.log(`[challenges] Challenge key=${key} not found in Redis`);
       return null;
     }
-    return stored.challenge;
+    console.log(`[challenges] Retrieved challenge key=${key} from Redis`);
+    return Buffer.from(value, 'base64url');
+  } catch (error) {
+    console.error('[challenges] Redis getChallenge error:', error);
+    throw new Error('Failed to retrieve challenge from Redis');
   }
 }
 
 /**
- * Delete a challenge
+ * Delete a challenge from Redis
  */
 export async function deleteChallenge(key: string): Promise<void> {
-  if (useRedis && redisClient) {
-    try {
-      await redisClient.del(key);
-    } catch (error) {
-      console.error('Redis deleteChallenge error:', error);
-      // Fallback to in-memory
-      inMemoryStore.delete(key);
-    }
-  } else {
-    inMemoryStore.delete(key);
+  try {
+    await redis.del(key);
+    console.log(`[challenges] Deleted challenge key=${key} from Redis`);
+  } catch (error) {
+    console.error('[challenges] Redis deleteChallenge error:', error);
+    throw new Error('Failed to delete challenge from Redis');
   }
 }
-
-// Initialize on module load (for server-side)
-if (typeof window === 'undefined') {
-  initRedis().catch(console.error);
-}
-

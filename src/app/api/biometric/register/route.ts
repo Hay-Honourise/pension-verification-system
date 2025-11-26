@@ -136,8 +136,11 @@ export async function GET(request: NextRequest) {
       const challengeKey = `${pensioner.id}_${type}_register`;
       try {
         await storeChallenge(challengeKey, options.challenge);
+        console.log(
+          `[biometric/register] Stored registration challenge in Redis: key=${challengeKey} for pensioner=${pensioner.id} type=${type}`,
+        );
       } catch (storeError) {
-        console.error('[biometric/register] Error storing challenge', storeError);
+        console.error('[biometric/register] Error storing challenge in Redis', storeError);
         throw new Error(`Failed to store challenge: ${storeError instanceof Error ? storeError.message : 'Unknown error'}`);
       }
 

@@ -58,8 +58,10 @@ export async function POST(request: NextRequest) {
     }
 
     const challengeKey = `${pensioner.id}_${normalizedType}_register`;
+    console.log(`[biometric/register/verify] Loading challenge from Redis: key=${challengeKey}`);
     const expectedChallenge = await loadChallenge(challengeKey);
     if (!expectedChallenge) {
+      console.warn(`[biometric/register/verify] Challenge not found in Redis: key=${challengeKey}`);
       return NextResponse.json(
         { error: 'CHALLENGE_EXPIRED', message: 'Registration challenge expired. Please restart registration.' },
         { status: 400 },
@@ -101,6 +103,7 @@ export async function POST(request: NextRequest) {
     });
 
     await clearChallenge(challengeKey);
+    console.log(`[biometric/register/verify] Cleared challenge from Redis: key=${challengeKey}`);
 
     console.log(
       `[biometric/register] Stored discoverable credential for pensioner=${pensioner.id} type=${normalizedType} cred=${credentialId.slice(0, 10)}…`,

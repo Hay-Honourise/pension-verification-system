@@ -25,6 +25,7 @@
     "@simplewebauthn/server": "^13.2.2",
     "@types/jsonwebtoken": "^9.0.7",
     "@types/react-webcam": "^1.1.0",
+    "@upstash/redis": "^1.35.6",
     "aws-sdk": "^2.1692.0",
     "axios": "^1.12.2",
     "backblaze-b2": "^1.7.1",
@@ -43,8 +44,7 @@
     "react-hot-toast": "^2.6.0",
     "react-icons": "^5.5.0",
     "react-webcam": "^7.2.0",
-    "recharts": "^3.3.0",
-    "redis": "^5.9.0"
+    "recharts": "^3.3.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.1.2",

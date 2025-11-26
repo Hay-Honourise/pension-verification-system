@@ -51,6 +51,9 @@ export async function GET(request: NextRequest) {
 
     const challengeKey = `${payload.id}_${type}_verify`;
     await storeChallenge(challengeKey, options.challenge);
+    console.log(
+      `[biometric/verify] Stored verification challenge in Redis: key=${challengeKey} for pensioner=${payload.id} type=${type}`,
+    );
 
     console.log(
       `[biometric/verify] Issued discoverable authentication challenge for pensioner=${payload.id} type=${type}`,
@@ -111,8 +114,10 @@ export async function POST(request: NextRequest) {
     }
 
     const challengeKey = `${pensioner.id}_${normalizedType}_verify`;
+    console.log(`[biometric/verify] Loading challenge from Redis: key=${challengeKey}`);
     const expectedChallenge = await loadChallenge(challengeKey);
     if (!expectedChallenge) {
+      console.warn(`[biometric/verify] Challenge not found in Redis: key=${challengeKey}`);
       return NextResponse.json(
         { error: 'CHALLENGE_EXPIRED', message: 'Verification challenge expired. Please try again.' },
         { status: 400 },
@@ -203,6 +208,7 @@ export async function POST(request: NextRequest) {
     ]);
 
     await clearChallenge(challengeKey);
+    console.log(`[biometric/verify] Cleared challenge from Redis: key=${challengeKey}`);
 
     console.log(
       `[biometric/verify] Pensioner=${pensioner.id} verified via ${normalizedType}. Next due ${nextDue.toISOString()}`,
