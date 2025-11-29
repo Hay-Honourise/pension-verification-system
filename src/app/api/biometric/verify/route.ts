@@ -107,8 +107,14 @@ export async function POST(request: NextRequest) {
     });
 
     if (!storedCredential) {
+      console.warn(
+        `[biometric/verify] Credential not found: pensioner=${pensioner.id}, type=${normalizedType}, credentialId=${assertion.id?.substring(0, 20)}...`
+      );
       return NextResponse.json(
-        { error: 'CREDENTIAL_NOT_FOUND', message: 'No matching passkey found for this device.' },
+        { 
+          error: 'CREDENTIAL_NOT_FOUND', 
+          message: `No matching ${normalizedType} passkey found for this device. Please register your biometric first.` 
+        },
         { status: 404 },
       );
     }

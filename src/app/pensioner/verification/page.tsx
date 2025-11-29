@@ -221,10 +221,14 @@ export default function BiometricVerificationPage() {
       
       const credential = await navigator.credentials.create({
         publicKey: publicKeyOptions
-      }) as PublicKeyCredential;
+      }) as PublicKeyCredential | null;
 
       if (!credential) {
-        throw new Error('Failed to create credential');
+        throw new Error('Registration cancelled or failed. Please try again.');
+      }
+
+      if (!credential.id) {
+        throw new Error('Invalid credential response. Please try again.');
       }
 
       // Send credential to server in the format expected by @simplewebauthn/server
@@ -273,7 +277,21 @@ export default function BiometricVerificationPage() {
 
     } catch (error: any) {
       console.error('Registration error:', error);
-      showMessage(error.message || 'Registration failed', 'error');
+      
+      // Provide more specific error messages
+      let errorMessage = error.message || 'Registration failed';
+      
+      if (error.name === 'NotAllowedError') {
+        errorMessage = 'Registration was cancelled or timed out. Please try again.';
+      } else if (error.name === 'InvalidStateError') {
+        errorMessage = 'A registration is already in progress. Please wait.';
+      } else if (error.name === 'NotSupportedError') {
+        errorMessage = 'Your device does not support this registration method.';
+      } else if (error.name === 'SecurityError') {
+        errorMessage = 'Security error occurred. Please ensure you are using HTTPS or localhost.';
+      }
+      
+      showMessage(errorMessage, 'error');
     } finally {
       setIsLoading(false);
     }
@@ -335,10 +353,14 @@ export default function BiometricVerificationPage() {
 
       const credential = await navigator.credentials.get({
         publicKey: publicKeyOptions
-      }) as PublicKeyCredential;
+      }) as PublicKeyCredential | null;
 
       if (!credential) {
-        throw new Error('Verification failed');
+        throw new Error('Verification cancelled or failed. Please try again.');
+      }
+
+      if (!credential.id) {
+        throw new Error('Invalid credential response. Please try again.');
       }
 
       // Send verification result to server in the format expected by @simplewebauthn/server
@@ -401,7 +423,21 @@ export default function BiometricVerificationPage() {
       console.error('Verification error:', error);
       setVerifySuccess(false);
       setNextDueDate(null);
-      showMessage(error.message || 'Verification failed', 'error');
+      
+      // Provide more specific error messages
+      let errorMessage = error.message || 'Verification failed';
+      
+      if (error.name === 'NotAllowedError') {
+        errorMessage = 'Verification was cancelled or timed out. Please try again.';
+      } else if (error.name === 'InvalidStateError') {
+        errorMessage = 'A verification is already in progress. Please wait.';
+      } else if (error.name === 'NotSupportedError') {
+        errorMessage = 'Your device does not support this verification method.';
+      } else if (error.message?.includes('credential')) {
+        errorMessage = 'No matching credential found. Please register your biometric first.';
+      }
+      
+      showMessage(errorMessage, 'error');
     } finally {
       setIsLoading(false);
     }

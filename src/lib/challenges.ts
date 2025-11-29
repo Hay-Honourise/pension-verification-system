@@ -1,4 +1,4 @@
-import { redis } from './redis';
+import { getRedis } from './redis';
 import { CHALLENGE_TTL_SECONDS } from './webauthn-config';
 
 /**
@@ -10,6 +10,7 @@ export async function setChallenge(
   ttlSeconds: number = CHALLENGE_TTL_SECONDS
 ): Promise<void> {
   try {
+    const redis = getRedis();
     const challengeBase64 = challenge.toString('base64url');
     await redis.set(key, challengeBase64, { ex: ttlSeconds });
     console.log(`[challenges] Stored challenge key=${key} in Redis (TTL=${ttlSeconds}s)`);
@@ -24,6 +25,7 @@ export async function setChallenge(
  */
 export async function getChallenge(key: string): Promise<Buffer | null> {
   try {
+    const redis = getRedis();
     const value = await redis.get<string>(key);
     if (!value) {
       console.log(`[challenges] Challenge key=${key} not found in Redis`);
@@ -42,6 +44,7 @@ export async function getChallenge(key: string): Promise<Buffer | null> {
  */
 export async function deleteChallenge(key: string): Promise<void> {
   try {
+    const redis = getRedis();
     await redis.del(key);
     console.log(`[challenges] Deleted challenge key=${key} from Redis`);
   } catch (error) {
