@@ -702,7 +702,7 @@ export default function PensionerDashboard() {
             </div>
             <p className="text-sm text-gray-600">
               {documentVerificationStatus === "VERIFIED"
-                ? "Your documents have been verified successfully. You can now proceed with biometric verification."
+                ? "Your documents have been verified successfully. and you are not under any deciplinary action. You can now proceed with biometric verification."
                 : documentVerificationStatus === "REJECTED"
                 ? "Your document verification was not approved. Please contact support or upload new documents."
                 : "Your documents are pending verification. Please wait for an officer to review your uploaded documents."}
@@ -743,9 +743,9 @@ export default function PensionerDashboard() {
             </div>
             <p className="text-sm text-gray-600 mb-3">
               {biometricVerificationStatus === "VERIFIED"
-                ? "Your biometric verification has been completed successfully. You cannot verify again."
+                ? "Your biometric verification has been completed successfully. You cannot verify again till next due date."
                 : documentVerificationStatus === "VERIFIED"
-                ? "Please complete your biometric verification to finalize your pension verification process."
+                ? "Please complete your biometric verification to finalize your pension verification process, and be eligible for your gratuity and pension benefits."
                 : "Please complete document verification first before proceeding with biometric verification."}
             </p>
             {biometricVerificationStatus === "VERIFIED" && biometricVerificationDueDate && (

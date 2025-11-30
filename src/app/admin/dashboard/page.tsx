@@ -32,7 +32,10 @@ import {
   UserPlus,
   Shield,
   AlertCircle,
-  CheckCircle2
+  CheckCircle2,
+  Loader2,
+  RefreshCw,
+  Activity
 } from 'lucide-react'
 
 export default function AdminDashboard() {
@@ -1246,174 +1249,480 @@ function PensionerManagement({
 }
 
 // Notifications Panel Component
-function NotificationsPanel({ notifications }: { notifications: any[] }) {
-  const [localNotifications, setLocalNotifications] = useState(notifications)
-  const [showEmptyState, setShowEmptyState] = useState(false)
+function NotificationsPanel({ notifications: initialNotifications }: { notifications: any[] }) {
+  const [localNotifications, setLocalNotifications] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [filter, setFilter] = useState<'all' | 'pending_verification' | 'new_registration' | 'flagged_account' | 'failed_verification' | 'verification_due' | 'enquiry' | 'system_alert'>('all')
+  const [unreadCount, setUnreadCount] = useState(0)
 
   useEffect(() => {
-    if (notifications.length === 0) {
-      setShowEmptyState(true)
-    } else {
-      setShowEmptyState(false)
-      // Update local notifications when prop changes
-      setLocalNotifications(notifications)
-    }
-  }, [notifications])
+    loadNotifications()
+  }, [filter])
 
-  const handleMarkAsRead = (id: number) => {
-    setLocalNotifications(prev => 
-      prev.map(notif => 
-        notif.id === id ? { ...notif, read: true } : notif
+  const loadNotifications = async () => {
+    try {
+      setLoading(true)
+      const token = localStorage.getItem('token') || ''
+      
+      const params = new URLSearchParams()
+      params.append('limit', '50')
+      if (filter !== 'all') {
+        params.append('type', filter)
+      }
+
+      const response = await fetch(`/api/admin/notifications?${params.toString()}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setLocalNotifications(data.notifications || [])
+        setUnreadCount(data.unread || 0)
+      } else {
+        toast.error('Failed to load notifications')
+        // Fallback to initial notifications if API fails
+        setLocalNotifications(initialNotifications)
+      }
+    } catch (error) {
+      console.error('Error loading notifications:', error)
+      toast.error('Failed to load notifications')
+      setLocalNotifications(initialNotifications)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleMarkAsRead = async (id: string) => {
+    try {
+      const token = localStorage.getItem('token') || ''
+      const response = await fetch('/api/admin/notifications', {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ notificationId: id, read: true }),
+      })
+
+      if (response.ok) {
+        setLocalNotifications(prev => 
+          prev.map(notif => 
+            notif.id === id ? { ...notif, read: true } : notif
+          )
+        )
+        setUnreadCount(prev => Math.max(0, prev - 1))
+      }
+    } catch (error) {
+      console.error('Error marking notification as read:', error)
+      // Update locally anyway
+      setLocalNotifications(prev => 
+        prev.map(notif => 
+          notif.id === id ? { ...notif, read: true } : notif
+        )
       )
-    )
-  }
-
-  const handleDeleteNotification = (id: number) => {
-    setLocalNotifications(prev => prev.filter(notif => notif.id !== id))
-    if (localNotifications.length === 1) {
-      setShowEmptyState(true)
+      setUnreadCount(prev => Math.max(0, prev - 1))
     }
   }
 
-  const handleMarkAllAsRead = () => {
-    setLocalNotifications(prev => 
-      prev.map(notif => ({ ...notif, read: true }))
-    )
+  const handleDeleteNotification = (id: string) => {
+    setLocalNotifications(prev => prev.filter(notif => notif.id !== id))
+    const deleted = localNotifications.find(n => n.id === id)
+    if (deleted && !deleted.read) {
+      setUnreadCount(prev => Math.max(0, prev - 1))
+    }
   }
+
+  const handleMarkAllAsRead = async () => {
+    try {
+      const unreadNotifications = localNotifications.filter(n => !n.read)
+      for (const notif of unreadNotifications) {
+        await handleMarkAsRead(notif.id)
+      }
+      toast.success('All notifications marked as read')
+    } catch (error) {
+      console.error('Error marking all as read:', error)
+      toast.error('Failed to mark all as read')
+    }
+  }
+
+  const getNotificationIcon = (iconName: string) => {
+    const iconMap: { [key: string]: any } = {
+      UserCheck: UserCheck,
+      UserPlus: UserPlus,
+      AlertTriangle: AlertTriangle,
+      X: X,
+      XCircle: X,
+      Calendar: Calendar,
+      Mail: Mail,
+      AlertCircle: AlertCircle,
+      Shield: Shield,
+      CheckCircle: CheckCircle,
+    }
+    const IconComponent = iconMap[iconName] || Bell
+    return <IconComponent className="w-5 h-5" />
+  }
+
+  const getNotificationColor = (type: string, priority: string) => {
+    if (priority === 'high') {
+      return 'border-red-500 bg-red-50'
+    } else if (priority === 'medium') {
+      return 'border-yellow-500 bg-yellow-50'
+    } else if (type === 'system_alert') {
+      return 'border-purple-500 bg-purple-50'
+    }
+    return 'border-blue-500 bg-blue-50'
+  }
+
+  const formatTimestamp = (timestamp: string | Date) => {
+    const date = new Date(timestamp)
+    const now = new Date()
+    const diffMs = now.getTime() - date.getTime()
+    const diffMins = Math.floor(diffMs / 60000)
+    const diffHours = Math.floor(diffMs / 3600000)
+    const diffDays = Math.floor(diffMs / 86400000)
+
+    if (diffMins < 1) return 'Just now'
+    if (diffMins < 60) return `${diffMins}m ago`
+    if (diffHours < 24) return `${diffHours}h ago`
+    if (diffDays < 7) return `${diffDays}d ago`
+    return date.toLocaleDateString()
+  }
+
+  const filteredNotifications = filter === 'all' 
+    ? localNotifications 
+    : localNotifications.filter(n => n.type === filter)
 
   return (
     <div className="space-y-6">
       {/* Header with actions */}
-      <div className="bg-white shadow-md rounded-xl p-6">
+      <div className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-xl p-6 shadow-lg">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">System Notifications</h3>
-            <p className="text-sm text-gray-500 mt-1">
-              {localNotifications.filter(n => !n.read).length} unread notifications
+            <h3 className="text-2xl font-bold mb-1">System Notifications</h3>
+            <p className="text-sm opacity-90">
+              {unreadCount} unread notification{unreadCount !== 1 ? 's' : ''}
             </p>
           </div>
-          <button
-            onClick={handleMarkAllAsRead}
-            disabled={localNotifications.filter(n => !n.read).length === 0}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-sm font-medium"
-          >
-            Mark All as Read
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={loadNotifications}
+              className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors text-sm font-medium flex items-center"
+            >
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Refresh
+            </button>
+            <button
+              onClick={handleMarkAllAsRead}
+              disabled={unreadCount === 0}
+              className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-colors"
+            >
+              Mark All as Read
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Filter Tabs */}
+      <div className="bg-white shadow-md rounded-xl p-4 border border-gray-200">
+        <div className="flex flex-wrap gap-2">
+          {[
+            { value: 'all', label: 'All', count: localNotifications.length },
+            { value: 'pending_verification', label: 'Pending', count: localNotifications.filter(n => n.type === 'pending_verification').length },
+            { value: 'new_registration', label: 'New Registrations', count: localNotifications.filter(n => n.type === 'new_registration').length },
+            { value: 'flagged_account', label: 'Flagged', count: localNotifications.filter(n => n.type === 'flagged_account').length },
+            { value: 'failed_verification', label: 'Failed', count: localNotifications.filter(n => n.type === 'failed_verification').length },
+            { value: 'verification_due', label: 'Due Soon', count: localNotifications.filter(n => n.type === 'verification_due').length },
+            { value: 'enquiry', label: 'Enquiries', count: localNotifications.filter(n => n.type === 'enquiry').length },
+            { value: 'system_alert', label: 'System Alerts', count: localNotifications.filter(n => n.type === 'system_alert').length },
+          ].map((tab) => (
+            <button
+              key={tab.value}
+              onClick={() => setFilter(tab.value as any)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                filter === tab.value
+                  ? 'bg-blue-600 text-white shadow-md'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              {tab.label}
+              {tab.count > 0 && (
+                <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
+                  filter === tab.value ? 'bg-white/20' : 'bg-gray-300'
+                }`}>
+                  {tab.count}
+                </span>
+              )}
+            </button>
+          ))}
         </div>
       </div>
 
       {/* Notifications List */}
-      <div className="space-y-4">
-        {showEmptyState || localNotifications.length === 0 ? (
-          <div className="bg-white shadow-md rounded-xl p-12 text-center">
-            <Bell className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">No Notifications</h3>
-            <p className="text-gray-500">You're all caught up! New notifications will appear here.</p>
-          </div>
-        ) : (
-          localNotifications.map((notification) => (
-            <div
-              key={notification.id}
-              className={`bg-white shadow-sm rounded-md p-4 border-l-4 ${
-                !notification.read ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
-              }`}
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-start gap-3">
-                    <div className={`flex-shrink-0 w-2 h-2 rounded-full mt-2 ${
-                      !notification.read ? 'bg-blue-500' : 'bg-gray-300'
-                    }`} />
-                    <div className="flex-1">
-                      <p className="text-sm text-gray-900 font-medium">{notification.message}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <p className="text-xs text-gray-500">{notification.timestamp}</p>
-                        {notification.type && (
-                          <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full">
-                            {notification.type}
+      {loading ? (
+        <div className="bg-white shadow-md rounded-xl p-12 text-center">
+          <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
+          <p className="text-gray-600">Loading notifications...</p>
+        </div>
+      ) : filteredNotifications.length === 0 ? (
+        <div className="bg-white shadow-md rounded-xl p-12 text-center border border-gray-200">
+          <Bell className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">No Notifications</h3>
+          <p className="text-gray-500">
+            {filter === 'all' 
+              ? "You're all caught up! New notifications will appear here."
+              : `No ${filter.replace('_', ' ')} notifications found.`}
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {filteredNotifications.map((notification) => {
+            const IconComponent = getNotificationIcon(notification.icon || 'Bell')
+            const isUnread = !notification.read
+            const borderColor = isUnread 
+              ? getNotificationColor(notification.type, notification.priority || 'low')
+              : 'border-gray-200 bg-white'
+
+            return (
+              <div
+                key={notification.id}
+                className={`bg-white shadow-sm rounded-lg p-5 border-l-4 transition-all hover:shadow-md ${borderColor}`}
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-start gap-4 flex-1">
+                    <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
+                      isUnread 
+                        ? notification.priority === 'high' ? 'bg-red-100 text-red-600' :
+                          notification.priority === 'medium' ? 'bg-yellow-100 text-yellow-600' :
+                          'bg-blue-100 text-blue-600'
+                        : 'bg-gray-100 text-gray-400'
+                    }`}>
+                      {IconComponent}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2 mb-1">
+                        <h4 className="text-sm font-semibold text-gray-900">{notification.title}</h4>
+                        {notification.priority === 'high' && (
+                          <span className="flex-shrink-0 px-2 py-0.5 bg-red-100 text-red-700 text-xs font-medium rounded-full">
+                            High Priority
                           </span>
+                        )}
+                      </div>
+                      <p className="text-sm text-gray-700 mb-2">{notification.message}</p>
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <span className="text-xs text-gray-500 flex items-center">
+                          <Clock className="w-3 h-3 mr-1" />
+                          {formatTimestamp(notification.timestamp)}
+                        </span>
+                        {notification.type && (
+                          <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full capitalize">
+                            {notification.type.replace(/_/g, ' ')}
+                          </span>
+                        )}
+                        {isUnread && (
+                          <span className="flex-shrink-0 w-2 h-2 rounded-full bg-blue-500"></span>
                         )}
                       </div>
                     </div>
                   </div>
-                </div>
-                <div className="flex space-x-2 ml-4">
-                  {!notification.read && (
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {isUnread && (
+                      <button
+                        onClick={() => handleMarkAsRead(notification.id)}
+                        className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                        title="Mark as read"
+                      >
+                        <CheckCircle className="w-5 h-5" />
+                      </button>
+                    )}
+                    {notification.actionUrl && (
+                      <a
+                        href={notification.actionUrl}
+                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        title="View details"
+                      >
+                        <Eye className="w-5 h-5" />
+                      </a>
+                    )}
                     <button
-                      onClick={() => handleMarkAsRead(notification.id)}
-                      className="text-green-600 hover:text-green-800 transition-colors"
-                      title="Mark as read"
+                      onClick={() => handleDeleteNotification(notification.id)}
+                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Delete notification"
                     >
-                      <CheckCircle className="w-5 h-5" />
+                      <Trash2 className="w-5 h-5" />
                     </button>
-                  )}
-                  <button
-                    onClick={() => handleDeleteNotification(notification.id)}
-                    className="text-red-600 hover:text-red-800 transition-colors"
-                    title="Delete notification"
-                  >
-                    <Trash2 className="w-5 h-5" />
-                  </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))
-        )}
-      </div>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }
 
 // Reports Section Component
 function ReportsSection() {
-  // Temporary sample data until API hooks up
-  const verificationTrends = [
-    { month: 'Jan', verified: 45, flagged: 3 },
-    { month: 'Feb', verified: 58, flagged: 6 },
-    { month: 'Mar', verified: 62, flagged: 4 },
-    { month: 'Apr', verified: 72, flagged: 8 },
-    { month: 'May', verified: 68, flagged: 5 },
-    { month: 'Jun', verified: 75, flagged: 2 }
-  ]
+  const [loading, setLoading] = useState(true);
+  const [verificationTrends, setVerificationTrends] = useState<any[]>([]);
+  const [schemeBreakdown, setSchemeBreakdown] = useState<any[]>([]);
+  const [departmentPerformance, setDepartmentPerformance] = useState<any>(null);
+  const [methodBreakdown, setMethodBreakdown] = useState<any[]>([]);
+  const [recentActivity, setRecentActivity] = useState<any>(null);
+  const [summary, setSummary] = useState<any>(null);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [reportType, setReportType] = useState('Monthly Verification Summary');
+  const [exporting, setExporting] = useState(false);
 
-  const schemeBreakdown = [
-    { name: 'Contributory', value: 48 },
-    { name: 'Defined Benefits', value: 32 },
-    { name: 'Hybrid', value: 20 }
-  ]
+  const schemeColors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#14b8a6'];
 
-  const departmentPerformance = [
-    { department: 'Education', verifications: 45, percentage: 78 },
-    { department: 'Health', verifications: 38, percentage: 67 },
-    { department: 'Finance', verifications: 52, percentage: 88 },
-    { department: 'Transport', verifications: 29, percentage: 53 }
-  ]
+  useEffect(() => {
+    loadReportsData();
+  }, [startDate, endDate]);
 
-  const schemeColors = ['#3b82f6', '#10b981', '#f59e0b']
+  const loadReportsData = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token') || '';
+      
+      const params = new URLSearchParams();
+      if (startDate) params.append('startDate', startDate);
+      if (endDate) params.append('endDate', endDate);
+
+      const response = await fetch(`/api/admin/reports?${params.toString()}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setVerificationTrends(data.verificationTrends || []);
+        setSchemeBreakdown(data.schemeBreakdown || []);
+        setDepartmentPerformance(data.departmentPerformance);
+        setMethodBreakdown(data.methodBreakdown || []);
+        setRecentActivity(data.recentActivity);
+        setSummary(data.summary);
+      } else {
+        toast.error('Failed to load reports data');
+      }
+    } catch (error) {
+      console.error('Error loading reports:', error);
+      toast.error('Failed to load reports data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleExport = async (format: 'pdf' | 'csv') => {
+    try {
+      setExporting(true);
+      // TODO: Implement actual export functionality
+      toast.success(`${format.toUpperCase()} export will be implemented soon`);
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.error('Failed to export report');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
+          <p className="text-gray-600">Loading reports data...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
+      {/* Summary Cards */}
+      {summary && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-gradient-to-br from-blue-500 to-blue-700 text-white rounded-xl p-6 shadow-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium opacity-90">Total Pensioners</p>
+                <p className="text-3xl font-bold mt-1">{summary.totalPensioners || 0}</p>
+              </div>
+              <Users className="w-10 h-10 opacity-80" />
+            </div>
+          </div>
+          <div className="bg-gradient-to-br from-green-500 to-green-700 text-white rounded-xl p-6 shadow-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium opacity-90">Verified</p>
+                <p className="text-3xl font-bold mt-1">{summary.verifiedPensioners || 0}</p>
+              </div>
+              <CheckCircle className="w-10 h-10 opacity-80" />
+            </div>
+          </div>
+          <div className="bg-gradient-to-br from-yellow-500 to-yellow-700 text-white rounded-xl p-6 shadow-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium opacity-90">Pending Reviews</p>
+                <p className="text-3xl font-bold mt-1">{summary.pendingReviews || 0}</p>
+              </div>
+              <Clock className="w-10 h-10 opacity-80" />
+            </div>
+          </div>
+          <div className="bg-gradient-to-br from-purple-500 to-purple-700 text-white rounded-xl p-6 shadow-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium opacity-90">Completion Rate</p>
+                <p className="text-3xl font-bold mt-1">{summary.completionRate || 0}%</p>
+              </div>
+              <TrendingUp className="w-10 h-10 opacity-80" />
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Report Filters */}
-      <div className="bg-white shadow-md rounded-xl p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Generate Reports</h3>
+      <div className="bg-white shadow-md rounded-xl p-6 border border-gray-200">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-900">Generate Reports</h3>
+          <button
+            onClick={loadReportsData}
+            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium flex items-center"
+          >
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Refresh
+          </button>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
             <input
               type="date"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">End Date</label>
             <input
               type="date"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Report Type</label>
-            <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+            <select
+              value={reportType}
+              onChange={(e) => setReportType(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
               <option>Monthly Verification Summary</option>
               <option>Flagged Pensioners List</option>
               <option>Total Pensioners by Department</option>
@@ -1422,21 +1731,60 @@ function ReportsSection() {
           </div>
         </div>
         <div className="mt-6 flex space-x-4">
-          <button className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center">
-            <Download className="w-4 h-4 mr-2" />
+          <button
+            onClick={() => handleExport('pdf')}
+            disabled={exporting}
+            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-md"
+          >
+            {exporting ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Download className="w-4 h-4 mr-2" />
+            )}
             Export PDF
           </button>
-          <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center">
-            <FileText className="w-4 h-4 mr-2" />
+          <button
+            onClick={() => handleExport('csv')}
+            disabled={exporting}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-md"
+          >
+            {exporting ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <FileText className="w-4 h-4 mr-2" />
+            )}
             Export CSV
           </button>
         </div>
       </div>
 
+      {/* Recent Activity */}
+      {recentActivity && (
+        <div className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-xl p-6 shadow-lg">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-xl font-bold">Recent Activity (Last 30 Days)</h3>
+              <p className="text-sm opacity-90 mt-1">Verification activity overview</p>
+            </div>
+            <Activity className="w-8 h-8 opacity-80" />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
+              <p className="text-sm opacity-90">Verifications</p>
+              <p className="text-3xl font-bold mt-1">{recentActivity.verifications || 0}</p>
+            </div>
+            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
+              <p className="text-sm opacity-90">Flagged Cases</p>
+              <p className="text-3xl font-bold mt-1">{recentActivity.flags || 0}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Verification Trend */}
-        <div className="bg-white shadow-md rounded-xl p-6">
+        <div className="bg-white shadow-md rounded-xl p-6 border border-gray-200">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="text-lg font-semibold text-gray-900">Verification Trend</h3>
@@ -1444,21 +1792,37 @@ function ReportsSection() {
             </div>
             <TrendingUp className="w-5 h-5 text-blue-600" />
           </div>
-          <ResponsiveContainer width="100%" height={280}>
-            <LineChart data={verificationTrends} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis dataKey="month" stroke="#9ca3af" />
-              <YAxis stroke="#9ca3af" />
-              <Tooltip />
-              <Legend />
-              <Line type="monotone" dataKey="verified" stroke="#3b82f6" strokeWidth={3} dot={{ r: 4 }} name="Verified" />
-              <Line type="monotone" dataKey="flagged" stroke="#ef4444" strokeWidth={2} dot={{ r: 4 }} name="Flagged" />
-            </LineChart>
-          </ResponsiveContainer>
+          {verificationTrends.length === 0 ? (
+            <div className="h-64 bg-gray-50 rounded-lg flex items-center justify-center">
+              <div className="text-center">
+                <BarChart3 className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+                <p className="text-gray-500">No verification data available</p>
+              </div>
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={280}>
+              <LineChart data={verificationTrends} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis dataKey="month" stroke="#9ca3af" />
+                <YAxis stroke="#9ca3af" />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: 'white',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '8px',
+                    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+                  }}
+                />
+                <Legend />
+                <Line type="monotone" dataKey="verified" stroke="#3b82f6" strokeWidth={3} dot={{ r: 5 }} name="Verified" />
+                <Line type="monotone" dataKey="flagged" stroke="#ef4444" strokeWidth={2} dot={{ r: 4 }} name="Flagged" />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
         </div>
 
         {/* Scheme Distribution */}
-        <div className="bg-white shadow-md rounded-xl p-6">
+        <div className="bg-white shadow-md rounded-xl p-6 border border-gray-200">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="text-lg font-semibold text-gray-900">Scheme Distribution</h3>
@@ -1466,237 +1830,624 @@ function ReportsSection() {
             </div>
             <BarChart3 className="w-5 h-5 text-green-600" />
           </div>
-          <div className="flex flex-col lg:flex-row gap-6">
-            <div className="h-64 lg:w-1/2">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={schemeBreakdown}
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={90}
-                    innerRadius={50}
-                    label={(entry) => `${entry.value}%`}
-                    dataKey="value"
-                  >
-                    {schemeBreakdown.map((entry, index) => (
-                      <Cell key={`cell-${entry.name}`} fill={schemeColors[index % schemeColors.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
+          {schemeBreakdown.length === 0 ? (
+            <div className="h-64 bg-gray-50 rounded-lg flex items-center justify-center">
+              <div className="text-center">
+                <PieChart className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+                <p className="text-gray-500">No scheme data available</p>
+              </div>
             </div>
-            <div className="flex-1 space-y-3">
-              {schemeBreakdown.map((item, index) => (
-                <div key={item.name} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: schemeColors[index % schemeColors.length] }} />
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">{item.name}</p>
-                      <p className="text-xs text-gray-500">{item.value}% allocation</p>
+          ) : (
+            <div className="flex flex-col lg:flex-row gap-6">
+              <div className="h-64 lg:w-1/2">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={schemeBreakdown}
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={90}
+                      innerRadius={50}
+                      label={(entry) => `${entry.value}%`}
+                      dataKey="value"
+                    >
+                      {schemeBreakdown.map((entry, index) => (
+                        <Cell key={`cell-${entry.name}`} fill={schemeColors[index % schemeColors.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'white',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '8px',
+                      }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="flex-1 space-y-3">
+                {schemeBreakdown.map((item, index) => (
+                  <div key={item.name} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className="w-4 h-4 rounded-full" style={{ backgroundColor: schemeColors[index % schemeColors.length] }} />
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">{item.name}</p>
+                        <p className="text-xs text-gray-500">{item.count || 0} pensioners • {item.value}%</p>
+                      </div>
                     </div>
+                    <span className="text-sm font-semibold text-gray-800">{item.value}%</span>
                   </div>
-                  <span className="text-sm font-semibold text-gray-800">{item.value}%</span>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
 
-      {/* Department Performance Table */}
-      <div className="bg-white shadow-md rounded-xl p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900">Department Performance</h3>
-            <p className="text-sm text-gray-500">Completion rate by department</p>
+      {/* Method Breakdown */}
+      {methodBreakdown.length > 0 && (
+        <div className="bg-white shadow-md rounded-xl p-6 border border-gray-200">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">Verification Methods</h3>
+              <p className="text-sm text-gray-500">Breakdown by verification method</p>
+            </div>
+            <Shield className="w-5 h-5 text-purple-600" />
           </div>
-          <TrendingUp className="w-5 h-5 text-purple-600" />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {methodBreakdown.map((method, index) => (
+              <div key={method.method} className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg p-4 border border-gray-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-700">{method.method}</p>
+                    <p className="text-2xl font-bold text-gray-900 mt-1">{method.count}</p>
+                  </div>
+                  <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
+                    <Shield className="w-6 h-6 text-blue-600" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Verifications</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Completion Rate</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trend</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {departmentPerformance.map((dept) => (
-                <tr key={dept.department}>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{dept.department}</td>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700">{dept.verifications}</td>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm">
-                    <div className="flex items-center gap-2">
-                      <div className="w-28 bg-gray-100 rounded-full h-2">
-                        <div className="h-2 rounded-full bg-blue-500" style={{ width: `${dept.percentage}%` }} />
-                      </div>
-                      <span className="text-gray-700 font-semibold">{dept.percentage}%</span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm text-green-600 flex items-center gap-1">
-                    <TrendingUp className="w-4 h-4" />
-                    Stable
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      )}
+
+      {/* System Performance */}
+      {departmentPerformance && (
+        <div className="bg-white shadow-md rounded-xl p-6 border border-gray-200">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">System Performance</h3>
+              <p className="text-sm text-gray-500">Overall verification statistics</p>
+            </div>
+            <TrendingUp className="w-5 h-5 text-purple-600" />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+              <p className="text-sm font-medium text-blue-700 mb-1">Total Pensioners</p>
+              <p className="text-2xl font-bold text-blue-900">{departmentPerformance.totalPensioners || 0}</p>
+            </div>
+            <div className="bg-green-50 rounded-lg p-4 border border-green-200">
+              <p className="text-sm font-medium text-green-700 mb-1">Verified</p>
+              <p className="text-2xl font-bold text-green-900">{departmentPerformance.verifiedPensioners || 0}</p>
+            </div>
+            <div className="bg-yellow-50 rounded-lg p-4 border border-yellow-200">
+              <p className="text-sm font-medium text-yellow-700 mb-1">Pending Reviews</p>
+              <p className="text-2xl font-bold text-yellow-900">{departmentPerformance.pendingReviews || 0}</p>
+            </div>
+            <div className="bg-purple-50 rounded-lg p-4 border border-purple-200">
+              <p className="text-sm font-medium text-purple-700 mb-1">Completion Rate</p>
+              <p className="text-2xl font-bold text-purple-900">{departmentPerformance.completionRate || 0}%</p>
+            </div>
+          </div>
+          <div className="mt-6">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-gray-700">Overall Progress</span>
+              <span className="text-sm font-semibold text-gray-900">{departmentPerformance.completionRate || 0}%</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-3">
+              <div
+                className="bg-gradient-to-r from-blue-500 to-purple-600 h-3 rounded-full transition-all duration-500"
+                style={{ width: `${departmentPerformance.completionRate || 0}%` }}
+              />
+            </div>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }
 
 // Settings Section Component
 function SettingsSection({ user }: { user: any }) {
-  const [settings, setSettings] = useState({
-    systemName: 'Computerised Pension Verification System',
-    verificationInterval: 3,
-    fingerprintVerification: true,
-    email: user?.email || '',
-    phone: user?.phone || '',
-    address: user?.address || ''
-  })
-
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [adminProfile, setAdminProfile] = useState<any>(null);
+  const [systemSettings, setSystemSettings] = useState<any>(null);
+  const [profileForm, setProfileForm] = useState({
+    name: '',
+    email: '',
+  });
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: '',
     newPassword: '',
-    confirmPassword: ''
-  })
+    confirmPassword: '',
+  });
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  const handleSaveSettings = () => {
-    // Save settings logic
-    console.log('Saving settings:', settings)
-  }
+  useEffect(() => {
+    loadData();
+  }, []);
 
-  const handleChangePassword = () => {
-    // Change password logic
-    console.log('Changing password:', passwordForm)
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token') || '';
+
+      // Load admin profile
+      const profileRes = await fetch('/api/admin/me', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (profileRes.ok) {
+        const profileData = await profileRes.json();
+        setAdminProfile(profileData.admin);
+        setProfileForm({
+          name: profileData.admin?.name || '',
+          email: profileData.admin?.email || '',
+        });
+      }
+
+      // Load system settings
+      const settingsRes = await fetch('/api/admin/settings', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (settingsRes.ok) {
+        const settingsData = await settingsRes.json();
+        setSystemSettings(settingsData.settings);
+      }
+    } catch (error) {
+      console.error('Error loading settings:', error);
+      toast.error('Failed to load settings');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    try {
+      setSaving(true);
+      setMessage(null);
+      const token = localStorage.getItem('token') || '';
+
+      const response = await fetch('/api/admin/me', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(profileForm),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setAdminProfile(data.admin);
+        setMessage({ type: 'success', text: 'Profile updated successfully' });
+        toast.success('Profile updated successfully');
+        // Update localStorage user
+        const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+        localStorage.setItem('user', JSON.stringify({ ...currentUser, ...data.admin }));
+      } else {
+        setMessage({ type: 'error', text: data.message || 'Failed to update profile' });
+        toast.error(data.message || 'Failed to update profile');
+      }
+    } catch (error) {
+      console.error('Error saving profile:', error);
+      setMessage({ type: 'error', text: 'An error occurred while saving' });
+      toast.error('Failed to update profile');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    try {
+      if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+        toast.error('New password and confirm password do not match');
+        return;
+      }
+
+      if (passwordForm.newPassword.length < 6) {
+        toast.error('Password must be at least 6 characters');
+        return;
+      }
+
+      setSaving(true);
+      setMessage(null);
+      const token = localStorage.getItem('token') || '';
+
+      const response = await fetch('/api/admin/change-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(passwordForm),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setMessage({ type: 'success', text: 'Password changed successfully' });
+        toast.success('Password changed successfully');
+        setPasswordForm({
+          currentPassword: '',
+          newPassword: '',
+          confirmPassword: '',
+        });
+      } else {
+        setMessage({ type: 'error', text: data.message || 'Failed to change password' });
+        toast.error(data.message || 'Failed to change password');
+      }
+    } catch (error) {
+      console.error('Error changing password:', error);
+      setMessage({ type: 'error', text: 'An error occurred while changing password' });
+      toast.error('Failed to change password');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-4" />
+          <p className="text-gray-600">Loading settings...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className="space-y-6">
-      {/* System Settings */}
-      <div className="bg-white shadow-md rounded-xl p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-6">System Configuration</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">System Name</label>
-            <input
-              type="text"
-              value={settings.systemName}
-              onChange={(e) => setSettings({...settings, systemName: e.target.value})}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-            />
+      {/* System Information */}
+      <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl shadow-lg p-6">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="p-2 bg-blue-100 rounded-lg">
+            <Settings className="w-6 h-6 text-blue-600" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Verification Interval (years)</label>
-            <input
-              type="number"
-              value={settings.verificationInterval}
-              onChange={(e) => setSettings({...settings, verificationInterval: parseInt(e.target.value)})}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-          <div className="md:col-span-2">
-            <label className="flex items-center">
-              <input
-                type="checkbox"
-                checked={settings.fingerprintVerification}
-                onChange={(e) => setSettings({...settings, fingerprintVerification: e.target.checked})}
-                className="mr-2"
-              />
-              <span className="text-sm font-medium text-gray-700">Enable Fingerprint Verification</span>
-            </label>
+            <h3 className="text-xl font-bold text-gray-900">System Information</h3>
+            <p className="text-sm text-gray-600">Current system configuration and statistics</p>
           </div>
         </div>
-        <button
-          onClick={handleSaveSettings}
-          className="mt-6 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-        >
-          Save Changes
-        </button>
+
+        {systemSettings && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="bg-white rounded-lg p-4 border border-gray-200">
+              <p className="text-xs font-medium text-gray-500 uppercase mb-1">System Name</p>
+              <p className="text-sm font-semibold text-gray-900">{systemSettings.systemName}</p>
+            </div>
+            <div className="bg-white rounded-lg p-4 border border-gray-200">
+              <p className="text-xs font-medium text-gray-500 uppercase mb-1">System Version</p>
+              <p className="text-sm font-semibold text-gray-900">{systemSettings.systemVersion}</p>
+            </div>
+            <div className="bg-white rounded-lg p-4 border border-gray-200">
+              <p className="text-xs font-medium text-gray-500 uppercase mb-1">Verification Interval</p>
+              <p className="text-sm font-semibold text-gray-900">
+                {systemSettings.verificationIntervalMonths} months ({systemSettings.verificationIntervalYears} years)
+              </p>
+            </div>
+            <div className="bg-white rounded-lg p-4 border border-gray-200">
+              <p className="text-xs font-medium text-gray-500 uppercase mb-1">Environment</p>
+              <p className="text-sm font-semibold text-gray-900 capitalize">{systemSettings.environment?.nodeEnv}</p>
+            </div>
+            <div className="bg-white rounded-lg p-4 border border-gray-200">
+              <p className="text-xs font-medium text-gray-500 uppercase mb-1">Database</p>
+              <p className="text-sm font-semibold text-gray-900">{systemSettings.databaseProvider}</p>
+            </div>
+            <div className="bg-white rounded-lg p-4 border border-gray-200">
+              <p className="text-xs font-medium text-gray-500 uppercase mb-1">AWS Region</p>
+              <p className="text-sm font-semibold text-gray-900">{systemSettings.awsRegion}</p>
+            </div>
+          </div>
+        )}
       </div>
 
+      {/* System Statistics */}
+      {systemSettings?.statistics && (
+        <div className="bg-white shadow-lg rounded-xl p-6 border border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-900 mb-6 flex items-center gap-2">
+            <BarChart3 className="w-5 h-5 text-blue-600" />
+            System Statistics
+          </h3>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            <div className="text-center p-4 bg-blue-50 rounded-lg">
+              <p className="text-2xl font-bold text-blue-600">{systemSettings.statistics.totalPensioners}</p>
+              <p className="text-xs text-gray-600 mt-1">Total Pensioners</p>
+            </div>
+            <div className="text-center p-4 bg-green-50 rounded-lg">
+              <p className="text-2xl font-bold text-green-600">{systemSettings.statistics.verifiedPensioners}</p>
+              <p className="text-xs text-gray-600 mt-1">Verified</p>
+            </div>
+            <div className="text-center p-4 bg-yellow-50 rounded-lg">
+              <p className="text-2xl font-bold text-yellow-600">{systemSettings.statistics.pendingReviews}</p>
+              <p className="text-xs text-gray-600 mt-1">Pending Reviews</p>
+            </div>
+            <div className="text-center p-4 bg-purple-50 rounded-lg">
+              <p className="text-2xl font-bold text-purple-600">{systemSettings.statistics.totalAdmins}</p>
+              <p className="text-xs text-gray-600 mt-1">Admins</p>
+            </div>
+            <div className="text-center p-4 bg-indigo-50 rounded-lg">
+              <p className="text-2xl font-bold text-indigo-600">{systemSettings.statistics.totalOfficers}</p>
+              <p className="text-xs text-gray-600 mt-1">Officers</p>
+            </div>
+            <div className="text-center p-4 bg-gray-50 rounded-lg">
+              <p className="text-2xl font-bold text-gray-600">{systemSettings.statistics.totalVerificationLogs}</p>
+              <p className="text-xs text-gray-600 mt-1">Verification Logs</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* AWS Configuration */}
+      {systemSettings && (
+        <div className="bg-white shadow-lg rounded-xl p-6 border border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-900 mb-6 flex items-center gap-2">
+            <Shield className="w-5 h-5 text-blue-600" />
+            AWS Configuration
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">S3 Bucket</label>
+              <div className="px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700">
+                {systemSettings.s3Bucket}
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Rekognition Collection</label>
+              <div className="px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700">
+                {systemSettings.rekognitionCollection}
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">RP ID</label>
+              <div className="px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700">
+                {systemSettings.rpId}
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Origin</label>
+              <div className="px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700 break-all">
+                {systemSettings.origin}
+              </div>
+            </div>
+            <div className="md:col-span-2">
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <div className={`w-3 h-3 rounded-full ${systemSettings.environment?.hasAwsConfig ? 'bg-green-500' : 'bg-red-500'}`} />
+                  <span className="text-sm text-gray-700">AWS Credentials</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className={`w-3 h-3 rounded-full ${systemSettings.redisConfigured ? 'bg-green-500' : 'bg-red-500'}`} />
+                  <span className="text-sm text-gray-700">Redis Configuration</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className={`w-3 h-3 rounded-full ${systemSettings.environment?.hasDatabaseConfig ? 'bg-green-500' : 'bg-red-500'}`} />
+                  <span className="text-sm text-gray-700">Database Connection</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Verification Features */}
+      {systemSettings && (
+        <div className="bg-white shadow-lg rounded-xl p-6 border border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-900 mb-6 flex items-center gap-2">
+            <CheckCircle className="w-5 h-5 text-blue-600" />
+            Verification Features
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+              <div className="flex items-center gap-3">
+                <div className={`w-3 h-3 rounded-full ${systemSettings.biometricVerificationEnabled ? 'bg-green-500' : 'bg-gray-400'}`} />
+                <span className="text-sm font-medium text-gray-700">Biometric Verification</span>
+              </div>
+              <span className={`text-xs font-semibold ${systemSettings.biometricVerificationEnabled ? 'text-green-600' : 'text-gray-500'}`}>
+                {systemSettings.biometricVerificationEnabled ? 'Enabled' : 'Disabled'}
+              </span>
+            </div>
+            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+              <div className="flex items-center gap-3">
+                <div className={`w-3 h-3 rounded-full ${systemSettings.faceVerificationEnabled ? 'bg-green-500' : 'bg-gray-400'}`} />
+                <span className="text-sm font-medium text-gray-700">Face Verification</span>
+              </div>
+              <span className={`text-xs font-semibold ${systemSettings.faceVerificationEnabled ? 'text-green-600' : 'text-gray-500'}`}>
+                {systemSettings.faceVerificationEnabled ? 'Enabled' : 'Disabled'}
+              </span>
+            </div>
+            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+              <div className="flex items-center gap-3">
+                <div className={`w-3 h-3 rounded-full ${systemSettings.fingerprintVerificationEnabled ? 'bg-green-500' : 'bg-gray-400'}`} />
+                <span className="text-sm font-medium text-gray-700">Fingerprint Verification</span>
+              </div>
+              <span className={`text-xs font-semibold ${systemSettings.fingerprintVerificationEnabled ? 'text-green-600' : 'text-gray-500'}`}>
+                {systemSettings.fingerprintVerificationEnabled ? 'Enabled' : 'Disabled'}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Admin Profile Settings */}
-      <div className="bg-white shadow-md rounded-xl p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-6">Admin Profile</h3>
+      <div className="bg-white shadow-lg rounded-xl p-6 border border-gray-200">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+              <User className="w-5 h-5 text-blue-600" />
+              Admin Profile
+            </h3>
+            <p className="text-sm text-gray-500 mt-1">Update your personal information</p>
+          </div>
+          {adminProfile && (
+            <div className="text-right">
+              <p className="text-xs text-gray-500">Member since</p>
+              <p className="text-sm font-medium text-gray-700">
+                {new Date(adminProfile.createdAt).toLocaleDateString()}
+              </p>
+            </div>
+          )}
+        </div>
+
+        {message && (
+          <div className={`mb-4 p-3 rounded-lg ${
+            message.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'
+          }`}>
+            {message.text}
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Full Name <span className="text-red-500">*</span>
+            </label>
             <input
-              type="email"
-              value={settings.email}
-              onChange={(e) => setSettings({...settings, email: e.target.value})}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              type="text"
+              value={profileForm.name}
+              onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })}
+              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              placeholder="Enter your full name"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Email Address <span className="text-red-500">*</span>
+            </label>
             <input
-              type="tel"
-              value={settings.phone}
-              onChange={(e) => setSettings({...settings, phone: e.target.value})}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              type="email"
+              value={profileForm.email}
+              onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
+              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              placeholder="Enter your email"
             />
           </div>
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Address</label>
-            <textarea
-              value={settings.address}
-              onChange={(e) => setSettings({...settings, address: e.target.value})}
-              rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
+          {adminProfile && (
+            <div className="md:col-span-2 grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <p className="text-gray-500">Role</p>
+                <p className="font-medium text-gray-900 capitalize">{adminProfile.role}</p>
+              </div>
+              <div>
+                <p className="text-gray-500">Last Updated</p>
+                <p className="font-medium text-gray-900">
+                  {new Date(adminProfile.updatedAt).toLocaleString()}
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+        <div className="mt-6 flex justify-end">
+          <button
+            onClick={handleSaveProfile}
+            disabled={saving || !profileForm.name || !profileForm.email}
+            className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-md hover:shadow-lg"
+          >
+            {saving ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <CheckCircle className="w-4 h-4" />
+                Save Profile
+              </>
+            )}
+          </button>
         </div>
       </div>
 
       {/* Change Password */}
-      <div className="bg-white shadow-md rounded-xl p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-6">Change Password</h3>
+      <div className="bg-white shadow-lg rounded-xl p-6 border border-gray-200">
+        <h3 className="text-lg font-semibold text-gray-900 mb-6 flex items-center gap-2">
+          <Shield className="w-5 h-5 text-blue-600" />
+          Change Password
+        </h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Current Password</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Current Password <span className="text-red-500">*</span>
+            </label>
             <input
               type="password"
               value={passwordForm.currentPassword}
-              onChange={(e) => setPasswordForm({...passwordForm, currentPassword: e.target.value})}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              placeholder="Enter current password"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">New Password</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              New Password <span className="text-red-500">*</span>
+            </label>
             <input
               type="password"
               value={passwordForm.newPassword}
-              onChange={(e) => setPasswordForm({...passwordForm, newPassword: e.target.value})}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              placeholder="Enter new password"
             />
+            <p className="text-xs text-gray-500 mt-1">Minimum 6 characters</p>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Confirm Password</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Confirm Password <span className="text-red-500">*</span>
+            </label>
             <input
               type="password"
               value={passwordForm.confirmPassword}
-              onChange={(e) => setPasswordForm({...passwordForm, confirmPassword: e.target.value})}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              placeholder="Confirm new password"
             />
+            {passwordForm.newPassword && passwordForm.confirmPassword && passwordForm.newPassword !== passwordForm.confirmPassword && (
+              <p className="text-xs text-red-500 mt-1">Passwords do not match</p>
+            )}
           </div>
         </div>
-        <button
-          onClick={handleChangePassword}
-          className="mt-6 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-        >
-          Change Password
-        </button>
+        <div className="mt-6 flex justify-end">
+          <button
+            onClick={handleChangePassword}
+            disabled={
+              saving ||
+              !passwordForm.currentPassword ||
+              !passwordForm.newPassword ||
+              !passwordForm.confirmPassword ||
+              passwordForm.newPassword !== passwordForm.confirmPassword ||
+              passwordForm.newPassword.length < 6
+            }
+            className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-md hover:shadow-lg"
+          >
+            {saving ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Changing...
+              </>
+            ) : (
+              <>
+                <Shield className="w-4 h-4" />
+                Change Password
+              </>
+            )}
+          </button>
+        </div>
       </div>
     </div>
-  )
+  );
 }
 
 // Enquiries Management Component
@@ -1705,10 +2456,21 @@ function EnquiriesManagement() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
-  const [statusFilter, setStatusFilter] = useState('all')
+  const [statistics, setStatistics] = useState<any>(null)
+  const [selectedEnquiry, setSelectedEnquiry] = useState<any>(null)
+  const [showModal, setShowModal] = useState(false)
+  const [actionLoading, setActionLoading] = useState<number | null>(null)
 
   useEffect(() => {
     loadEnquiries()
+  }, [])
+
+  useEffect(() => {
+    // Auto-refresh every 30 seconds
+    const interval = setInterval(() => {
+      loadEnquiries()
+    }, 30000)
+    return () => clearInterval(interval)
   }, [])
 
   const loadEnquiries = async () => {
@@ -1723,9 +2485,8 @@ function EnquiriesManagement() {
 
       const params = new URLSearchParams({
         page: '1',
-        pageSize: '50',
-        ...(searchTerm && { subject: searchTerm }),
-        ...(statusFilter !== 'all' && { status: statusFilter })
+        pageSize: '100',
+        ...(searchTerm && { search: searchTerm }),
       })
 
       const response = await fetch(`/api/enquiry/list?${params}`, {
@@ -1741,54 +2502,116 @@ function EnquiriesManagement() {
 
       const data = await response.json()
       setEnquiries(data.rows || [])
+      setStatistics(data.statistics || null)
       
     } catch (err) {
       console.error('Error loading enquiries:', err)
       setError(err instanceof Error ? err.message : 'Failed to load enquiries')
+      toast.error('Failed to load enquiries')
     } finally {
       setLoading(false)
     }
   }
 
-  const handleStatusUpdate = async (enquiryId: number, newStatus: string) => {
+  const handleViewEnquiry = async (enquiryId: number) => {
     try {
       const token = localStorage.getItem('token')
       if (!token) return
 
       const response = await fetch(`/api/enquiry/${enquiryId}`, {
-        method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ status: newStatus })
+        }
       })
 
       if (response.ok) {
-        loadEnquiries() // Reload enquiries
+        const data = await response.json()
+        setSelectedEnquiry(data.enquiry)
+        setShowModal(true)
       }
     } catch (err) {
-      console.error('Error updating enquiry status:', err)
+      console.error('Error fetching enquiry:', err)
+      toast.error('Failed to load enquiry details')
     }
   }
 
-  if (loading) {
+  const handleDeleteEnquiry = async (enquiryId: number) => {
+    if (!confirm('Are you sure you want to delete this enquiry?')) return
+
+    try {
+      setActionLoading(enquiryId)
+      const token = localStorage.getItem('token')
+      if (!token) return
+
+      const response = await fetch(`/api/enquiry/${enquiryId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (response.ok) {
+        toast.success('Enquiry deleted successfully')
+        loadEnquiries()
+      } else {
+        toast.error('Failed to delete enquiry')
+      }
+    } catch (err) {
+      console.error('Error deleting enquiry:', err)
+      toast.error('Failed to delete enquiry')
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  const formatDate = (date: string | Date) => {
+    const d = new Date(date)
+    return d.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  }
+
+  const formatRelativeTime = (date: string | Date) => {
+    const d = new Date(date)
+    const now = new Date()
+    const diffMs = now.getTime() - d.getTime()
+    const diffMins = Math.floor(diffMs / 60000)
+    const diffHours = Math.floor(diffMs / 3600000)
+    const diffDays = Math.floor(diffMs / 86400000)
+
+    if (diffMins < 1) return 'Just now'
+    if (diffMins < 60) return `${diffMins}m ago`
+    if (diffHours < 24) return `${diffHours}h ago`
+    if (diffDays < 7) return `${diffDays}d ago`
+    return formatDate(date)
+  }
+
+  if (loading && enquiries.length === 0) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
+          <p className="text-gray-600">Loading enquiries...</p>
+        </div>
       </div>
     )
   }
 
-  if (error) {
+  if (error && enquiries.length === 0) {
     return (
       <div className="text-center py-12">
-        <div className="text-red-600 text-6xl mb-4">⚠️</div>
+        <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
         <h3 className="text-lg font-semibold text-gray-900 mb-2">Error Loading Enquiries</h3>
         <p className="text-gray-600 mb-4">{error}</p>
         <button
           onClick={loadEnquiries}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
         >
           Retry
         </button>
@@ -1798,98 +2621,156 @@ function EnquiriesManagement() {
 
   return (
     <div className="space-y-6">
+      {/* Statistics Cards */}
+      {statistics && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-gradient-to-br from-blue-500 to-blue-700 text-white rounded-xl p-6 shadow-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium opacity-90">Today</p>
+                <p className="text-3xl font-bold mt-1">{statistics.today || 0}</p>
+              </div>
+              <Calendar className="w-10 h-10 opacity-80" />
+            </div>
+          </div>
+          <div className="bg-gradient-to-br from-green-500 to-green-700 text-white rounded-xl p-6 shadow-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium opacity-90">This Week</p>
+                <p className="text-3xl font-bold mt-1">{statistics.thisWeek || 0}</p>
+              </div>
+              <TrendingUp className="w-10 h-10 opacity-80" />
+            </div>
+          </div>
+          <div className="bg-gradient-to-br from-purple-500 to-purple-700 text-white rounded-xl p-6 shadow-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium opacity-90">Total Enquiries</p>
+                <p className="text-3xl font-bold mt-1">{statistics.total || 0}</p>
+              </div>
+              <Mail className="w-10 h-10 opacity-80" />
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Search and Filters */}
-      <div className="bg-white shadow-md rounded-xl p-6">
+      <div className="bg-white shadow-md rounded-xl p-6 border border-gray-200">
         <div className="flex flex-col lg:flex-row gap-4">
           <div className="flex-1">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
               <input
                 type="text"
-                placeholder="Search enquiries..."
+                placeholder="Search by name, email, subject, or message..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                onKeyPress={(e) => e.key === 'Enter' && loadEnquiries()}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
           </div>
-          <div className="flex gap-4">
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="all">All Status</option>
-              <option value="PENDING">Pending</option>
-              <option value="RESOLVED">Resolved</option>
-              <option value="CLOSED">Closed</option>
-            </select>
+          <div className="flex gap-3">
             <button
               onClick={loadEnquiries}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center transition-colors shadow-md"
             >
-              <Search className="w-4 h-4 mr-2" />
-              Search
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Refresh
             </button>
+            {searchTerm && (
+              <button
+                onClick={() => {
+                  setSearchTerm('')
+                  loadEnquiries()
+                }}
+                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 flex items-center transition-colors"
+              >
+                <X className="w-4 h-4 mr-2" />
+                Clear
+              </button>
+            )}
           </div>
         </div>
       </div>
 
       {/* Enquiries Table */}
-      <div className="bg-white shadow-md rounded-xl overflow-hidden">
+      <div className="bg-white shadow-md rounded-xl overflow-hidden border border-gray-200">
         {enquiries.length === 0 ? (
-          <div className="p-8 text-center">
-            <Mail className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-500">No enquiries found</p>
+          <div className="p-12 text-center">
+            <Mail className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">No Enquiries Found</h3>
+            <p className="text-gray-500">
+              {searchTerm ? 'Try adjusting your search terms' : 'No enquiries have been submitted yet'}
+            </p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+              <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subject</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Message</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Tracking ID</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">From</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Subject</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Message</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Date</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {enquiries.map((enquiry: any, index: number) => (
-                  <tr key={enquiry.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{enquiry.id}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{enquiry.subject}</td>
-                    <td className="px-6 py-4 text-sm text-gray-700 max-w-xs truncate">{enquiry.message}</td>
+                  <tr 
+                    key={enquiry.id} 
+                    className={`hover:bg-blue-50 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}
+                  >
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        enquiry.status === 'RESOLVED' 
-                          ? 'bg-green-100 text-green-800' 
-                          : enquiry.status === 'PENDING'
-                          ? 'bg-yellow-100 text-yellow-800'
-                          : 'bg-gray-100 text-gray-800'
-                      }`}>
-                        {enquiry.status}
-                      </span>
+                      <div className="text-sm font-medium text-gray-900">{enquiry.trackingId}</div>
+                      <div className="text-xs text-gray-500">#{enquiry.id}</div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                      {new Date(enquiry.createdAt).toLocaleDateString()}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900">{enquiry.fullName}</div>
+                      <div className="text-xs text-gray-500">{enquiry.email}</div>
+                      {enquiry.phone && (
+                        <div className="text-xs text-gray-500">{enquiry.phone}</div>
+                      )}
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-sm font-medium text-gray-900 max-w-xs">{enquiry.subject}</div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-sm text-gray-700 max-w-md truncate">{enquiry.message}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">{formatDate(enquiry.createdAt)}</div>
+                      <div className="text-xs text-gray-500">{formatRelativeTime(enquiry.createdAt)}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <div className="flex space-x-2">
-                        <button 
-                          onClick={() => handleStatusUpdate(enquiry.id, 'RESOLVED')}
-                          className="text-green-600 hover:text-green-900" 
-                          title="Mark as Resolved"
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleViewEnquiry(enquiry.id)}
+                          className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
+                          title="View Details"
                         >
-                          <CheckCircle className="w-4 h-4" />
+                          <Eye className="w-5 h-5" />
                         </button>
-                        <button 
-                          onClick={() => handleStatusUpdate(enquiry.id, 'CLOSED')}
-                          className="text-gray-600 hover:text-gray-900" 
-                          title="Close Enquiry"
+                        <a
+                          href={`mailto:${enquiry.email}?subject=Re: ${enquiry.subject}`}
+                          className="p-2 text-green-600 hover:bg-green-100 rounded-lg transition-colors"
+                          title="Reply via Email"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Mail className="w-5 h-5" />
+                        </a>
+                        <button
+                          onClick={() => handleDeleteEnquiry(enquiry.id)}
+                          disabled={actionLoading === enquiry.id}
+                          className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors disabled:opacity-50"
+                          title="Delete Enquiry"
+                        >
+                          {actionLoading === enquiry.id ? (
+                            <Loader2 className="w-5 h-5 animate-spin" />
+                          ) : (
+                            <Trash2 className="w-5 h-5" />
+                          )}
                         </button>
                       </div>
                     </td>
@@ -1900,6 +2781,88 @@ function EnquiriesManagement() {
           </div>
         )}
       </div>
+
+      {/* Enquiry Detail Modal */}
+      {showModal && selectedEnquiry && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+              <h3 className="text-xl font-bold text-gray-900">Enquiry Details</h3>
+              <button
+                onClick={() => {
+                  setShowModal(false)
+                  setSelectedEnquiry(null)
+                }}
+                className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="p-6 space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Tracking ID</label>
+                  <p className="text-lg font-semibold text-gray-900">{selectedEnquiry.trackingId}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Enquiry ID</label>
+                  <p className="text-lg font-semibold text-gray-900">#{selectedEnquiry.id}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Full Name</label>
+                  <p className="text-base text-gray-900">{selectedEnquiry.fullName}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Email</label>
+                  <a href={`mailto:${selectedEnquiry.email}`} className="text-base text-blue-600 hover:underline">
+                    {selectedEnquiry.email}
+                  </a>
+                </div>
+                {selectedEnquiry.phone && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">Phone</label>
+                    <a href={`tel:${selectedEnquiry.phone}`} className="text-base text-blue-600 hover:underline">
+                      {selectedEnquiry.phone}
+                    </a>
+                  </div>
+                )}
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Date Submitted</label>
+                  <p className="text-base text-gray-900">{formatDate(selectedEnquiry.createdAt)}</p>
+                </div>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-500">Subject</label>
+                <p className="text-base font-semibold text-gray-900 mt-1">{selectedEnquiry.subject}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-500">Message</label>
+                <div className="mt-2 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  <p className="text-base text-gray-900 whitespace-pre-wrap">{selectedEnquiry.message}</p>
+                </div>
+              </div>
+              <div className="flex gap-3 pt-4 border-t border-gray-200">
+                <a
+                  href={`mailto:${selectedEnquiry.email}?subject=Re: ${selectedEnquiry.subject}`}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center transition-colors"
+                >
+                  <Mail className="w-5 h-5 mr-2" />
+                  Reply via Email
+                </a>
+                <button
+                  onClick={() => {
+                    setShowModal(false)
+                    setSelectedEnquiry(null)
+                  }}
+                  className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
