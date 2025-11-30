@@ -73,6 +73,8 @@ model pensioner {
   lastLogin              DateTime?
   hasSeenDueNotification Boolean               @default(false)
   nextDueAt              DateTime?
+  passportUploaded       Boolean                @default(false)
+  passportUrl            String?                @db.Text
   biometriccredential    biometriccredential[]
   document               document[]
   pensionerfile          pensionerfile[]

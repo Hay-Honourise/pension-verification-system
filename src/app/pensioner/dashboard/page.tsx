@@ -102,6 +102,11 @@ export default function PensionerDashboard() {
     nextDueAt: null,
   });
 
+  // Separate verification statuses
+  const [documentVerificationStatus, setDocumentVerificationStatus] = useState<'VERIFIED' | 'REJECTED' | 'PENDING'>('PENDING');
+  const [biometricVerificationStatus, setBiometricVerificationStatus] = useState<'VERIFIED' | 'PENDING'>('PENDING');
+  const [biometricVerificationDueDate, setBiometricVerificationDueDate] = useState<string | null>(null);
+
   // Recent Activity state
   interface ActivityItem {
     id: string;
@@ -253,12 +258,24 @@ export default function PensionerDashboard() {
                 pensionNumber: p.pensionId || parsedUser.pensionId || "",
                 bankDetails: p.bankDetails || "",
               });
-              const latestLog = p?.verificationLogs?.[0];
+              const latestLog = p?.verificationlog?.[0];
               setVerification({
                 status: latestLog?.status || "UNKNOWN",
                 lastVerifiedAt: latestLog?.verifiedAt || null,
                 nextDueAt: latestLog?.nextDueAt || null,
               });
+              
+              // Set separate verification statuses
+              if (data?.documentVerificationStatus) {
+                setDocumentVerificationStatus(data.documentVerificationStatus);
+              }
+              if (data?.biometricVerificationStatus) {
+                setBiometricVerificationStatus(data.biometricVerificationStatus);
+              }
+              if (data?.biometricVerificationDueDate) {
+                setBiometricVerificationDueDate(data.biometricVerificationDueDate);
+              }
+              
               if (data?.documents) setDocuments(data.documents);
               const merged = { ...parsedUser, ...p };
               setUser(merged);
@@ -516,7 +533,7 @@ export default function PensionerDashboard() {
   };
 
   const goToVerification = () => {
-    router.push("/pensioner/verification");
+    router.push("/pensioner/face-verification");
   };
 
   if (loading) {
@@ -593,7 +610,19 @@ export default function PensionerDashboard() {
               </>
               <button
                 onClick={goToVerification}
-                className="px-2 lg:px-4 py-1 lg:py-2 text-xs lg:text-sm bg-blue-600 text-white hover:bg-blue-700 rounded-md transition-colors"
+                disabled={documentVerificationStatus !== 'VERIFIED' || biometricVerificationStatus === 'VERIFIED'}
+                className={`px-2 lg:px-4 py-1 lg:py-2 text-xs lg:text-sm rounded-md transition-colors ${
+                  documentVerificationStatus !== 'VERIFIED' || biometricVerificationStatus === 'VERIFIED'
+                    ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                }`}
+                title={
+                  documentVerificationStatus !== 'VERIFIED'
+                    ? 'Please complete document verification first'
+                    : biometricVerificationStatus === 'VERIFIED'
+                    ? 'Biometric verification already completed'
+                    : 'Start biometric verification'
+                }
               >
                 Start Verification
               </button>
@@ -635,7 +664,7 @@ export default function PensionerDashboard() {
             </p>
           </div>
 
-          {/* Status Card */}
+          {/* Document Verification Status Card */}
           <div className="bg-white rounded-lg shadow p-5">
             <div className="items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-3 mb-3">
@@ -653,36 +682,77 @@ export default function PensionerDashboard() {
                     />
                   </svg>
                 </span>
-                Verification Status
+                Document Verification Status
               </h3>
               <span
                 className={`items-center rounded-full p-2 text-xs font-medium ${
-                  user.status === "VERIFIED"
+                  documentVerificationStatus === "VERIFIED"
                     ? "bg-green-50 text-green-700 ring-1 ring-inset ring-green-600/20"
-                    : user.status === "REJECTED"
+                    : documentVerificationStatus === "REJECTED"
                     ? "bg-red-50 text-red-700 ring-1 ring-inset ring-red-600/20"
                     : "bg-yellow-50 text-yellow-700 ring-1 ring-inset ring-yellow-600/20"
                 }`}
               >
-                {user.status === "VERIFIED"
+                {documentVerificationStatus === "VERIFIED"
                   ? "Verified"
-                  : user.status === "REJECTED"
+                  : documentVerificationStatus === "REJECTED"
                   ? "Rejected"
                   : "Pending Verification"}
               </span>
             </div>
             <p className="text-sm text-gray-600">
-              {user.status === "VERIFIED"
-                ? "Your pension verification has been completed successfully."
-                : user.status === "REJECTED"
-                ? "Your verification was not approved. Please contact support."
-                : "Your biometeric verification has not been completed.  Please click the start verification button to start your verification process. You will be notified once verified."}
+              {documentVerificationStatus === "VERIFIED"
+                ? "Your documents have been verified successfully. You can now proceed with biometric verification."
+                : documentVerificationStatus === "REJECTED"
+                ? "Your document verification was not approved. Please contact support or upload new documents."
+                : "Your documents are pending verification. Please wait for an officer to review your uploaded documents."}
             </p>
-            {verification.nextDueAt && (
+          </div>
+
+          {/* Biometric Verification Status Card */}
+          <div className="bg-white rounded-lg shadow p-5">
+            <div className="items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-3 mb-3">
+                <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-gray-700">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                    className="h-4 w-4"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.2 4.4-1.728-1.728a.75.75 0 10-1.06 1.06l2.25 2.25a.75.75 0 001.153-.09l3.8-5.01z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </span>
+                Biometric Verification Status
+              </h3>
+              <span
+                className={`items-center rounded-full p-2 text-xs font-medium ${
+                  biometricVerificationStatus === "VERIFIED"
+                    ? "bg-green-50 text-green-700 ring-1 ring-inset ring-green-600/20"
+                    : "bg-yellow-50 text-yellow-700 ring-1 ring-inset ring-yellow-600/20"
+                }`}
+              >
+                {biometricVerificationStatus === "VERIFIED"
+                  ? "Verified"
+                  : "Pending Verification"}
+              </span>
+            </div>
+            <p className="text-sm text-gray-600 mb-3">
+              {biometricVerificationStatus === "VERIFIED"
+                ? "Your biometric verification has been completed successfully. You cannot verify again."
+                : documentVerificationStatus === "VERIFIED"
+                ? "Please complete your biometric verification to finalize your pension verification process."
+                : "Please complete document verification first before proceeding with biometric verification."}
+            </p>
+            {biometricVerificationStatus === "VERIFIED" && biometricVerificationDueDate && (
               <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                 <p className="text-sm font-medium text-blue-900 mb-1">Next Verification Due:</p>
                 <p className="text-base font-semibold text-blue-700">
-                  {new Date(verification.nextDueAt).toLocaleDateString('en-US', { 
+                  {new Date(biometricVerificationDueDate).toLocaleDateString('en-US', { 
                     weekday: 'long',
                     year: 'numeric', 
                     month: 'long', 

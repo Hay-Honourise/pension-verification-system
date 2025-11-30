@@ -56,10 +56,20 @@ export async function GET(request: NextRequest) {
         email: true,
         phone: true,
         residentialAddress: true,
+        status: true,
+        nextDueAt: true,
         verificationlog: {
           orderBy: { verifiedAt: 'desc' },
-          take: 3,
+          take: 10,
           select: { id: true, method: true, status: true, verifiedAt: true, nextDueAt: true },
+        },
+        verificationreview: {
+          orderBy: { reviewedAt: 'desc' },
+          take: 1,
+          select: { id: true, status: true, reviewedAt: true },
+        },
+        biometriccredential: {
+          select: { id: true, type: true, createdAt: true },
         },
         pensionerfile: {
           select: {
@@ -94,8 +104,60 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Determine document verification status
+    // Document verification is considered complete if:
+    // 1. Pensioner status is VERIFIED, or
+    // 2. There's a verification review with status VERIFIED, or
+    // 3. There's a verification log with ADMIN_REVIEW or MANUAL_REVIEW method and VERIFIED status
+    const hasVerifiedReview = pensioner.verificationreview && pensioner.verificationreview.length > 0 && 
+                               pensioner.verificationreview[0].status === 'VERIFIED';
+    const hasAdminVerification = pensioner.verificationlog?.some(
+      log => log.status === 'VERIFIED' && 
+      (log.method === 'ADMIN_REVIEW' || log.method === 'MANUAL_REVIEW')
+    );
+    const hasRejectedReview = pensioner.verificationreview && pensioner.verificationreview.length > 0 && 
+                              pensioner.verificationreview[0].status === 'REJECTED';
+    const hasAdminRejection = pensioner.verificationlog?.some(
+      log => log.status === 'REJECTED' && 
+      (log.method === 'ADMIN_REVIEW' || log.method === 'MANUAL_REVIEW')
+    );
+
+    const documentVerificationStatus = 
+      pensioner.status === 'VERIFIED' || hasVerifiedReview || hasAdminVerification
+        ? 'VERIFIED'
+        : pensioner.status === 'REJECTED' || hasRejectedReview || hasAdminRejection
+        ? 'REJECTED'
+        : 'PENDING';
+
+    // Log document verification status for debugging
+    console.log('📄 Document Verification Status:', {
+      pensionerStatus: pensioner.status,
+      hasVerifiedReview,
+      hasAdminVerification,
+      hasRejectedReview,
+      hasAdminRejection,
+      finalStatus: documentVerificationStatus,
+      verificationLogs: pensioner.verificationlog?.map(log => ({ method: log.method, status: log.status })),
+      verificationReviews: pensioner.verificationreview?.map(review => ({ status: review.status })),
+    });
+
+    // Determine biometric verification status
+    // Biometric verification is complete if there's at least one successful verification log
+    const successfulBiometricVerification = pensioner.verificationlog?.find(
+      log => log.status === 'VERIFIED' && 
+      (log.method?.includes('Biometric') || log.method?.includes('Face') || log.method?.includes('Fingerprint'))
+    );
+    const biometricVerificationStatus = successfulBiometricVerification ? 'VERIFIED' : 'PENDING';
+    const biometricVerificationDueDate = successfulBiometricVerification?.nextDueAt || pensioner.nextDueAt;
+
     console.log('✅ [pensioner/me] Request completed successfully');
-    return NextResponse.json({ pensioner, documents });
+    return NextResponse.json({ 
+      pensioner, 
+      documents,
+      documentVerificationStatus,
+      biometricVerificationStatus,
+      biometricVerificationDueDate,
+    });
     
   } catch (err) {
     console.error('❌ [pensioner/me] error:', err);
