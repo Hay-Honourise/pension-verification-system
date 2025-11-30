@@ -20,7 +20,6 @@ import {
   Shield,
   Clock,
   CheckCircle2,
-  XCircle2,
   ChevronDown,
   ChevronUp,
   Lightbulb,
@@ -386,7 +385,7 @@ export default function FaceVerificationPage() {
       FAILED: {
         bg: 'bg-red-100 text-red-800',
         text: 'Failed',
-        icon: XCircle2,
+        icon: XCircle,
       },
       PENDING: {
         bg: 'bg-yellow-100 text-yellow-800',
@@ -396,7 +395,7 @@ export default function FaceVerificationPage() {
       REJECTED: {
         bg: 'bg-red-100 text-red-800',
         text: 'Rejected',
-        icon: XCircle2,
+        icon: XCircle,
       },
     };
 

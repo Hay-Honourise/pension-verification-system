@@ -4,7 +4,7 @@ import { verifyToken } from '@/lib/auth';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const authHeader = request.headers.get('authorization');
@@ -19,6 +19,7 @@ export async function GET(
       return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
     }
 
+    const params = await context.params;
     const enquiryId = parseInt(params.id);
     if (isNaN(enquiryId)) {
       return NextResponse.json({ message: 'Invalid enquiry ID' }, { status: 400 });
@@ -47,7 +48,7 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const authHeader = request.headers.get('authorization');
@@ -62,6 +63,7 @@ export async function PUT(
       return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
     }
 
+    const params = await context.params;
     const enquiryId = parseInt(params.id);
     if (isNaN(enquiryId)) {
       return NextResponse.json({ message: 'Invalid enquiry ID' }, { status: 400 });
@@ -106,7 +108,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const authHeader = request.headers.get('authorization');
@@ -121,6 +123,7 @@ export async function DELETE(
       return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
     }
 
+    const params = await context.params;
     const enquiryId = parseInt(params.id);
     if (isNaN(enquiryId)) {
       return NextResponse.json({ message: 'Invalid enquiry ID' }, { status: 400 });
