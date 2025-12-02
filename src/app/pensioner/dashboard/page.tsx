@@ -56,7 +56,11 @@ export default function PensionerDashboard() {
   );
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [profileEdited, setProfileEdited] = useState(false);
-  const [originalProfile, setOriginalProfile] = useState<{ email: string; phone: string; address: string }>({ email: '', phone: '', address: '' });
+  const [originalProfile, setOriginalProfile] = useState<{
+    email: string;
+    phone: string;
+    address: string;
+  }>({ email: "", phone: "", address: "" });
 
   // Documents state
   const [documents, setDocuments] = useState<{
@@ -88,7 +92,9 @@ export default function PensionerDashboard() {
   const [filesLoading, setFilesLoading] = useState(false);
   const [fileOpId, setFileOpId] = useState<string | null>(null);
   const [replaceTargetId, setReplaceTargetId] = useState<string | null>(null);
-  const [downloadingFileId, setDownloadingFileId] = useState<string | null>(null);
+  const [downloadingFileId, setDownloadingFileId] = useState<string | null>(
+    null
+  );
   const replaceInputRef = React.useRef<HTMLInputElement | null>(null);
 
   // Verification state
@@ -103,14 +109,23 @@ export default function PensionerDashboard() {
   });
 
   // Separate verification statuses
-  const [documentVerificationStatus, setDocumentVerificationStatus] = useState<'VERIFIED' | 'REJECTED' | 'PENDING'>('PENDING');
-  const [biometricVerificationStatus, setBiometricVerificationStatus] = useState<'VERIFIED' | 'PENDING'>('PENDING');
-  const [biometricVerificationDueDate, setBiometricVerificationDueDate] = useState<string | null>(null);
+  const [documentVerificationStatus, setDocumentVerificationStatus] = useState<
+    "VERIFIED" | "REJECTED" | "PENDING"
+  >("PENDING");
+  const [biometricVerificationStatus, setBiometricVerificationStatus] =
+    useState<"VERIFIED" | "PENDING">("PENDING");
+  const [biometricVerificationDueDate, setBiometricVerificationDueDate] =
+    useState<string | null>(null);
 
   // Recent Activity state
   interface ActivityItem {
     id: string;
-    type: 'verification' | 'document' | 'registration' | 'login' | 'profile_update';
+    type:
+      | "verification"
+      | "document"
+      | "registration"
+      | "login"
+      | "profile_update";
     title: string;
     description?: string;
     timestamp: string;
@@ -122,7 +137,9 @@ export default function PensionerDashboard() {
 
   // Due Notification Popup state
   const [showDuePopup, setShowDuePopup] = useState(false);
-  const [nextDueDateForPopup, setNextDueDateForPopup] = useState<string | null>(null);
+  const [nextDueDateForPopup, setNextDueDateForPopup] = useState<string | null>(
+    null
+  );
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-NG", {
@@ -138,72 +155,74 @@ export default function PensionerDashboard() {
 
   const getDocumentTypeLabel = (fileType: string) => {
     const typeMap: { [key: string]: string } = {
-      'appointmentLetter': 'Appointment Letter',
-      'idCard': 'ID Card',
-      'retirementLetter': 'Retirement Letter',
-      'birthCertificate': 'Birth Certificate',
-      'passportPhoto': 'Passport Photo'
+      appointmentLetter: "Appointment Letter",
+      idCard: "ID Card",
+      retirementLetter: "Retirement Letter",
+      birthCertificate: "Birth Certificate",
+      passportPhoto: "Passport Photo",
     };
     return typeMap[fileType] || fileType;
   };
 
-  const handleDownload = async (fileUrl: string, filename: string, fileId: string) => {
+  const handleDownload = async (
+    fileUrl: string,
+    filename: string,
+    fileId: string
+  ) => {
     if (downloadingFileId === fileId) {
-      console.log('Download already in progress for this file');
+      console.log("Download already in progress for this file");
       return;
     }
-  
+
     try {
       setDownloadingFileId(fileId);
-  
+
       const getSigned = async () => {
         const params = new URLSearchParams({
           url: fileUrl,
-          filename: filename || '',
+          filename: filename || "",
           _t: Date.now().toString(), // cache buster
         });
-  
+
         const res = await fetch(`/api/download?${params.toString()}`, {
-          method: 'GET',
-          cache: 'no-store',
+          method: "GET",
+          cache: "no-store",
           headers: {
-            'Cache-Control': 'no-cache',
-            'Pragma': 'no-cache',
+            "Cache-Control": "no-cache",
+            Pragma: "no-cache",
           },
         });
-  
+
         const data = await res.json();
         if (!res.ok || !data?.url) {
-          throw new Error(data?.error || 'Failed to get download URL');
+          throw new Error(data?.error || "Failed to get download URL");
         }
         return data.url as string;
       };
-  
+
       // Get signed URL and open immediately
       const signedUrl = await getSigned();
-      const win = window.open(signedUrl, '_blank', 'noopener,noreferrer');
-  
+      const win = window.open(signedUrl, "_blank", "noopener,noreferrer");
+
       // Retry once if popup was blocked
       if (!win) {
-        console.warn('Popup blocked, retrying with fresh URL...');
+        console.warn("Popup blocked, retrying with fresh URL...");
         const retryUrl = await getSigned();
-        window.open(retryUrl, '_blank', 'noopener,noreferrer');
+        window.open(retryUrl, "_blank", "noopener,noreferrer");
       }
-  
+
       // Show toast/message
-      setDocsMsgType('success');
-      setDocsMsg(`Download started: ${filename || 'document'}`);
-      setTimeout(() => setDocsMsg(''), 3000);
-  
+      setDocsMsgType("success");
+      setDocsMsg(`Download started: ${filename || "document"}`);
+      setTimeout(() => setDocsMsg(""), 3000);
     } catch (error) {
-      console.error('Download failed', error);
-      setDocsMsgType('error');
-      setDocsMsg('Failed to download document. Please try again.');
+      console.error("Download failed", error);
+      setDocsMsgType("error");
+      setDocsMsg("Failed to download document. Please try again.");
     } finally {
       setDownloadingFileId(null);
     }
   };
-  
 
   useEffect(() => {
     // Check if user is authenticated
@@ -264,18 +283,22 @@ export default function PensionerDashboard() {
                 lastVerifiedAt: latestLog?.verifiedAt || null,
                 nextDueAt: latestLog?.nextDueAt || null,
               });
-              
+
               // Set separate verification statuses
               if (data?.documentVerificationStatus) {
                 setDocumentVerificationStatus(data.documentVerificationStatus);
               }
               if (data?.biometricVerificationStatus) {
-                setBiometricVerificationStatus(data.biometricVerificationStatus);
+                setBiometricVerificationStatus(
+                  data.biometricVerificationStatus
+                );
               }
               if (data?.biometricVerificationDueDate) {
-                setBiometricVerificationDueDate(data.biometricVerificationDueDate);
+                setBiometricVerificationDueDate(
+                  data.biometricVerificationDueDate
+                );
               }
-              
+
               if (data?.documents) setDocuments(data.documents);
               const merged = { ...parsedUser, ...p };
               setUser(merged);
@@ -323,7 +346,7 @@ export default function PensionerDashboard() {
       if (!token) return;
 
       const res = await fetch("/api/pensioner/due-notification", {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       if (!res.ok) return;
@@ -368,26 +391,41 @@ export default function PensionerDashboard() {
     const diffDays = Math.floor(diffMs / 86400000);
 
     if (diffMins < 1) return "Just now";
-    if (diffMins < 60) return `${diffMins} minute${diffMins !== 1 ? 's' : ''} ago`;
-    if (diffHours < 24) return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
-    if (diffDays < 7) return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
-    
+    if (diffMins < 60)
+      return `${diffMins} minute${diffMins !== 1 ? "s" : ""} ago`;
+    if (diffHours < 24)
+      return `${diffHours} hour${diffHours !== 1 ? "s" : ""} ago`;
+    if (diffDays < 7) return `${diffDays} day${diffDays !== 1 ? "s" : ""} ago`;
+
     // For older dates, show formatted date and time
     const isToday = date.toDateString() === now.toDateString();
     if (isToday) {
-      return `Today at ${date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
-    }
-    
-    const isYesterday = new Date(now.getTime() - 86400000).toDateString() === date.toDateString();
-    if (isYesterday) {
-      return `Yesterday at ${date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+      return `Today at ${date.toLocaleTimeString("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+      })}`;
     }
 
-    return date.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric',
-      year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
-    }) + ` at ${date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+    const isYesterday =
+      new Date(now.getTime() - 86400000).toDateString() === date.toDateString();
+    if (isYesterday) {
+      return `Yesterday at ${date.toLocaleTimeString("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+      })}`;
+    }
+
+    return (
+      date.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: date.getFullYear() !== now.getFullYear() ? "numeric" : undefined,
+      }) +
+      ` at ${date.toLocaleTimeString("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+      })}`
+    );
   };
 
   const getFileName = (path: string) => {
@@ -407,25 +445,27 @@ export default function PensionerDashboard() {
   const handleProfileSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
-    
+
     // Check if at least one field has been modified and has a value
-    const hasValidPhone = profile.phone && profile.phone.trim() !== '';
-    const hasValidAddress = profile.address && profile.address.trim() !== '';
-    const hasValidEmail = profile.email && profile.email.trim() !== '';
-    
+    const hasValidPhone = profile.phone && profile.phone.trim() !== "";
+    const hasValidAddress = profile.address && profile.address.trim() !== "";
+    const hasValidEmail = profile.email && profile.email.trim() !== "";
+
     // Debug logging
-    console.log('Profile validation:', {
+    console.log("Profile validation:", {
       phone: profile.phone,
       address: profile.address,
       email: profile.email,
       hasValidPhone,
       hasValidAddress,
-      hasValidEmail
+      hasValidEmail,
     });
-    
+
     if (!hasValidPhone || !hasValidAddress || !hasValidEmail) {
       setProfileMsgType("error");
-      setProfileMsg("Please fill all required fields (Phone, Email, and Address).");
+      setProfileMsg(
+        "Please fill all required fields (Phone, Email, and Address)."
+      );
       return;
     }
     try {
@@ -512,7 +552,7 @@ export default function PensionerDashboard() {
         throw new Error(data?.message || "Failed to update documents");
       setDocsMsgType("success");
       setDocsMsg("Documents re-submitted successfully");
-              // Update shown document links if returned
+      // Update shown document links if returned
       if (data?.documents) setDocuments(data.documents);
       // Clear selected files
       setSelectedFiles({});
@@ -610,18 +650,22 @@ export default function PensionerDashboard() {
               </>
               <button
                 onClick={goToVerification}
-                disabled={documentVerificationStatus !== 'VERIFIED' || biometricVerificationStatus === 'VERIFIED'}
+                disabled={
+                  documentVerificationStatus !== "VERIFIED" ||
+                  biometricVerificationStatus === "VERIFIED"
+                }
                 className={`px-2 lg:px-4 py-1 lg:py-2 text-xs lg:text-sm rounded-md transition-colors ${
-                  documentVerificationStatus !== 'VERIFIED' || biometricVerificationStatus === 'VERIFIED'
-                    ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
-                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                  documentVerificationStatus !== "VERIFIED" ||
+                  biometricVerificationStatus === "VERIFIED"
+                    ? "bg-gray-400 text-gray-200 cursor-not-allowed"
+                    : "bg-blue-600 text-white hover:bg-blue-700"
                 }`}
                 title={
-                  documentVerificationStatus !== 'VERIFIED'
-                    ? 'Please complete document verification first'
-                    : biometricVerificationStatus === 'VERIFIED'
-                    ? 'Biometric verification already completed'
-                    : 'Start biometric verification'
+                  documentVerificationStatus !== "VERIFIED"
+                    ? "Please complete document verification first"
+                    : biometricVerificationStatus === "VERIFIED"
+                    ? "Biometric verification already completed"
+                    : "Start biometric verification"
                 }
               >
                 Start Verification
@@ -633,11 +677,11 @@ export default function PensionerDashboard() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-center justify-center mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start justify-center mb-8">
           {/* Registration Card */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="items-center justify-between mb-5">
-              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-3 mb-4">
+          <div className="bg-white rounded-lg shadow p-5">
+            <div className="items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-3 mb-3">
                 <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-green-100 text-green-700">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -668,20 +712,37 @@ export default function PensionerDashboard() {
           <div className="bg-white rounded-lg shadow p-5">
             <div className="items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-3 mb-3">
-                <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-gray-700">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                    className="h-4 w-4"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.2 4.4-1.728-1.728a.75.75 0 10-1.06 1.06l2.25 2.25a.75.75 0 001.153-.09l3.8-5.01z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                </span>
+                {documentVerificationStatus === "VERIFIED" ? (
+                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-green-100 text-green-700">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                      className="h-4 w-4"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.2 4.4-1.728-1.728a.75.75 0 10-1.06 1.06l2.25 2.25a.75.75 0 001.153-.09l3.8-5.01z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  </span>
+                ) : (
+                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-gray-700">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                      className="h-4 w-4"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.2 4.4-1.728-1.728a.75.75 0 10-1.06 1.06l2.25 2.25a.75.75 0 001.153-.09l3.8-5.01z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  </span>
+                )}
                 Document Verification Status
               </h3>
               <span
@@ -694,10 +755,10 @@ export default function PensionerDashboard() {
                 }`}
               >
                 {documentVerificationStatus === "VERIFIED"
-                  ? "Verified"
+                  ? "Verification Successful"
                   : documentVerificationStatus === "REJECTED"
-                  ? "Rejected"
-                  : "Pending Verification"}
+                  ? "Verification Failed"
+                  : "Verification Pending"}
               </span>
             </div>
             <p className="text-sm text-gray-600">
@@ -713,20 +774,37 @@ export default function PensionerDashboard() {
           <div className="bg-white rounded-lg shadow p-5">
             <div className="items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-3 mb-3">
-                <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-gray-700">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                    className="h-4 w-4"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.2 4.4-1.728-1.728a.75.75 0 10-1.06 1.06l2.25 2.25a.75.75 0 001.153-.09l3.8-5.01z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                </span>
+                {biometricVerificationStatus === "VERIFIED" ? (
+                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-green-100 text-green-700">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                      className="h-4 w-4"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.2 4.4-1.728-1.728a.75.75 0 10-1.06 1.06l2.25 2.25a.75.75 0 001.153-.09l3.8-5.01z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  </span>
+                ) : (
+                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-gray-700">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                      className="h-4 w-4"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.2 4.4-1.728-1.728a.75.75 0 10-1.06 1.06l2.25 2.25a.75.75 0 001.153-.09l3.8-5.01z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  </span>
+                )}
                 Biometric Verification Status
               </h3>
               <span
@@ -737,8 +815,8 @@ export default function PensionerDashboard() {
                 }`}
               >
                 {biometricVerificationStatus === "VERIFIED"
-                  ? "Verified"
-                  : "Pending Verification"}
+                  ? "Verification Successful"
+                  : "Verification Pending"}
               </span>
             </div>
             <p className="text-sm text-gray-600 mb-3">
@@ -748,22 +826,29 @@ export default function PensionerDashboard() {
                 ? "Please complete your biometric verification to finalize your pension verification process, and be eligible for your gratuity and pension benefits."
                 : "Please complete document verification first before proceeding with biometric verification."}
             </p>
-            {biometricVerificationStatus === "VERIFIED" && biometricVerificationDueDate && (
-              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="text-sm font-medium text-blue-900 mb-1">Next Verification Due:</p>
-                <p className="text-base font-semibold text-blue-700">
-                  {new Date(biometricVerificationDueDate).toLocaleDateString('en-US', { 
-                    weekday: 'long',
-                    year: 'numeric', 
-                    month: 'long', 
-                    day: 'numeric' 
-                  })}
-                </p>
-                <p className="text-xs text-blue-600 mt-1">
-                  Your next verification is due in 3 months from your last successful verification.
-                </p>
-              </div>
-            )}
+            {biometricVerificationStatus === "VERIFIED" &&
+              biometricVerificationDueDate && (
+                <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-sm font-medium text-blue-900 mb-1">
+                    Next Verification Due:
+                  </p>
+                  <p className="text-base font-semibold text-blue-700">
+                    {new Date(biometricVerificationDueDate).toLocaleDateString(
+                      "en-US",
+                      {
+                        weekday: "long",
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      }
+                    )}
+                  </p>
+                  <p className="text-xs text-blue-600 mt-1">
+                    Your next verification is due in 3 months from your last
+                    successful verification.
+                  </p>
+                </div>
+              )}
           </div>
 
           {/* Personal Info Card */}
@@ -935,8 +1020,18 @@ export default function PensionerDashboard() {
                 className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium shadow-sm"
                 onClick={() => (window.location.href = "/contact")}
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                  />
                 </svg>
                 Contact Support
               </button>
@@ -970,14 +1065,20 @@ export default function PensionerDashboard() {
                   <form className="space-y-4" onSubmit={handleProfileSave}>
                     {/* Controls */}
                     <div className="flex items-center justify-between">
-                      <h4 className="text-sm font-medium text-gray-900">Edit Contact Details</h4>
+                      <h4 className="text-sm font-medium text-gray-900">
+                        Edit Contact Details
+                      </h4>
                       {!isEditingProfile ? (
                         <button
                           type="button"
                           className="px-3 py-1.5 rounded-md text-sm bg-gray-100 hover:bg-gray-200 text-gray-800"
                           onClick={() => {
                             setIsEditingProfile(true);
-                            setOriginalProfile({ email: profile.email, phone: profile.phone, address: profile.address });
+                            setOriginalProfile({
+                              email: profile.email,
+                              phone: profile.phone,
+                              address: profile.address,
+                            });
                             setProfileEdited(false);
                           }}
                         >
@@ -990,7 +1091,12 @@ export default function PensionerDashboard() {
                             className="px-3 py-1.5 rounded-md text-sm bg-gray-100 hover:bg-gray-200 text-gray-800"
                             onClick={() => {
                               setIsEditingProfile(false);
-                              setProfile({ ...profile, email: originalProfile.email, phone: originalProfile.phone, address: originalProfile.address });
+                              setProfile({
+                                ...profile,
+                                email: originalProfile.email,
+                                phone: originalProfile.phone,
+                                address: originalProfile.address,
+                              });
                               setProfileEdited(false);
                             }}
                           >
@@ -998,50 +1104,75 @@ export default function PensionerDashboard() {
                           </button>
                           <button
                             type="submit"
-                            className={`px-3 py-1.5 rounded-md text-sm text-white ${profileEdited ? 'bg-oyoGreen hover:bg-green-700' : 'bg-gray-300 cursor-not-allowed'}`}
+                            className={`px-3 py-1.5 rounded-md text-sm text-white ${
+                              profileEdited
+                                ? "bg-oyoGreen hover:bg-green-700"
+                                : "bg-gray-300 cursor-not-allowed"
+                            }`}
                             disabled={!profileEdited || profileLoading}
                           >
-                            {profileLoading ? 'Saving...' : 'Save Changes'}
+                            {profileLoading ? "Saving..." : "Save Changes"}
                           </button>
-                    </div>
+                        </div>
                       )}
                     </div>
 
                     {/* Email */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Email Address
+                      </label>
                       <input
                         type="email"
-                        className={`mt-1 block w-full rounded-md border border-gray-300 focus:ring-oyoOrange focus:border-oyoOrange ${!isEditingProfile ? 'bg-gray-100' : ''}`}
+                        className={`mt-1 block w-full rounded-md border border-gray-300 focus:ring-oyoOrange focus:border-oyoOrange ${
+                          !isEditingProfile ? "bg-gray-100" : ""
+                        }`}
                         value={profile.email}
                         readOnly={!isEditingProfile}
-                        onChange={(e) => { setProfile({ ...profile, email: e.target.value }); setProfileEdited(true); }}
+                        onChange={(e) => {
+                          setProfile({ ...profile, email: e.target.value });
+                          setProfileEdited(true);
+                        }}
                         required
                       />
                     </div>
 
                     {/* Phone */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Phone Number
+                      </label>
                       <input
                         type="tel"
-                        className={`mt-1 block w-full rounded-md border border-gray-300 focus:ring-oyoOrange focus:border-oyoOrange ${!isEditingProfile ? 'bg-gray-100' : ''}`}
-                        value={profile.phone || ''}
+                        className={`mt-1 block w-full rounded-md border border-gray-300 focus:ring-oyoOrange focus:border-oyoOrange ${
+                          !isEditingProfile ? "bg-gray-100" : ""
+                        }`}
+                        value={profile.phone || ""}
                         readOnly={!isEditingProfile}
-                        onChange={(e) => { setProfile({ ...profile, phone: e.target.value }); setProfileEdited(true); }}
+                        onChange={(e) => {
+                          setProfile({ ...profile, phone: e.target.value });
+                          setProfileEdited(true);
+                        }}
                         required
                       />
                     </div>
 
                     {/* Address */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Address
+                      </label>
                       <textarea
                         rows={3}
-                        className={`mt-1 block w-full rounded-md border border-gray-300 focus:ring-oyoOrange focus:border-oyoOrange ${!isEditingProfile ? 'bg-gray-100' : ''}`}
-                        value={profile.address || ''}
+                        className={`mt-1 block w-full rounded-md border border-gray-300 focus:ring-oyoOrange focus:border-oyoOrange ${
+                          !isEditingProfile ? "bg-gray-100" : ""
+                        }`}
+                        value={profile.address || ""}
                         readOnly={!isEditingProfile}
-                        onChange={(e) => { setProfile({ ...profile, address: e.target.value }); setProfileEdited(true); }}
+                        onChange={(e) => {
+                          setProfile({ ...profile, address: e.target.value });
+                          setProfileEdited(true);
+                        }}
                         required
                       />
                     </div>
@@ -1053,7 +1184,11 @@ export default function PensionerDashboard() {
 
                     {profileMsg && (
                       <div
-                        className={`text-sm mt-2 ${profileMsgType === 'success' ? 'text-green-600' : 'text-red-600'}`}
+                        className={`text-sm mt-2 ${
+                          profileMsgType === "success"
+                            ? "text-green-600"
+                            : "text-red-600"
+                        }`}
                       >
                         {profileMsg}
                       </div>
@@ -1064,7 +1199,7 @@ export default function PensionerDashboard() {
                 {activeTab === "documents" && (
                   <div className="mt-6">
                     <div className="flex items-center justify-between mb-4">
-                    <div>
+                      <div>
                         <h4 className="text-md font-semibold text-gray-900 mb-1">
                           Registration Documents
                         </h4>
@@ -1073,9 +1208,10 @@ export default function PensionerDashboard() {
                         </p>
                       </div>
                       <div className="text-xs text-gray-400">
-                        {managedFiles.length} file{managedFiles.length !== 1 ? 's' : ''}
-                    </div>
+                        {managedFiles.length} file
+                        {managedFiles.length !== 1 ? "s" : ""}
                       </div>
+                    </div>
                     <div className="bg-white border rounded-md overflow-hidden">
                       <div className="overflow-x-auto">
                         <table className="min-w-full divide-y divide-gray-200">
@@ -1112,11 +1248,26 @@ export default function PensionerDashboard() {
                                   className="px-6 py-8 text-center"
                                 >
                                   <div className="flex flex-col items-center">
-                                    <svg className="w-12 h-12 text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    <svg
+                                      className="w-12 h-12 text-gray-300 mb-3"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      viewBox="0 0 24 24"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={1}
+                                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                                      />
                                     </svg>
-                                    <p className="text-sm text-gray-500 mb-1">No documents uploaded yet</p>
-                                    <p className="text-xs text-gray-400">Documents will appear here after registration</p>
+                                    <p className="text-sm text-gray-500 mb-1">
+                                      No documents uploaded yet
+                                    </p>
+                                    <p className="text-xs text-gray-400">
+                                      Documents will appear here after
+                                      registration
+                                    </p>
                                   </div>
                                 </td>
                               </tr>
@@ -1127,12 +1278,32 @@ export default function PensionerDashboard() {
                                     <div className="flex items-center">
                                       <div className="flex-shrink-0">
                                         {f.fileType.startsWith("image") ? (
-                                          <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                          <svg
+                                            className="w-5 h-5 text-blue-500"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            viewBox="0 0 24 24"
+                                          >
+                                            <path
+                                              strokeLinecap="round"
+                                              strokeLinejoin="round"
+                                              strokeWidth={2}
+                                              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                            />
                                           </svg>
                                         ) : (
-                                          <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                          <svg
+                                            className="w-5 h-5 text-gray-500"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            viewBox="0 0 24 24"
+                                          >
+                                            <path
+                                              strokeLinecap="round"
+                                              strokeLinejoin="round"
+                                              strokeWidth={2}
+                                              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                                            />
                                           </svg>
                                         )}
                                       </div>
@@ -1160,68 +1331,146 @@ export default function PensionerDashboard() {
                                         type="button"
                                         className="inline-flex items-center px-2.5 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
                                         disabled={downloadingFileId === f.id}
-                                        onClick={() => handleDownload(f.fileUrl, f.originalName, f.id)}
+                                        onClick={() =>
+                                          handleDownload(
+                                            f.fileUrl,
+                                            f.originalName,
+                                            f.id
+                                          )
+                                        }
                                       >
                                         {downloadingFileId === f.id ? (
-                                          <svg className="w-3 h-3 mr-1 animate-spin" fill="none" viewBox="0 0 24 24">
-                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                          <svg
+                                            className="w-3 h-3 mr-1 animate-spin"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                          >
+                                            <circle
+                                              className="opacity-25"
+                                              cx="12"
+                                              cy="12"
+                                              r="10"
+                                              stroke="currentColor"
+                                              strokeWidth="4"
+                                            ></circle>
+                                            <path
+                                              className="opacity-75"
+                                              fill="currentColor"
+                                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                            ></path>
                                           </svg>
                                         ) : (
-                                          <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                          <svg
+                                            className="w-3 h-3 mr-1"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            viewBox="0 0 24 24"
+                                          >
+                                            <path
+                                              strokeLinecap="round"
+                                              strokeLinejoin="round"
+                                              strokeWidth={2}
+                                              d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                                            />
                                           </svg>
                                         )}
-                                        {downloadingFileId === f.id ? "Downloading..." : (f.fileType.startsWith("image") ? "View" : "Download")}
+                                        {downloadingFileId === f.id
+                                          ? "Downloading..."
+                                          : f.fileType.startsWith("image")
+                                          ? "View"
+                                          : "Download"}
                                       </button>
-                                    <button
-                                      type="button"
+                                      <button
+                                        type="button"
                                         className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-                                      disabled={fileOpId === f.id}
-                                      onClick={() => {
-                                        setReplaceTargetId(f.id);
-                                        replaceInputRef.current?.click();
-                                      }}
-                                    >
-                                        <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                                        disabled={fileOpId === f.id}
+                                        onClick={() => {
+                                          setReplaceTargetId(f.id);
+                                          replaceInputRef.current?.click();
+                                        }}
+                                      >
+                                        <svg
+                                          className="w-3 h-3 mr-1"
+                                          fill="none"
+                                          stroke="currentColor"
+                                          viewBox="0 0 24 24"
+                                        >
+                                          <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2}
+                                            d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
+                                          />
                                         </svg>
-                                        {fileOpId === f.id && replaceTargetId === f.id ? "Replacing..." : "Replace"}
-                                    </button>
-                                    <button
-                                      type="button"
+                                        {fileOpId === f.id &&
+                                        replaceTargetId === f.id
+                                          ? "Replacing..."
+                                          : "Replace"}
+                                      </button>
+                                      <button
+                                        type="button"
                                         className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
-                                      disabled={fileOpId === f.id}
-                                      onClick={async () => {
-                                          if (!confirm("Delete this document permanently?")) return;
-                                        try {
-                                          setFileOpId(f.id);
-                                            const token = localStorage.getItem("token") || "";
-                                            const res = await fetch("/api/files/delete", {
-                                              method: "POST",
-                                              headers: {
-                                                "Content-Type": "application/json",
-                                                Authorization: `Bearer ${token}`,
-                                              },
-                                            body: JSON.stringify({ fileId: f.id }),
-                                          });
-                                            if (!res.ok) throw new Error("Delete failed");
-                                          await loadManagedFiles();
+                                        disabled={fileOpId === f.id}
+                                        onClick={async () => {
+                                          if (
+                                            !confirm(
+                                              "Delete this document permanently?"
+                                            )
+                                          )
+                                            return;
+                                          try {
+                                            setFileOpId(f.id);
+                                            const token =
+                                              localStorage.getItem("token") ||
+                                              "";
+                                            const res = await fetch(
+                                              "/api/files/delete",
+                                              {
+                                                method: "POST",
+                                                headers: {
+                                                  "Content-Type":
+                                                    "application/json",
+                                                  Authorization: `Bearer ${token}`,
+                                                },
+                                                body: JSON.stringify({
+                                                  fileId: f.id,
+                                                }),
+                                              }
+                                            );
+                                            if (!res.ok)
+                                              throw new Error("Delete failed");
+                                            await loadManagedFiles();
                                             setDocsMsgType("success");
-                                            setDocsMsg("Document deleted successfully");
-                                        } catch (e: any) {
+                                            setDocsMsg(
+                                              "Document deleted successfully"
+                                            );
+                                          } catch (e: any) {
                                             setDocsMsgType("error");
-                                            setDocsMsg(e?.message || "Delete failed");
-                                        } finally {
-                                          setFileOpId(null);
-                                        }
-                                      }}
-                                    >
-                                        <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                            setDocsMsg(
+                                              e?.message || "Delete failed"
+                                            );
+                                          } finally {
+                                            setFileOpId(null);
+                                          }
+                                        }}
+                                      >
+                                        <svg
+                                          className="w-3 h-3 mr-1"
+                                          fill="none"
+                                          stroke="currentColor"
+                                          viewBox="0 0 24 24"
+                                        >
+                                          <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2}
+                                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                          />
                                         </svg>
-                                        {fileOpId === f.id ? "Deleting..." : "Delete"}
-                                    </button>
+                                        {fileOpId === f.id
+                                          ? "Deleting..."
+                                          : "Delete"}
+                                      </button>
                                     </div>
                                   </td>
                                 </tr>
@@ -1300,35 +1549,64 @@ export default function PensionerDashboard() {
               {activitiesLoading ? (
                 <div className="flex items-center justify-center py-8">
                   <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-                  <span className="ml-2 text-sm text-gray-500">Loading activities...</span>
+                  <span className="ml-2 text-sm text-gray-500">
+                    Loading activities...
+                  </span>
                 </div>
               ) : recentActivities.length === 0 ? (
                 <div className="text-center py-8">
-                  <svg className="w-12 h-12 text-gray-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <svg
+                    className="w-12 h-12 text-gray-300 mx-auto mb-3"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1}
+                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
                   </svg>
-                  <p className="text-sm text-gray-500 mb-1">No recent activity</p>
-                  <p className="text-xs text-gray-400">Activities will appear here</p>
+                  <p className="text-sm text-gray-500 mb-1">
+                    No recent activity
+                  </p>
+                  <p className="text-xs text-gray-400">
+                    Activities will appear here
+                  </p>
                 </div>
               ) : (
                 <div className="space-y-4">
                   {recentActivities.map((activity) => {
                     const colorClasses: { [key: string]: string } = {
-                      blue: 'bg-blue-500',
-                      yellow: 'bg-yellow-500',
-                      green: 'bg-green-500',
-                      purple: 'bg-purple-500',
-                      gray: 'bg-gray-500',
+                      blue: "bg-blue-500",
+                      yellow: "bg-yellow-500",
+                      green: "bg-green-500",
+                      purple: "bg-purple-500",
+                      gray: "bg-gray-500",
                     };
                     return (
-                      <div key={activity.id} className="flex items-start space-x-4">
-                        <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${colorClasses[activity.color] || 'bg-gray-500'}`}></div>
+                      <div
+                        key={activity.id}
+                        className="flex items-start space-x-4"
+                      >
+                        <div
+                          className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${
+                            colorClasses[activity.color] || "bg-gray-500"
+                          }`}
+                        ></div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm text-gray-900 font-medium">{activity.title}</p>
+                          <p className="text-sm text-gray-900 font-medium">
+                            {activity.title}
+                          </p>
                           {activity.description && (
-                            <p className="text-xs text-gray-600 mt-0.5">{activity.description}</p>
+                            <p className="text-xs text-gray-600 mt-0.5">
+                              {activity.description}
+                            </p>
                           )}
-                          <p className="text-xs text-gray-500 mt-1">{formatActivityTime(activity.timestamp)}</p>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {formatActivityTime(activity.timestamp)}
+                          </p>
                         </div>
                       </div>
                     );
@@ -1362,13 +1640,18 @@ export default function PensionerDashboard() {
                 </svg>
               </div>
             </div>
-            <h2 className="text-2xl font-bold text-red-600 mb-3">Verification Due</h2>
+            <h2 className="text-2xl font-bold text-red-600 mb-3">
+              Verification Due
+            </h2>
             <p className="text-gray-700 mb-4">
-              Your next biometric verification is due. Please complete your verification to continue accessing your pension services.
+              Your next biometric verification is due. Please complete your
+              verification to continue accessing your pension services.
             </p>
             {nextDueDateForPopup && (
               <div className="mb-4 p-3 bg-gray-50 border border-gray-200 rounded-lg">
-                <p className="text-sm font-medium text-gray-700 mb-1">Due since:</p>
+                <p className="text-sm font-medium text-gray-700 mb-1">
+                  Due since:
+                </p>
                 <p className="text-lg font-semibold text-gray-900">
                   {new Date(nextDueDateForPopup).toLocaleDateString("en-US", {
                     weekday: "long",
@@ -1390,7 +1673,10 @@ export default function PensionerDashboard() {
                         headers: { Authorization: `Bearer ${token}` },
                       });
                     } catch (error) {
-                      console.error("Error marking notification as seen:", error);
+                      console.error(
+                        "Error marking notification as seen:",
+                        error
+                      );
                     }
                   }
                   setShowDuePopup(false);
@@ -1409,7 +1695,8 @@ export default function PensionerDashboard() {
               </button>
             </div>
             <p className="text-xs text-gray-500 mt-4">
-              You can access the verification page at any time from the dashboard.
+              You can access the verification page at any time from the
+              dashboard.
             </p>
           </div>
         </div>
