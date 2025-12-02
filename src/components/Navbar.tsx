@@ -1,7 +1,9 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { useState, useRef, useEffect } from 'react';
+import Link from "next/link";
+import { useState, useRef, useEffect } from "react";
+import Image from "next/image";
+import pacesetter1 from "@/assets/pacesetter1.jpeg";
 
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -14,10 +16,10 @@ export default function Navbar() {
   const adminButtonRef = useRef<HTMLButtonElement>(null);
 
   const otherLinks = [
-    { name: 'Home', href: '/' },
-    { name: 'History', href: '/history' },
-    { name: 'FAQs', href: '/faqs' },
-    { name: 'Support', href: '/contact' },
+    { name: "Home", href: "/" },
+    { name: "History", href: "/history" },
+    { name: "FAQs", href: "/faqs" },
+    { name: "Support", href: "/contact" },
   ];
 
   // Close dropdowns when clicking outside
@@ -25,18 +27,22 @@ export default function Navbar() {
     const handleClickOutside = (event: MouseEvent) => {
       const targetNode = event.target as Node;
       const clickedOutsideGetStarted =
-        getStartedDropdownRef.current && !getStartedDropdownRef.current.contains(targetNode) &&
-        getStartedButtonRef.current && !getStartedButtonRef.current.contains(targetNode);
+        getStartedDropdownRef.current &&
+        !getStartedDropdownRef.current.contains(targetNode) &&
+        getStartedButtonRef.current &&
+        !getStartedButtonRef.current.contains(targetNode);
       const clickedOutsideAdmin =
-        adminDropdownRef.current && !adminDropdownRef.current.contains(targetNode) &&
-        adminButtonRef.current && !adminButtonRef.current.contains(targetNode);
+        adminDropdownRef.current &&
+        !adminDropdownRef.current.contains(targetNode) &&
+        adminButtonRef.current &&
+        !adminButtonRef.current.contains(targetNode);
 
       if (clickedOutsideGetStarted) setIsGetStartedOpen(false);
       if (clickedOutsideAdmin) setIsAdminOpen(false);
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   // Close mobile menu when clicking on a link
@@ -51,9 +57,21 @@ export default function Navbar() {
       <div className="p-2 sm:p-4 lg:p-6">
         <div className="flex items-center justify-between">
           {/* Logo */}
-          <div className="flex-shrink-0 leading-none">
-            <Link href="/" className="text-sm sm:text-lg lg:text-xl font-bold hover:text-oyoOrange transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-oyoOrange focus:ring-offset-2 focus:ring-offset-oyoGreen rounded">
-              Oyo Pension Verification
+          <div className="flex items-center flex-shrink-0 leading-none">
+            <Image
+              src={pacesetter1}
+              alt="Oyo Pension Verification"
+              width={50}
+              height={50}
+              className="w-10 h-10 rounded-full mr-2"
+            />
+            <Link
+              href="/"
+              className="text-sm sm:text-lg lg:text-xl font-bold hover:text-oyoOrange transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-oyoOrange focus:ring-offset-2 focus:ring-offset-oyoGreen rounded"
+            >
+              <span className="text-sm sm:text-lg lg:text-xl font-bold hover:text-oyoOrange transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-oyoOrange focus:ring-offset-2 focus:ring-offset-oyoGreen rounded">
+                Oyo State Pension Verification
+              </span>
             </Link>
           </div>
 
@@ -74,19 +92,28 @@ export default function Navbar() {
                 >
                   Get Started
                   <svg
-                    className={`ml-1 inline-block w-4 h-4 align-middle transition-transform duration-200 ${isGetStartedOpen ? 'rotate-180' : ''}`}
+                    className={`ml-1 inline-block w-4 h-4 align-middle transition-transform duration-200 ${
+                      isGetStartedOpen ? "rotate-180" : ""
+                    }`}
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
                   >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
                   </svg>
                 </button>
                 {/* Dropdown Menu */}
                 <div
                   id="get-started-menu"
                   className={`absolute right-0 mt-2 min-w-48 w-56 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50 transition-all duration-200 ${
-                    isGetStartedOpen ? 'opacity-100 visible translate-y-0' : 'opacity-0 invisible -translate-y-2'
+                    isGetStartedOpen
+                      ? "opacity-100 visible translate-y-0"
+                      : "opacity-0 invisible -translate-y-2"
                   }`}
                   role="menu"
                   aria-orientation="vertical"
@@ -128,19 +155,28 @@ export default function Navbar() {
                 >
                   Admin Access
                   <svg
-                    className={`ml-1 inline-block w-4 h-4 align-middle transition-transform duration-200 ${isAdminOpen ? 'rotate-180' : ''}`}
+                    className={`ml-1 inline-block w-4 h-4 align-middle transition-transform duration-200 ${
+                      isAdminOpen ? "rotate-180" : ""
+                    }`}
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
                   >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
                   </svg>
                 </button>
                 {/* Dropdown Menu */}
                 <div
                   id="admin-access-menu"
                   className={`absolute right-0 mt-2 min-w-56 w-64 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50 transition-all duration-200 ${
-                    isAdminOpen ? 'opacity-100 visible translate-y-0' : 'opacity-0 invisible -translate-y-2'
+                    isAdminOpen
+                      ? "opacity-100 visible translate-y-0"
+                      : "opacity-0 invisible -translate-y-2"
                   }`}
                   role="menu"
                   aria-orientation="vertical"
@@ -200,12 +236,34 @@ export default function Navbar() {
             >
               <span className="sr-only">Open main menu</span>
               {!isMenuOpen ? (
-                <svg className="block h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                <svg
+                  className="block h-6 w-6"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 6h16M4 12h16M4 18h16"
+                  />
                 </svg>
               ) : (
-                <svg className="block h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                <svg
+                  className="block h-6 w-6"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
                 </svg>
               )}
             </button>
@@ -214,11 +272,11 @@ export default function Navbar() {
       </div>
 
       {/* Mobile Menu */}
-      <div 
+      <div
         className={`md:hidden transition-all duration-300 ease-in-out ${
-          isMenuOpen 
-            ? 'max-h-96 opacity-100 visible' 
-            : 'max-h-0 opacity-0 invisible'
+          isMenuOpen
+            ? "max-h-96 opacity-100 visible"
+            : "max-h-0 opacity-0 invisible"
         }`}
       >
         <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-oyoGreen/95 backdrop-blur-sm">
@@ -230,11 +288,30 @@ export default function Navbar() {
             aria-controls="mobile-get-started"
           >
             <span>Get Started</span>
-            <svg className={`h-5 w-5 transition-transform duration-200 ${isGetStartedOpen ? 'rotate-180' : ''}`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+            <svg
+              className={`h-5 w-5 transition-transform duration-200 ${
+                isGetStartedOpen ? "rotate-180" : ""
+              }`}
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 9l-7 7-7-7"
+              />
+            </svg>
           </button>
           <div
             id="mobile-get-started"
-            className={`pl-6 space-y-1 overflow-hidden transition-all duration-300 ease-in-out ${isGetStartedOpen ? 'max-h-64 opacity-100 visible' : 'max-h-0 opacity-0 invisible'}`}
+            className={`pl-6 space-y-1 overflow-hidden transition-all duration-300 ease-in-out ${
+              isGetStartedOpen
+                ? "max-h-64 opacity-100 visible"
+                : "max-h-0 opacity-0 invisible"
+            }`}
           >
             <Link
               href="/pensioner/login"
@@ -260,11 +337,30 @@ export default function Navbar() {
             aria-controls="mobile-admin-access"
           >
             <span>Admin Access</span>
-            <svg className={`h-5 w-5 transition-transform duration-200 ${isAdminOpen ? 'rotate-180' : ''}`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+            <svg
+              className={`h-5 w-5 transition-transform duration-200 ${
+                isAdminOpen ? "rotate-180" : ""
+              }`}
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 9l-7 7-7-7"
+              />
+            </svg>
           </button>
           <div
             id="mobile-admin-access"
-            className={`pl-6 space-y-1 overflow-hidden transition-all duration-300 ease-in-out ${isAdminOpen ? 'max-h-96 opacity-100 visible' : 'max-h-0 opacity-0 invisible'}`}
+            className={`pl-6 space-y-1 overflow-hidden transition-all duration-300 ease-in-out ${
+              isAdminOpen
+                ? "max-h-96 opacity-100 visible"
+                : "max-h-0 opacity-0 invisible"
+            }`}
           >
             <Link
               href="/admin/login"
