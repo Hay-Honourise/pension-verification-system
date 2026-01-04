@@ -28,6 +28,10 @@ interface FormData {
   currentLevel: string;
   salary: string;
   maidenName: string;
+  organizationStarted: string;
+  organizationEnded: string;
+  unitStarted: string;
+  unitEnded: string;
   
   // Step 4: Account Security
   password: string;
@@ -38,6 +42,7 @@ interface FormData {
   idCard: UploadedFile | null;
   retirementLetter: UploadedFile | null;
   birthCertificate: UploadedFile | null;
+  passport: UploadedFile | null;
 }
 
 interface UploadedFile {
@@ -70,12 +75,17 @@ export default function RegisterPage() {
     currentLevel: '',
     salary: '',
     maidenName: '',
+    organizationStarted: '',
+    organizationEnded: '',
+    unitStarted: '',
+    unitEnded: '',
     password: '',
     confirmPassword: '',
     appointmentLetter: null,
     idCard: null,
     retirementLetter: null,
     birthCertificate: null,
+    passport: null,
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -91,11 +101,13 @@ export default function RegisterPage() {
     idCard: 'idle' | 'uploading' | 'success' | 'error';
     retirementLetter: 'idle' | 'uploading' | 'success' | 'error';
     birthCertificate: 'idle' | 'uploading' | 'success' | 'error';
+    passport: 'idle' | 'uploading' | 'success' | 'error';
   }>({
     appointmentLetter: 'idle',
     idCard: 'idle',
     retirementLetter: 'idle',
-    birthCertificate: 'idle'
+    birthCertificate: 'idle',
+    passport: 'idle'
   });
 
   // Load saved data on component mount
@@ -284,6 +296,10 @@ export default function RegisterPage() {
         if (!formData.currentLevel.trim()) newErrors.currentLevel = 'Current Level is required';
         if (!formData.salary.trim()) newErrors.salary = 'Salary is required';
         else if (isNaN(Number(formData.salary.replace(/[₦,]/g, '')))) newErrors.salary = 'Salary must be a valid number';
+        if (!formData.organizationStarted.trim()) newErrors.organizationStarted = 'Organization Started With is required';
+        if (!formData.organizationEnded.trim()) newErrors.organizationEnded = 'Organization Ended With is required';
+        if (!formData.unitStarted.trim()) newErrors.unitStarted = 'Unit Started With is required';
+        if (!formData.unitEnded.trim()) newErrors.unitEnded = 'Unit Ended With is required';
         break;
       
       case 4:
@@ -299,6 +315,7 @@ export default function RegisterPage() {
         if (!formData.idCard) newErrors.idCard = 'ID Card is required';
         if (!formData.retirementLetter) newErrors.retirementLetter = 'Retirement Letter is required';
         if (!formData.birthCertificate) newErrors.birthCertificate = 'Birth Certificate is required';
+        if (!formData.passport) newErrors.passport = 'Passport is required';
         break;
     }
 
@@ -316,7 +333,7 @@ export default function RegisterPage() {
     setCurrentStep(prev => Math.max(prev - 1, 1));
   };
 
-  const handleFileUpload = async (field: 'appointmentLetter' | 'idCard' | 'retirementLetter' | 'birthCertificate', file: File | null) => {
+  const handleFileUpload = async (field: 'appointmentLetter' | 'idCard' | 'retirementLetter' | 'birthCertificate' | 'passport', file: File | null) => {
     if (!file) {
       updateFormData(field, null);
       setUploadStates(prev => ({ ...prev, [field]: 'idle' }));
@@ -675,6 +692,62 @@ export default function RegisterPage() {
           <p className="text-xs text-gray-500 mt-0.5">Optional field for female pensioners</p>
         </div>
       )}
+
+      <div>
+        <label className="block text-xs sm:text-sm font-medium text-gray-800 mb-1">Organization Started With *</label>
+        <input
+          type="text"
+          value={formData.organizationStarted}
+          onChange={(e) => updateFormData('organizationStarted', e.target.value)}
+          className={`w-full px-2.5 sm:px-3 py-1.5 sm:py-2 bg-white text-gray-900 text-sm border rounded-md focus:outline-none focus:ring-1 focus:ring-oyoOrange focus:border-oyoOrange ${
+            errors.organizationStarted ? 'border-red-500' : 'border-gray-300'
+          }`}
+          placeholder="Enter the organization you started with"
+        />
+        {errors.organizationStarted && <p className="text-red-500 text-xs mt-0.5">{errors.organizationStarted}</p>}
+      </div>
+
+      <div>
+        <label className="block text-xs sm:text-sm font-medium text-gray-800 mb-1">Organization Ended With *</label>
+        <input
+          type="text"
+          value={formData.organizationEnded}
+          onChange={(e) => updateFormData('organizationEnded', e.target.value)}
+          className={`w-full px-2.5 sm:px-3 py-1.5 sm:py-2 bg-white text-gray-900 text-sm border rounded-md focus:outline-none focus:ring-1 focus:ring-oyoOrange focus:border-oyoOrange ${
+            errors.organizationEnded ? 'border-red-500' : 'border-gray-300'
+          }`}
+          placeholder="Enter the organization you ended with"
+        />
+        {errors.organizationEnded && <p className="text-red-500 text-xs mt-0.5">{errors.organizationEnded}</p>}
+      </div>
+
+      <div>
+        <label className="block text-xs sm:text-sm font-medium text-gray-800 mb-1">Unit Started With *</label>
+        <input
+          type="text"
+          value={formData.unitStarted}
+          onChange={(e) => updateFormData('unitStarted', e.target.value)}
+          className={`w-full px-2.5 sm:px-3 py-1.5 sm:py-2 bg-white text-gray-900 text-sm border rounded-md focus:outline-none focus:ring-1 focus:ring-oyoOrange focus:border-oyoOrange ${
+            errors.unitStarted ? 'border-red-500' : 'border-gray-300'
+          }`}
+          placeholder="Enter the unit you started with"
+        />
+        {errors.unitStarted && <p className="text-red-500 text-xs mt-0.5">{errors.unitStarted}</p>}
+      </div>
+
+      <div>
+        <label className="block text-xs sm:text-sm font-medium text-gray-800 mb-1">Unit Ended With *</label>
+        <input
+          type="text"
+          value={formData.unitEnded}
+          onChange={(e) => updateFormData('unitEnded', e.target.value)}
+          className={`w-full px-2.5 sm:px-3 py-1.5 sm:py-2 bg-white text-gray-900 text-sm border rounded-md focus:outline-none focus:ring-1 focus:ring-oyoOrange focus:border-oyoOrange ${
+            errors.unitEnded ? 'border-red-500' : 'border-gray-300'
+          }`}
+          placeholder="Enter the unit you ended with"
+        />
+        {errors.unitEnded && <p className="text-red-500 text-xs mt-0.5">{errors.unitEnded}</p>}
+      </div>
     </div>
   );
 
@@ -732,7 +805,7 @@ export default function RegisterPage() {
     </div>
   );
 
-  const renderFileUploadField = (field: 'appointmentLetter' | 'idCard' | 'retirementLetter' | 'birthCertificate', label: string, accept: string) => {
+  const renderFileUploadField = (field: 'appointmentLetter' | 'idCard' | 'retirementLetter' | 'birthCertificate' | 'passport', label: string, accept: string) => {
     const uploadState = uploadStates[field];
     const fileData = formData[field];
     const error = errors[field];
@@ -793,6 +866,7 @@ export default function RegisterPage() {
       {renderFileUploadField('idCard', 'ID Card', '.pdf,image/*')}
       {renderFileUploadField('retirementLetter', 'Retirement Letter', '.pdf,image/*')}
       {renderFileUploadField('birthCertificate', 'Birth Certificate', '.pdf,image/*')}
+      {renderFileUploadField('passport', 'Passport', '.pdf,image/*')}
     </div>
   );
 

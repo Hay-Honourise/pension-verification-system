@@ -60,6 +60,10 @@ model pensioner {
   currentLevel           String
   salary                 Float
   maidenName             String?
+  organizationStarted    String?
+  organizationEnded      String?
+  unitStarted            String?
+  unitEnded              String?
   password               String
   status                 String                @default("PENDING_VERIFICATION")
   createdAt              DateTime              @default(now())
@@ -75,6 +79,8 @@ model pensioner {
   nextDueAt              DateTime?
   passportUploaded       Boolean                @default(false)
   passportUrl            String?                @db.Text
+  passwordResetToken     String?
+  passwordResetExpires   DateTime?
   biometriccredential    biometriccredential[]
   document               document[]
   pensionerfile          pensionerfile[]

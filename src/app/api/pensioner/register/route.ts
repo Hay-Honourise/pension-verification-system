@@ -28,6 +28,10 @@ export async function POST(request: NextRequest) {
     const currentLevel = formData.get('currentLevel') as string;
     const salary = formData.get('salary') as string;
     const maidenName = formData.get('maidenName') as string;
+    const organizationStarted = formData.get('organizationStarted') as string;
+    const organizationEnded = formData.get('organizationEnded') as string;
+    const unitStarted = formData.get('unitStarted') as string;
+    const unitEnded = formData.get('unitEnded') as string;
     const password = formData.get('password') as string;
     
     // Extract calculated benefits
@@ -41,7 +45,8 @@ export async function POST(request: NextRequest) {
     if (!pensionId || !fullName || !nin || !dateOfBirth || !gender || 
         !email || !phone || !residentialAddress || !pensionSchemeType || 
         !dateOfFirstAppointment || !dateOfRetirement || !pfNumber || 
-        !lastPromotionDate || !currentLevel || !salary || !password) {
+        !lastPromotionDate || !currentLevel || !salary || !password ||
+        !organizationStarted || !organizationEnded || !unitStarted || !unitEnded) {
       return NextResponse.json(
         { message: 'All required fields must be provided' },
         { status: 400 }
@@ -83,37 +88,44 @@ export async function POST(request: NextRequest) {
     console.log('Pension calculation result:', pensionCalculation);
 
     // Create pensioner record
+    // Type assertion needed until TypeScript picks up the regenerated Prisma types
+    const pensionerData: any = {
+      pensionId,
+      fullName,
+      nin,
+      dateOfBirth: new Date(dateOfBirth),
+      gender,
+      email,
+      phone,
+      residentialAddress,
+      pensionSchemeType,
+      dateOfFirstAppointment: new Date(dateOfFirstAppointment),
+      dateOfRetirement: new Date(dateOfRetirement),
+      pfNumber,
+      lastPromotionDate: new Date(lastPromotionDate),
+      currentLevel,
+      salary: parseFloat(salary.replace(/[₦,]/g, '')) || 0,
+      maidenName: maidenName || null,
+      organizationStarted: organizationStarted || null,
+      organizationEnded: organizationEnded || null,
+      unitStarted: unitStarted || null,
+      unitEnded: unitEnded || null,
+      password: hashedPassword,
+      status: 'PENDING_VERIFICATION',
+      
+      // Calculated benefits (use calculated values instead of form data)
+      yearsOfService: pensionCalculation.yearsOfService,
+      totalGratuity: pensionCalculation.totalGratuity,
+      monthlyPension: pensionCalculation.monthlyPension,
+      gratuityRate: pensionCalculation.gratuityRate,
+      pensionRate: pensionCalculation.pensionRate,
+      
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
     const pensioner = await prisma.pensioner.create({
-      data: {
-        pensionId,
-        fullName,
-        nin,
-        dateOfBirth: new Date(dateOfBirth),
-        gender,
-        email,
-        phone,
-        residentialAddress,
-        pensionSchemeType,
-        dateOfFirstAppointment: new Date(dateOfFirstAppointment),
-        dateOfRetirement: new Date(dateOfRetirement),
-        pfNumber,
-        lastPromotionDate: new Date(lastPromotionDate),
-        currentLevel,
-        salary: parseFloat(salary.replace(/[₦,]/g, '')) || 0,
-        maidenName: maidenName || null,
-        password: hashedPassword,
-        status: 'PENDING_VERIFICATION',
-        
-        // Calculated benefits (use calculated values instead of form data)
-        yearsOfService: pensionCalculation.yearsOfService,
-        totalGratuity: pensionCalculation.totalGratuity,
-        monthlyPension: pensionCalculation.monthlyPension,
-        gratuityRate: pensionCalculation.gratuityRate,
-        pensionRate: pensionCalculation.pensionRate,
-        
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
+      data: pensionerData,
     });
 
     // Handle file uploads: files are already uploaded to B2 during Step 5
@@ -121,6 +133,7 @@ export async function POST(request: NextRequest) {
     const idCardData = formData.get('idCard') as string | null;
     const retirementLetterData = formData.get('retirementLetter') as string | null;
     const birthCertificateData = formData.get('birthCertificate') as string | null;
+    const passportData = formData.get('passport') as string | null;
 
     const uploadedFiles: any[] = [];
 
@@ -161,7 +174,8 @@ export async function POST(request: NextRequest) {
       processFileUpload(appointmentLetterData, 'appointment', 'appointmentLetter'),
       processFileUpload(retirementLetterData, 'retirement', 'retirement'),
       processFileUpload(idCardData, 'idcard', 'idcard'),
-      processFileUpload(birthCertificateData, 'birthcert', 'birthCertificate')
+      processFileUpload(birthCertificateData, 'birthcert', 'birthCertificate'),
+      processFileUpload(passportData, 'passport', 'passport')
     ]);
 
     // Send registration confirmation email using Brevo

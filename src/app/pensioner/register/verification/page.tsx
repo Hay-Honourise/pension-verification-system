@@ -27,6 +27,10 @@ interface FormData {
   currentLevel: string;
   salary: string;
   maidenName: string;
+  organizationStarted: string;
+  organizationEnded: string;
+  unitStarted: string;
+  unitEnded: string;
   
   // Step 4: Account Security
   password: string;
@@ -37,6 +41,7 @@ interface FormData {
   idCard: UploadedFile | null;
   retirementLetter: UploadedFile | null;
   birthCertificate: UploadedFile | null;
+  passport: UploadedFile | null;
 }
 
 interface UploadedFile {
@@ -213,7 +218,7 @@ export default function VerificationPage() {
       // Append all form fields including file URLs
       Object.entries(formData).forEach(([key, value]) => {
         if (value !== null) {
-          if (key === 'appointmentLetter' || key === 'idCard' || key === 'retirementLetter' || key === 'birthCertificate') {
+          if (key === 'appointmentLetter' || key === 'idCard' || key === 'retirementLetter' || key === 'birthCertificate' || key === 'passport') {
             // Send file info as JSON string
             formDataToSend.append(key, JSON.stringify(value));
           } else {
@@ -351,6 +356,18 @@ export default function VerificationPage() {
                     <div className="text-gray-900"><span className="font-medium text-gray-900">Last Promotion:</span> <span className="text-gray-900">{formData.lastPromotionDate}</span></div>
                     <div className="text-gray-900"><span className="font-medium text-gray-900">Current Level:</span> <span className="text-gray-900">{formData.currentLevel}</span></div>
                     <div className="text-gray-900"><span className="font-medium text-gray-900">Salary:</span> <span className="text-gray-900">{formData.salary}</span></div>
+                    {formData.organizationStarted && (
+                      <div className="text-gray-900"><span className="font-medium text-gray-900">Organization Started With:</span> <span className="text-gray-900">{formData.organizationStarted}</span></div>
+                    )}
+                    {formData.organizationEnded && (
+                      <div className="text-gray-900"><span className="font-medium text-gray-900">Organization Ended With:</span> <span className="text-gray-900">{formData.organizationEnded}</span></div>
+                    )}
+                    {formData.unitStarted && (
+                      <div className="text-gray-900"><span className="font-medium text-gray-900">Unit Started With:</span> <span className="text-gray-900">{formData.unitStarted}</span></div>
+                    )}
+                    {formData.unitEnded && (
+                      <div className="text-gray-900"><span className="font-medium text-gray-900">Unit Ended With:</span> <span className="text-gray-900">{formData.unitEnded}</span></div>
+                    )}
                     {formData.gender === 'female' && formData.maidenName && (
                       <div className="text-gray-900"><span className="font-medium text-gray-900">Maiden Name:</span> <span className="text-gray-900">{formData.maidenName}</span></div>
                     )}
@@ -364,6 +381,7 @@ export default function VerificationPage() {
                     <div className="text-gray-900"><span className="font-medium text-gray-900">ID Card:</span> <span className="text-gray-900">{formData.idCard ? formData.idCard.originalName : 'Not uploaded'}</span></div>
                     <div className="text-gray-900"><span className="font-medium text-gray-900">Retirement Letter:</span> <span className="text-gray-900">{formData.retirementLetter ? formData.retirementLetter.originalName : 'Not uploaded'}</span></div>
                     <div className="text-gray-900"><span className="font-medium text-gray-900">Birth Certificate:</span> <span className="text-gray-900">{formData.birthCertificate ? formData.birthCertificate.originalName : 'Not uploaded'}</span></div>
+                    <div className="text-gray-900"><span className="font-medium text-gray-900">Passport:</span> <span className="text-gray-900">{formData.passport ? formData.passport.originalName : 'Not uploaded'}</span></div>
                   </div>
                 </div>
               </div>
@@ -418,7 +436,44 @@ export default function VerificationPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Personal Information Review */}
           <div className="bg-white rounded-lg shadow-lg p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-6">Personal Information</h2>
+            <div className="flex flex-col items-start gap-3 mb-6">
+              <h2 className="text-xl font-semibold text-gray-900">Personal Information</h2>
+              
+              {/* Passport Display - Top Right of Personal Information Section */}
+              {formData.passport && (
+                <div className="flex-shrink-0">
+                  <div className="bg-gradient-to-br from-white to-gray-50 rounded-xl shadow-lg p-3 border-2 border-blue-200">
+                    <div className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2 text-center">Passport Photo</div>
+                    <div className="relative w-30 h-36 rounded-lg overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200 border-2 border-gray-300 shadow-inner">
+                      {formData.passport.fileName ? (
+                        <img 
+                          src={`/api/pensioner/register/view-image?fileName=${encodeURIComponent(formData.passport.fileName)}`}
+                          alt="Passport Photo"
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            // Fallback if image fails to load
+                            const target = e.target as HTMLImageElement;
+                            target.style.display = 'none';
+                            const fallback = target.parentElement?.querySelector('.fallback-icon') as HTMLElement;
+                            if (fallback) fallback.style.display = 'flex';
+                          }}
+                        />
+                      ) : null}
+                      <div className="fallback-icon w-full h-full hidden items-center justify-center text-gray-400 bg-gray-100">
+                        <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                      </div>
+                    </div>
+                    {/* <div className="mt-2 px-1.5 py-0.5 bg-blue-50 rounded border border-blue-200">
+                      <div className="text-[10px] text-gray-600 text-center truncate font-medium" title={formData.passport.originalName}>
+                        {formData.passport.originalName}
+                      </div>
+                    </div> */}
+                  </div>
+                </div>
+              )}
+            </div>
             
             <div className="space-y-4">
               <div>
@@ -450,6 +505,18 @@ export default function VerificationPage() {
                   <div className="text-gray-900"><span className="font-medium text-gray-900">Last Promotion:</span> <span className="text-gray-900">{formData.lastPromotionDate}</span></div>
                   <div className="text-gray-900"><span className="font-medium text-gray-900">Current Level:</span> <span className="text-gray-900">{formData.currentLevel}</span></div>
                   <div className="text-gray-900"><span className="font-medium text-gray-900">Salary:</span> <span className="text-gray-900">{formatCurrency(parseFloat(formData.salary.replace(/[₦,]/g, '')))}</span></div>
+                  {formData.organizationStarted && (
+                    <div className="text-gray-900"><span className="font-medium text-gray-900">Organization Started With:</span> <span className="text-gray-900">{formData.organizationStarted}</span></div>
+                  )}
+                  {formData.organizationEnded && (
+                    <div className="text-gray-900"><span className="font-medium text-gray-900">Organization Ended With:</span> <span className="text-gray-900">{formData.organizationEnded}</span></div>
+                  )}
+                  {formData.unitStarted && (
+                    <div className="text-gray-900"><span className="font-medium text-gray-900">Unit Started With:</span> <span className="text-gray-900">{formData.unitStarted}</span></div>
+                  )}
+                  {formData.unitEnded && (
+                    <div className="text-gray-900"><span className="font-medium text-gray-900">Unit Ended With:</span> <span className="text-gray-900">{formData.unitEnded}</span></div>
+                  )}
                   {formData.gender === 'female' && formData.maidenName && (
                     <div className="text-gray-900"><span className="font-medium text-gray-900">Maiden Name:</span> <span className="text-gray-900">{formData.maidenName}</span></div>
                   )}

@@ -58,6 +58,13 @@ export async function GET(request: NextRequest) {
         residentialAddress: true,
         status: true,
         nextDueAt: true,
+        organizationStarted: true,
+        organizationEnded: true,
+        unitStarted: true,
+        unitEnded: true,
+        passportUrl: true,
+        currentLevel: true,
+        salary: true,
         verificationlog: {
           orderBy: { verifiedAt: 'desc' },
           take: 10,

@@ -31,9 +31,15 @@ export async function GET(request: NextRequest) {
       ];
     }
     
-    // Status filter
+    // Status filter - map filter values to actual database status values
     if (statusFilter !== 'all') {
-      where.status = statusFilter.toUpperCase();
+      const statusMap: Record<string, string> = {
+        'pending': 'PENDING_VERIFICATION',
+        'verified': 'VERIFIED',
+        'flagged': 'FLAGGED',
+        'rejected': 'REJECTED'
+      };
+      where.status = statusMap[statusFilter.toLowerCase()] || statusFilter.toUpperCase();
     }
     
     // Pension type filter

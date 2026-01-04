@@ -576,7 +576,84 @@ export default function AdminDashboard() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Personal Information */}
               <div className="space-y-4">
-                <h4 className="font-semibold text-gray-800">Personal Information</h4>
+                <div className="flex flex-col items-start gap-3">
+                  <h4 className="font-semibold text-gray-800">Personal Information</h4>
+                  
+                  {/* Passport Display */}
+                  {(() => {
+                    // Find passport file from pensionerfile or use passportUrl
+                    const passportFile = selectedPensioner.pensionerfile?.find((f: any) => f.fileType === 'passport');
+                    const passportUrl = selectedPensioner.passportUrl;
+                    const hasPassport = passportFile || passportUrl;
+                    
+                    if (!hasPassport) return null;
+                    
+                    // Extract fileName from fileUrl or use passportUrl
+                    // The fileName is the S3 key path, e.g., "temp-registration/1234567890-999999/passport-1234567890.jpg"
+                    // or "passports/passport-123-1234567890.jpg"
+                    let fileName = '';
+                    let imageSrc = '';
+                    
+                    if (passportFile?.fileUrl) {
+                      // Extract the key from the full Backblaze URL
+                      // Format: https://f003.backblazeb2.com/file/bucket-name/path/to/file
+                      // We need everything after /file/bucket-name/
+                      const urlMatch = passportFile.fileUrl.match(/\/file\/[^\/]+\/(.+)$/);
+                      if (urlMatch) {
+                        fileName = urlMatch[1];
+                      } else {
+                        // Fallback: try to extract from end of URL
+                        fileName = passportFile.fileUrl.split('/').slice(-1)[0] || '';
+                      }
+                    } else if (passportUrl) {
+                      // passportUrl might be a full Backblaze URL or S3 URL
+                      // Try Backblaze format first: https://f003.backblazeb2.com/file/bucket/key
+                      const backblazeMatch = passportUrl.match(/\/file\/[^\/]+\/(.+)$/);
+                      // Try S3 format: https://bucket.s3.region.amazonaws.com/key
+                      const s3Match = passportUrl.match(/\.amazonaws\.com\/(.+)$/);
+                      
+                      if (backblazeMatch) {
+                        fileName = backblazeMatch[1];
+                      } else if (s3Match) {
+                        fileName = s3Match[1];
+                      } else {
+                        // If it's already just a key/path, use it directly
+                        fileName = passportUrl.includes('http') ? passportUrl.split('/').pop() || passportUrl : passportUrl;
+                      }
+                    }
+                    
+                    if (fileName) {
+                      imageSrc = `/api/pensioner/register/view-image?fileName=${encodeURIComponent(fileName)}`;
+                    }
+                    
+                    return imageSrc ? (
+                      <div className="flex-shrink-0">
+                        <div className="bg-gradient-to-br from-white to-gray-50 rounded-xl shadow-lg p-3 border-2 border-blue-200">
+                          <div className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2 text-center">Passport Photo</div>
+                          <div className="relative w-30 h-36 rounded-lg overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200 border-2 border-gray-300 shadow-inner">
+                            <img 
+                              src={imageSrc}
+                              alt="Passport Photo"
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                // Fallback if image fails to load
+                                const target = e.target as HTMLImageElement;
+                                target.style.display = 'none';
+                                const fallback = target.parentElement?.querySelector('.fallback-icon') as HTMLElement;
+                                if (fallback) fallback.style.display = 'flex';
+                              }}
+                            />
+                            <div className="fallback-icon w-full h-full hidden items-center justify-center text-gray-400 bg-gray-100">
+                              <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                              </svg>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ) : null;
+                  })()}
+                </div>
                 <div className="space-y-2 text-sm text-gray-900">
                   <div className="text-gray-900 flex items-center gap-2">
                     <span className="font-medium text-gray-900">Name:</span>
@@ -604,6 +681,18 @@ export default function AdminDashboard() {
                   <div className="text-gray-900"><span className="font-medium text-gray-900">First Appointment:</span> <span className="text-gray-900">{new Date(selectedPensioner.dateOfFirstAppointment).toLocaleDateString()}</span></div>
                   <div className="text-gray-900"><span className="font-medium text-gray-900">Retirement Date:</span> <span className="text-gray-900">{new Date(selectedPensioner.dateOfRetirement).toLocaleDateString()}</span></div>
                   <div className="text-gray-900"><span className="font-medium text-gray-900">Last Salary:</span> <span className="text-gray-900">₦{selectedPensioner.salary?.toLocaleString()}</span></div>
+                  {selectedPensioner.organizationStarted && (
+                    <div className="text-gray-900"><span className="font-medium text-gray-900">Organization Started With:</span> <span className="text-gray-900">{selectedPensioner.organizationStarted}</span></div>
+                  )}
+                  {selectedPensioner.organizationEnded && (
+                    <div className="text-gray-900"><span className="font-medium text-gray-900">Organization Ended With:</span> <span className="text-gray-900">{selectedPensioner.organizationEnded}</span></div>
+                  )}
+                  {selectedPensioner.unitStarted && (
+                    <div className="text-gray-900"><span className="font-medium text-gray-900">Unit Started With:</span> <span className="text-gray-900">{selectedPensioner.unitStarted}</span></div>
+                  )}
+                  {selectedPensioner.unitEnded && (
+                    <div className="text-gray-900"><span className="font-medium text-gray-900">Unit Ended With:</span> <span className="text-gray-900">{selectedPensioner.unitEnded}</span></div>
+                  )}
                 </div>
               </div>
 
@@ -1169,13 +1258,15 @@ function PensionerManagement({
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                         pensioner.status === 'VERIFIED' 
                           ? 'bg-green-100 text-green-800' 
-                          : pensioner.status === 'PENDING'
+                          : pensioner.status === 'PENDING_VERIFICATION' || pensioner.status === 'PENDING'
                           ? 'bg-yellow-100 text-yellow-800'
                           : pensioner.status === 'FLAGGED'
                           ? 'bg-red-100 text-red-800'
+                          : pensioner.status === 'REJECTED'
+                          ? 'bg-red-100 text-red-800'
                           : 'bg-gray-100 text-gray-800'
                       }`}>
-                        {pensioner.status}
+                        {pensioner.status === 'PENDING_VERIFICATION' ? 'PENDING' : pensioner.status}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">

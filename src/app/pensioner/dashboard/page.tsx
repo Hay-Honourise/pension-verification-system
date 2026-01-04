@@ -872,6 +872,30 @@ export default function PensionerDashboard() {
                 <span className="font-medium text-gray-700">Email:</span>
                 <span className="ml-2 text-gray-900">{user.email}</span>
               </div>
+              {user.organizationStarted && (
+                <div>
+                  <span className="font-medium text-gray-700">Organization Started With:</span>
+                  <span className="ml-2 text-gray-900">{user.organizationStarted}</span>
+                </div>
+              )}
+              {user.organizationEnded && (
+                <div>
+                  <span className="font-medium text-gray-700">Organization Ended With:</span>
+                  <span className="ml-2 text-gray-900">{user.organizationEnded}</span>
+                </div>
+              )}
+              {user.unitStarted && (
+                <div>
+                  <span className="font-medium text-gray-700">Unit Started With:</span>
+                  <span className="ml-2 text-gray-900">{user.unitStarted}</span>
+                </div>
+              )}
+              {user.unitEnded && (
+                <div>
+                  <span className="font-medium text-gray-700">Unit Ended With:</span>
+                  <span className="ml-2 text-gray-900">{user.unitEnded}</span>
+                </div>
+              )}
               {user.currentLevel && (
                 <div>
                   <span className="font-medium text-gray-700">
@@ -890,6 +914,12 @@ export default function PensionerDashboard() {
                   <span className="ml-2 text-gray-900">
                     {formatCurrency(user.salary)}
                   </span>
+                </div>
+              )}
+              {user.passportUrl && (
+                <div>
+                  <span className="font-medium text-gray-700">Passport:</span>
+                  <span className="ml-2 text-blue-600 underline cursor-pointer hover:text-blue-800" onClick={() => window.open(user.passportUrl, '_blank')}>View Passport</span>
                 </div>
               )}
             </div>
