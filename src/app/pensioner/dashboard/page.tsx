@@ -22,6 +22,11 @@ interface User {
   currentLevel?: string;
   dateOfFirstAppointment?: string;
   dateOfRetirement?: string;
+  organizationStarted?: string;
+  organizationEnded?: string;
+  unitStarted?: string;
+  unitEnded?: string;
+  passportUrl?: string;
 }
 
 export default function PensionerDashboard() {
